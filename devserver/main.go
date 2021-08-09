@@ -14,10 +14,20 @@ import (
 	"github.com/spf13/pflag"
 )
 
-type handler struct{}
+type handler struct {
+	log *logrus.Logger
+}
 
-func (*handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	logrus.Infoln(r.URL)
+func (h *handler) logResponse(r *http.Request, status int, msg string) {
+	if status >= 400 {
+		h.log.Errorln(status, r.URL, msg)
+	} else {
+		h.log.Infoln(status, r.URL)
+	}
+}
+
+func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	h.logResponse(r, http.StatusNotFound, "Not found")
 	http.NotFound(w, r)
 }
 
@@ -36,7 +46,9 @@ func mainE() error {
 	if err != nil {
 		return fmt.Errorf("could not look up host: %v", err)
 	}
-	h := handler{}
+	h := handler{
+		log: log,
+	}
 	s := http.Server{
 		Handler:     &h,
 		BaseContext: func(_ net.Listener) context.Context { return ctx },

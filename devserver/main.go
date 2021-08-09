@@ -117,8 +117,12 @@ func serveKnownFile(w http.ResponseWriter, r *http.Request, filename string) {
 	http.ServeContent(w, r, filename, st.ModTime(), fp)
 }
 
-func serveMain(w http.ResponseWriter, r *http.Request) {
+func serveIndex(w http.ResponseWriter, r *http.Request) {
 	serveKnownFile(w, r, "demo/index.html")
+}
+
+func serveScript(w http.ResponseWriter, r *http.Request) {
+	serveKnownFile(w, r, "demo/main.js")
 }
 
 func serveNotFound(w http.ResponseWriter, r *http.Request) {
@@ -145,7 +149,8 @@ func mainE() error {
 		return fmt.Errorf("could not look up host: %v", err)
 	}
 	mx := chi.NewMux()
-	mx.Get("/", serveMain)
+	mx.Get("/", serveIndex)
+	mx.Get("/main.js", serveScript)
 	mx.NotFound(serveNotFound)
 	s := http.Server{
 		Handler:     mx,

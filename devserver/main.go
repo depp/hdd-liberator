@@ -17,6 +17,28 @@ import (
 	"github.com/spf13/pflag"
 )
 
+// chdirRoot changes the current directory to the root of the project. Looks
+// upwards from the current directory.
+func chdirRoot() error {
+	const (
+		maxDepth = 10       // Maximum number of directories to search before giving up.
+		rootFile = "go.mod" // A file in root directory, and not in other directories.
+	)
+	for i := 0; i < maxDepth; i++ {
+		switch _, err := os.Stat(rootFile); {
+		case err == nil:
+			return nil
+		case os.IsNotExist(err):
+		default:
+			return err
+		}
+		if err := os.Chdir(".."); err != nil {
+			return err
+		}
+	}
+	return errors.New("could not find project root directory")
+}
+
 const (
 	htmlType = "text/html; charset=UTF-8"
 	textType = "text/plain; charset=UTF-8"
@@ -72,11 +94,31 @@ func serveStatus(w http.ResponseWriter, r *http.Request, status int, msg string)
 	w.Write(b.Bytes())
 }
 
-func serveMain(w http.ResponseWriter, r *http.Request) {
+func serveErrorf(w http.ResponseWriter, r *http.Request, format string, a ...interface{}) {
+	const status = http.StatusInternalServerError
+	msg := fmt.Sprintf(format, a...)
+	logResponse(r, status, msg)
+	serveStatus(w, r, status, msg)
+}
+
+func serveKnownFile(w http.ResponseWriter, r *http.Request, filename string) {
+	fp, err := os.Open(filename)
+	if err != nil {
+		serveErrorf(w, r, "%v", err)
+		return
+	}
+	defer fp.Close()
+	st, err := fp.Stat()
+	if err != nil {
+		serveErrorf(w, r, "%v", err)
+		return
+	}
 	logResponse(r, http.StatusOK, "")
-	hdr := w.Header()
-	hdr.Set("Content-Type", textType)
-	w.Write([]byte("Main page"))
+	http.ServeContent(w, r, filename, st.ModTime(), fp)
+}
+
+func serveMain(w http.ResponseWriter, r *http.Request) {
+	serveKnownFile(w, r, "demo/index.html")
 }
 
 func serveNotFound(w http.ResponseWriter, r *http.Request) {
@@ -92,6 +134,9 @@ func mainE() error {
 		return fmt.Errorf("unexpected argument: %q", args[0])
 	}
 
+	if err := chdirRoot(); err != nil {
+		return err
+	}
 	ctx := context.Background()
 	log := logrus.StandardLogger()
 	rslv := net.DefaultResolver

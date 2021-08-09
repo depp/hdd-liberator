@@ -1,9 +1,11 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
+	"html/template"
 	"net"
 	"net/http"
 	"net/url"
@@ -16,8 +18,22 @@ import (
 )
 
 const (
+	htmlType = "text/html; charset=UTF-8"
 	textType = "text/plain; charset=UTF-8"
 )
+
+var statusTemplate = template.Must(template.New("status").Parse(`<!doctype HTML>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <title>{{.Status}} {{.StatusText}}</title>
+  </head>
+  <body>
+    <h1>{{.Status}} {{.StatusText}}</h1>
+	{{if .Message}}<p>{{.Message}}</p>{{end}}
+  </body>
+</html>
+`))
 
 func logResponse(r *http.Request, status int, msg string) {
 	if status >= 400 {
@@ -30,6 +46,32 @@ func logResponse(r *http.Request, status int, msg string) {
 	}
 }
 
+func serveStatus(w http.ResponseWriter, r *http.Request, status int, msg string) {
+	var b bytes.Buffer
+	type tdata struct {
+		Status     int
+		StatusText string
+		Message    string
+	}
+	d := tdata{
+		Status:     status,
+		StatusText: http.StatusText(status),
+		Message:    msg,
+	}
+	ctype := htmlType
+	if err := statusTemplate.Execute(&b, &d); err != nil {
+		logrus.Errorln("statusTemplate.Execute:", err)
+		b.Reset()
+		ctype = textType
+		fmt.Fprintf(&b, "%d %s\n%s\n", d.Status, d.StatusText, d.Message)
+	}
+	hdr := w.Header()
+	hdr.Set("Content-Type", ctype)
+	hdr.Set("Content-Length", strconv.Itoa(b.Len()))
+	w.WriteHeader(status)
+	w.Write(b.Bytes())
+}
+
 func serveMain(w http.ResponseWriter, r *http.Request) {
 	logResponse(r, http.StatusOK, "")
 	hdr := w.Header()
@@ -39,7 +81,7 @@ func serveMain(w http.ResponseWriter, r *http.Request) {
 
 func serveNotFound(w http.ResponseWriter, r *http.Request) {
 	logResponse(r, http.StatusNotFound, "")
-	http.NotFound(w, r)
+	serveStatus(w, r, http.StatusNotFound, fmt.Sprintf("Page not found: %q", r.URL))
 }
 
 func mainE() error {

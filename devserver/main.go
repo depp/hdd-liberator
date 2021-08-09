@@ -125,6 +125,10 @@ func serveScript(w http.ResponseWriter, r *http.Request) {
 	serveKnownFile(w, r, "demo/main.js")
 }
 
+func serveFavicon(w http.ResponseWriter, r *http.Request) {
+	serveKnownFile(w, r, "favicon.ico")
+}
+
 func serveNotFound(w http.ResponseWriter, r *http.Request) {
 	logResponse(r, http.StatusNotFound, "")
 	serveStatus(w, r, http.StatusNotFound, fmt.Sprintf("Page not found: %q", r.URL))
@@ -150,6 +154,7 @@ func mainE() error {
 	}
 	mx := chi.NewMux()
 	mx.Get("/", serveIndex)
+	mx.Get("/favicon.ico", serveFavicon)
 	mx.Get("/main.js", serveScript)
 	mx.NotFound(serveNotFound)
 	s := http.Server{

@@ -10,24 +10,35 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/go-chi/chi/v5"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 )
 
-type handler struct {
-	log *logrus.Logger
-}
+const (
+	textType = "text/plain; charset=UTF-8"
+)
 
-func (h *handler) logResponse(r *http.Request, status int, msg string) {
+func logResponse(r *http.Request, status int, msg string) {
 	if status >= 400 {
-		h.log.Errorln(status, r.URL, msg)
+		if msg == "" {
+			msg = http.StatusText(status)
+		}
+		logrus.Errorln(status, r.URL, msg)
 	} else {
-		h.log.Infoln(status, r.URL)
+		logrus.Infoln(status, r.URL)
 	}
 }
 
-func (h *handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	h.logResponse(r, http.StatusNotFound, "Not found")
+func serveMain(w http.ResponseWriter, r *http.Request) {
+	logResponse(r, http.StatusOK, "")
+	hdr := w.Header()
+	hdr.Set("Content-Type", textType)
+	w.Write([]byte("Main page"))
+}
+
+func serveNotFound(w http.ResponseWriter, r *http.Request) {
+	logResponse(r, http.StatusNotFound, "")
 	http.NotFound(w, r)
 }
 
@@ -46,11 +57,11 @@ func mainE() error {
 	if err != nil {
 		return fmt.Errorf("could not look up host: %v", err)
 	}
-	h := handler{
-		log: log,
-	}
+	mx := chi.NewMux()
+	mx.Get("/", serveMain)
+	mx.NotFound(serveNotFound)
 	s := http.Server{
-		Handler:     &h,
+		Handler:     mx,
 		BaseContext: func(_ net.Listener) context.Context { return ctx },
 	}
 	var root *url.URL

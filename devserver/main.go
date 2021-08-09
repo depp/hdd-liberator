@@ -44,7 +44,7 @@ const (
 	textType = "text/plain; charset=UTF-8"
 )
 
-var statusTemplate = template.Must(template.New("status").Parse(`<!doctype HTML>
+var statusTemplate = template.Must(template.New("status").Parse(`<!DOCTYPE html>
 <html lang="en">
   <head>
     <meta charset="UTF-8">

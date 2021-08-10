@@ -1,0 +1,6 @@
+{
+  "private": true,
+  "dependencies": {
+    "google-closure-compiler-java": "^20210601.0.0"
+  }
+}

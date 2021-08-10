@@ -2,6 +2,9 @@
   "editor.rulers": [80],
   "editor.detectIndentation": false,
   "editor.tabSize": 2,
+  "files.exclude": {
+    "node_modules": true
+  },
   "[go]": {
     "editor.rulers": [100],
     "editor.tabSize": 4

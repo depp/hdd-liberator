@@ -6,11 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
@@ -131,8 +131,27 @@ func serveFavicon(w http.ResponseWriter, r *http.Request) {
 	serveKnownFile(w, r, "favicon.ico")
 }
 
+func buildScript() ([]byte, error) {
+	proc := exec.Command(
+		"java", "-jar", "node_modules/google-closure-compiler-java/compiler.jar",
+		"--compilation_level", "ADVANCED",
+		"--language_in", "ECMASCRIPT_2020",
+		"--language_out", "ECMASCRIPT_2020",
+		"--assume_function_wrapper",
+		"--use_types_for_optimization",
+		"demo/main.js",
+	)
+	var out bytes.Buffer
+	proc.Stdout = &out
+	proc.Stderr = os.Stderr
+	if err := proc.Run(); err != nil {
+		return nil, err
+	}
+	return out.Bytes(), nil
+}
+
 func buildRelease() ([]byte, error) {
-	data, err := ioutil.ReadFile("demo/main.js")
+	data, err := buildScript()
 	if err != nil {
 		return nil, err
 	}

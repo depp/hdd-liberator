@@ -3,31 +3,41 @@ package html
 import "testing"
 
 func TestCheckScript(t *testing.T) {
-	cases := []string{
-		"",
-		"<tag>",
-		"script",
+	type testcase struct {
+		ok   bool
+		text string
+	}
+	cases := []testcase{
+		{true, ""},
+		{true, "<tag>"},
+		{true, "script"},
+		{false, "<!--"},
+		{false, "<script"},
+		{false, "<SCRIPT"},
+		{false, "</script"},
+		{false, "</sCrIpT"},
 	}
 	for _, c := range cases {
-		if err := checkScript([]byte(c)); err != nil {
-			t.Errorf("checkScript(%q): %v (expect ok)", c, err)
-		}
-	}
-	cases = []string{
-		"<!--",
-		"<script",
-		"<SCRIPT",
-		"</script",
-		"</sCrIpT",
-	}
-	for _, c := range cases {
-		cases2 := []string{
-			c,
-			"prefix " + c + " suffix",
-		}
-		for _, c := range cases2 {
-			if checkScript([]byte(c)) == nil {
-				t.Errorf("checkScript(%q): ok (expect error)", c)
+		for i := 0; i < 2; i++ {
+			var w Writer
+			w.OpenTag("script")
+			if i == 1 {
+				w.Text("prefix ")
+			}
+			w.Text(c.text)
+			if i == 1 {
+				w.Text(" suffix")
+			}
+			w.CloseTag("script")
+			_, err := w.Finish()
+			if c.ok {
+				if err != nil {
+					t.Errorf("script %q: %v (expect ok)", c.text, err)
+				}
+			} else {
+				if err == nil {
+					t.Errorf("script %q: ok (expect err)", c.text)
+				}
 			}
 		}
 	}

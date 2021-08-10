@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
@@ -15,6 +16,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
+	"moria.us/js13k/html"
 )
 
 // chdirRoot changes the current directory to the root of the project. Looks
@@ -129,6 +131,46 @@ func serveFavicon(w http.ResponseWriter, r *http.Request) {
 	serveKnownFile(w, r, "favicon.ico")
 }
 
+func buildRelease() ([]byte, error) {
+	data, err := ioutil.ReadFile("demo/main.js")
+	if err != nil {
+		return nil, err
+	}
+
+	var w html.Writer
+
+	w.OpenTag("meta")
+	w.Attr("charset", "UTF-8")
+
+	w.OpenTag("title")
+	w.Text("JS13K Demo")
+	w.CloseTag("title")
+
+	w.OpenTag("canvas")
+	w.Attr("id", "g")
+	w.CloseTag("canvas")
+
+	w.OpenTag("script")
+	w.Attr("type", "module")
+	w.Text(string(data))
+	w.CloseTag("script")
+
+	return w.Finish()
+}
+
+func serveRelease(w http.ResponseWriter, r *http.Request) {
+	data, err := buildRelease()
+	if err != nil {
+		serveErrorf(w, r, "Could not build: %v", err)
+		return
+	}
+	logResponse(r, http.StatusOK, "")
+	hdr := w.Header()
+	hdr.Set("Content-Type", htmlType)
+	hdr.Set("Content-Length", strconv.Itoa(len(data)))
+	w.Write(data)
+}
+
 func serveNotFound(w http.ResponseWriter, r *http.Request) {
 	logResponse(r, http.StatusNotFound, "")
 	serveStatus(w, r, http.StatusNotFound, fmt.Sprintf("Page not found: %q", r.URL))
@@ -156,6 +198,7 @@ func mainE() error {
 	mx.Get("/", serveIndex)
 	mx.Get("/favicon.ico", serveFavicon)
 	mx.Get("/main.js", serveScript)
+	mx.Get("/release", serveRelease)
 	mx.NotFound(serveNotFound)
 	s := http.Server{
 		Handler:     mx,

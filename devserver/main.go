@@ -11,40 +11,23 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
+
 	"moria.us/js13k/html"
 )
-
-// chdirRoot changes the current directory to the root of the project. Looks
-// upwards from the current directory.
-func chdirRoot() error {
-	const (
-		maxDepth = 10       // Maximum number of directories to search before giving up.
-		rootFile = "go.mod" // A file in root directory, and not in other directories.
-	)
-	for i := 0; i < maxDepth; i++ {
-		switch _, err := os.Stat(rootFile); {
-		case err == nil:
-			return nil
-		case os.IsNotExist(err):
-		default:
-			return err
-		}
-		if err := os.Chdir(".."); err != nil {
-			return err
-		}
-	}
-	return errors.New("could not find project root directory")
-}
 
 const (
 	htmlType = "text/html; charset=UTF-8"
 	textType = "text/plain; charset=UTF-8"
 )
+
+// workspaceRoot is the path root workspace directory.
+var workspaceRoot string
 
 var statusTemplate = template.Must(template.New("status").Parse(`<!DOCTYPE html>
 <html lang="en">
@@ -104,7 +87,7 @@ func serveErrorf(w http.ResponseWriter, r *http.Request, format string, a ...int
 }
 
 func serveKnownFile(w http.ResponseWriter, r *http.Request, filename string) {
-	fp, err := os.Open(filename)
+	fp, err := os.Open(filepath.Join(workspaceRoot, filename))
 	if err != nil {
 		serveErrorf(w, r, "%v", err)
 		return
@@ -144,6 +127,7 @@ func buildScript() ([]byte, error) {
 	var out bytes.Buffer
 	proc.Stdout = &out
 	proc.Stderr = os.Stderr
+	proc.Dir = workspaceRoot
 	if err := proc.Run(); err != nil {
 		return nil, err
 	}
@@ -203,8 +187,9 @@ func mainE() error {
 		return fmt.Errorf("unexpected argument: %q", args[0])
 	}
 
-	if err := chdirRoot(); err != nil {
-		return err
+	workspaceRoot = os.Getenv("BUILD_WORKSPACE_DIRECTORY")
+	if workspaceRoot == "" {
+		return errors.New("BUILD_WORKSPACE_DIRECTORY is not set (this must be run from Bazel)")
 	}
 	ctx := context.Background()
 	log := logrus.StandardLogger()

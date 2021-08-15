@@ -4,10 +4,12 @@ java_binary(
     name = "compiler",
     srcs = [
         "us/moria/js13k/CompilerDaemon.java",
+        "us/moria/js13k/ProtoErrorManager.java",
     ],
     main_class = "us.moria.js13k.CompilerDaemon",
     visibility = ["//visibility:public"],
     deps = [
         "//:closure",
+        "//proto/compiler:compiler_java_proto",
     ],
 )

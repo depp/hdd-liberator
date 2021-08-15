@@ -7,16 +7,148 @@ import com.google.javascript.jscomp.Compiler;
 import com.google.javascript.jscomp.CompilerOptions;
 import com.google.javascript.jscomp.SourceFile;
 import com.google.javascript.jscomp.WarningLevel;
+import com.google.protobuf.ByteString;
+import com.google.protobuf.CodedOutputStream;
 
+import java.io.EOFException;
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.channels.Channels;
+import java.nio.channels.ReadableByteChannel;
+import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Scanner;
 
 public class CompilerDaemon {
+    final static int MAX_MESSAGE_SIZE = 64 * 1024 * 1024;
+
+    private ByteBuffer ioBuffer;
+
+    private final ReadableByteChannel in;
+
+    private final WritableByteChannel out;
+
+    private final CompilerOptions options;
+
+    private final List<SourceFile> externs;
+
+    private final List<SourceFile> sources;
+
+    CompilerDaemon(Path root) {
+        ioBuffer = ByteBuffer.allocateDirect(8 * 1024);
+        in = Channels.newChannel(System.in);
+        out = Channels.newChannel(System.out);
+        options = getCompilerOptions();
+        externs = new ArrayList<>();
+        try {
+            externs.addAll(AbstractCommandLineRunner.getBuiltinExterns(CompilerOptions.Environment.BROWSER));
+        } catch (IOException e) {
+            System.err.println("Error: Could not load externs: " + e);
+            System.exit(1);
+        }
+        sources = new ArrayList<>();
+        sources.add(SourceFile.fromPath(root.resolve("demo/main.js"), StandardCharsets.UTF_8));
+    }
+
+    private void run() {
+        while (true) {
+            CompilerProtos.BuildRequest request;
+            try {
+                request = readMessage();
+                if (request == null) {
+                    return;
+                }
+            } catch (IOException e) {
+                System.err.println("Error: read: " + e);
+                System.exit(1);
+                return;
+            }
+            CompilerProtos.BuildResponse response = compile(request);
+            try {
+                writeMessage(response);
+            } catch (IOException e) {
+                System.err.println("Error: write: " + e);
+                System.exit(1);
+                return;
+            }
+        }
+    }
+
+    private void setBufferSize(int size) {
+        if (size > MAX_MESSAGE_SIZE) {
+            System.err.println("Error: message too large: " + size);
+            System.exit(1);
+        }
+        if (size > ioBuffer.capacity()) {
+            ioBuffer = ByteBuffer.allocateDirect(ceilPow2(size));
+        }
+        ioBuffer.clear().limit(size);
+    }
+
+    private void read(int size) throws IOException {
+        setBufferSize(size);
+        while (ioBuffer.remaining() > 0) {
+            in.read(ioBuffer);
+        }
+        ioBuffer.position(0);
+    }
+
+    private CompilerProtos.BuildRequest readMessage() throws IOException {
+        try {
+            read(4);
+        } catch (EOFException e) {
+            if (ioBuffer.position() == 0) {
+                return null;
+            }
+            throw e;
+        }
+        int length = ioBuffer.getInt();
+        read(length);
+        return CompilerProtos.BuildRequest.parseFrom(ioBuffer);
+    }
+
+    private void writeMessage(CompilerProtos.BuildResponse response) throws IOException {
+        int size = response.getSerializedSize();
+        setBufferSize(size + 4);
+        ioBuffer.putInt(size);
+        response.writeTo(CodedOutputStream.newInstance(ioBuffer));
+        ioBuffer.position(0);
+        while (ioBuffer.remaining() > 0) {
+            out.write(ioBuffer);
+        }
+    }
+
+    private CompilerProtos.BuildResponse compile(CompilerProtos.BuildRequest request) {
+        CompilerProtos.BuildResponse.Builder response = CompilerProtos.BuildResponse.newBuilder();
+        final Compiler compiler = new Compiler();
+        compiler.setErrorManager(new ProtoErrorManager(response));
+        compiler.initOptions(options);
+        if (compiler.hasErrors()) {
+            return response.build();
+        }
+        compiler.compile(externs, sources, options);
+        if (!compiler.hasErrors()) {
+            response.setCode(ByteString.copyFromUtf8(compiler.toSource()));
+        }
+        return response.build();
+    }
+
+    static int ceilPow2(int x) throws ArithmeticException {
+        if (x > (1 << 30)) {
+            throw new ArithmeticException("number too large: " + x);
+        }
+        x -= 1;
+        x |= x >> 1;
+        x |= x >> 2;
+        x |= x >> 4;
+        x |= x >> 8;
+        x |= x >> 16;
+        return x + 1;
+    }
+
     private static CompilerOptions getCompilerOptions() {
         CompilerOptions options = new CompilerOptions();
 
@@ -61,34 +193,7 @@ public class CompilerDaemon {
 
     public static void main(String[] args) {
         Path root = getRoot();
-        final CompilerOptions options = getCompilerOptions();
-        final List<SourceFile> externs = new ArrayList<>();
-        try {
-            externs.addAll(AbstractCommandLineRunner.getBuiltinExterns(CompilerOptions.Environment.BROWSER));
-        } catch (IOException e) {
-            System.err.println("Error: Could not load externs: " + e);
-            System.exit(1);
-        }
-        final List<SourceFile> sources = new ArrayList<>();
-        sources.add(SourceFile.fromPath(root.resolve("demo/main.js"), StandardCharsets.UTF_8));
-        Scanner input = new Scanner(System.in);
-        while (true) {
-            input.nextLine();
-            final Compiler compiler = new Compiler();
-            compiler.initOptions(options);
-            if (compiler.hasErrors()) {
-                return;
-            }
-            compiler.compile(externs, sources, options);
-            String code = compiler.toSource();
-            byte[] data = code.getBytes(StandardCharsets.UTF_8);
-            System.out.println(data.length);
-            try {
-                System.out.write(data);
-            } catch (IOException e) {
-                System.err.println("Error: Could not write output: " + e);
-                System.exit(1);
-            }
-        }
+        CompilerDaemon daemon = new CompilerDaemon(root);
+        daemon.run();
     }
 }

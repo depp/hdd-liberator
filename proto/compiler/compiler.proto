@@ -1,0 +1,34 @@
+syntax = "proto3";
+package compiler;
+
+option java_package = "us.moria.js13k";
+option java_outer_classname = "CompilerProtos";
+
+message BuildRequest {
+  enum Config {
+    UNKNOWN = 0;
+    DEVELOPMENT = 1;
+    RELEASE = 2;
+  }
+  Config config = 1;
+}
+
+message Diagnostic {
+  enum Severity {
+    UNKNOWN = 0;
+    ERROR = 1;
+    WARNING = 2;
+    NOTICE = 3;
+  }
+  Severity severity = 1;
+  string message = 2;
+  string file = 3;
+  uint32 line = 4;
+  uint32 column = 5;
+}
+
+message BuildResponse {
+  bytes code = 1;
+  bytes source_map = 2;
+  repeated Diagnostic diagnostic = 3;
+}

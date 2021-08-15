@@ -9,5 +9,11 @@
     "editor.rulers": [100],
     "editor.tabSize": 4
   },
+  "[java]": {
+    "editor.tabSize": 4
+  },
+  "[starlark]": {
+    "editor.tabSize": 4
+  },
   "rewrap.wrappingColumn": 80
 }

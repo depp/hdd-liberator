@@ -1,0 +1,12 @@
+load("@rules_java//java:defs.bzl", "java_binary")
+
+java_binary(
+    name = "compiler",
+    srcs = [
+        "us/moria/js13k/CompilerDaemon.java",
+    ],
+    main_class = "us.moria.js13k.CompilerDaemon",
+    deps = [
+        "//:closure",
+    ],
+)

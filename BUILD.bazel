@@ -1,0 +1,9 @@
+load("@rules_java//java:defs.bzl", "java_import")
+
+java_import(
+    name = "closure",
+    jars = [
+        "node_modules/google-closure-compiler-java/compiler.jar",
+    ],
+    visibility = ["//visibility:public"],
+)

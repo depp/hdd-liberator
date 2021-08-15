@@ -156,7 +156,7 @@ public class CompilerDaemon {
         options.setLanguageIn(CompilerOptions.LanguageMode.ECMASCRIPT_2020);
         options.setLanguageIn(CompilerOptions.LanguageMode.ECMASCRIPT_2020);
         options.setStrictModeInput(true);
-        options.setChunkOutputType(CompilerOptions.ChunkOutputType.ES_MODULES);
+        options.setChunkOutputType(CompilerOptions.ChunkOutputType.GLOBAL_NAMESPACE);
         options.setEmitUseStrict(false);
 
         // Set -ADVANCED_OPTIMIZATIONS.

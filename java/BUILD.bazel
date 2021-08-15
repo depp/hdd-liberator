@@ -6,6 +6,7 @@ java_binary(
         "us/moria/js13k/CompilerDaemon.java",
     ],
     main_class = "us.moria.js13k.CompilerDaemon",
+    visibility = ["//visibility:public"],
     deps = [
         "//:closure",
     ],

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
+	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
@@ -115,19 +116,10 @@ func serveFavicon(w http.ResponseWriter, r *http.Request) {
 }
 
 func buildScript() ([]byte, error) {
-	proc := exec.Command(
-		"java", "-jar", "node_modules/google-closure-compiler-java/compiler.jar",
-		"--compilation_level", "ADVANCED",
-		"--language_in", "ECMASCRIPT_2020",
-		"--language_out", "ECMASCRIPT_2020",
-		"--assume_function_wrapper",
-		"--use_types_for_optimization",
-		"demo/main.js",
-	)
+	proc := exec.Command("java/compiler")
 	var out bytes.Buffer
 	proc.Stdout = &out
 	proc.Stderr = os.Stderr
-	proc.Dir = workspaceRoot
 	if err := proc.Run(); err != nil {
 		return nil, err
 	}
@@ -243,6 +235,10 @@ func mainE() error {
 }
 
 func main() {
+	fs, _ := ioutil.ReadDir("java")
+	for _, f := range fs {
+		fmt.Println(f.Name(), f.Mode()&os.ModeType)
+	}
 	if err := mainE(); err != nil {
 		logrus.Error(err)
 		os.Exit(1)

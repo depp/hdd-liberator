@@ -1,3 +1,4 @@
+load("@bazel_gazelle//:def.bzl", "gazelle")
 load("@rules_java//java:defs.bzl", "java_import")
 
 java_import(
@@ -7,3 +8,6 @@ java_import(
     ],
     visibility = ["//visibility:public"],
 )
+
+# gazelle:prefix moria.us/js13k
+gazelle(name = "gazelle")

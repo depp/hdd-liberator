@@ -6,12 +6,10 @@ import (
 	"errors"
 	"fmt"
 	"html/template"
-	"io/ioutil"
 	"net"
 	"net/http"
 	"net/url"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strconv"
 
@@ -29,6 +27,28 @@ const (
 
 // workspaceRoot is the path root workspace directory.
 var workspaceRoot string
+
+type contextKey struct{}
+
+func (contextKey) String() string {
+	return "devserver context key"
+}
+
+type handler struct {
+	script script
+}
+
+func getHandler(ctx context.Context) *handler {
+	val := ctx.Value(contextKey{})
+	if val == nil {
+		panic("missing context key")
+	}
+	v, ok := val.(*handler)
+	if !ok {
+		panic("context key has wrong value")
+	}
+	return v
+}
 
 var statusTemplate = template.Must(template.New("status").Parse(`<!DOCTYPE html>
 <html lang="en">
@@ -115,19 +135,8 @@ func serveFavicon(w http.ResponseWriter, r *http.Request) {
 	serveKnownFile(w, r, "favicon.ico")
 }
 
-func buildScript() ([]byte, error) {
-	proc := exec.Command("java/compiler")
-	var out bytes.Buffer
-	proc.Stdout = &out
-	proc.Stderr = os.Stderr
-	if err := proc.Run(); err != nil {
-		return nil, err
-	}
-	return out.Bytes(), nil
-}
-
-func buildRelease() ([]byte, error) {
-	data, err := buildScript()
+func buildRelease(ctx context.Context, h *handler) ([]byte, error) {
+	data, err := h.script.build(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -154,7 +163,9 @@ func buildRelease() ([]byte, error) {
 }
 
 func serveRelease(w http.ResponseWriter, r *http.Request) {
-	data, err := buildRelease()
+	ctx := r.Context()
+	h := getHandler(ctx)
+	data, err := buildRelease(ctx, h)
 	if err != nil {
 		serveErrorf(w, r, "Could not build: %v", err)
 		return
@@ -190,6 +201,8 @@ func mainE() error {
 	if err != nil {
 		return fmt.Errorf("could not look up host: %v", err)
 	}
+	var h handler
+	ctx = context.WithValue(ctx, contextKey{}, &h)
 	mx := chi.NewMux()
 	mx.Get("/", serveIndex)
 	mx.Get("/favicon.ico", serveFavicon)
@@ -235,10 +248,6 @@ func mainE() error {
 }
 
 func main() {
-	fs, _ := ioutil.ReadDir("java")
-	for _, f := range fs {
-		fmt.Println(f.Name(), f.Mode()&os.ModeType)
-	}
 	if err := mainE(); err != nil {
 		logrus.Error(err)
 		os.Exit(1)

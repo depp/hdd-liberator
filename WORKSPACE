@@ -19,6 +19,9 @@ http_archive(
 )
 
 load("@io_bazel_rules_go//go:deps.bzl", "go_register_toolchains", "go_rules_dependencies")
+
+go_rules_dependencies()
+
 load("@bazel_gazelle//:deps.bzl", "gazelle_dependencies", "go_repository")
 
 go_repository(
@@ -69,8 +72,6 @@ go_repository(
     sum = "h1:YyJpGZS1sBuBCzLAR1VEpK193GlqGZbnPFnPV/5Rsb4=",
     version = "v0.0.0-20191026070338-33540a1f6037",
 )
-
-go_rules_dependencies()
 
 go_register_toolchains(version = "1.16.5")
 

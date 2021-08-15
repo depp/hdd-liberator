@@ -14,6 +14,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Scanner;
 
 public class CompilerDaemon {
     private static CompilerOptions getCompilerOptions() {
@@ -59,12 +60,7 @@ public class CompilerDaemon {
 
     public static void main(String[] args) {
         Path root = getRoot();
-        final Compiler compiler = new Compiler();
         final CompilerOptions options = getCompilerOptions();
-        compiler.initOptions(options);
-        if (compiler.hasErrors()) {
-            return;
-        }
         final List<SourceFile> externs = new ArrayList<>();
         try {
             externs.addAll(AbstractCommandLineRunner.getBuiltinExterns(CompilerOptions.Environment.BROWSER));
@@ -74,8 +70,24 @@ public class CompilerDaemon {
         }
         final List<SourceFile> sources = new ArrayList<>();
         sources.add(SourceFile.fromPath(root.resolve("demo/main.js"), StandardCharsets.UTF_8));
-        compiler.compile(externs, sources, options);
-        String code = compiler.toSource();
-        System.out.println(code);
+        Scanner input = new Scanner(System.in);
+        while (true) {
+            input.nextLine();
+            final Compiler compiler = new Compiler();
+            compiler.initOptions(options);
+            if (compiler.hasErrors()) {
+                return;
+            }
+            compiler.compile(externs, sources, options);
+            String code = compiler.toSource();
+            byte[] data = code.getBytes(StandardCharsets.UTF_8);
+            System.out.println(data.length);
+            try {
+                System.out.write(data);
+            } catch (IOException e) {
+                System.err.println("Error: Could not write output: " + e);
+                System.exit(1);
+            }
+        }
     }
 }

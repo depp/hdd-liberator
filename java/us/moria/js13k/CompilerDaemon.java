@@ -25,6 +25,7 @@ public class CompilerDaemon {
         options.setLanguageIn(CompilerOptions.LanguageMode.ECMASCRIPT_2020);
         options.setStrictModeInput(true);
         options.setChunkOutputType(CompilerOptions.ChunkOutputType.ES_MODULES);
+        options.setEmitUseStrict(false);
 
         // Set -ADVANCED_OPTIMIZATIONS.
         final CompilationLevel level = CompilationLevel.ADVANCED_OPTIMIZATIONS;

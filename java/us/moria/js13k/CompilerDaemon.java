@@ -25,6 +25,8 @@ import java.util.List;
 public class CompilerDaemon {
     final static int MAX_MESSAGE_SIZE = 64 * 1024 * 1024;
 
+    private final Path root;
+
     private ByteBuffer ioBuffer;
 
     private final ReadableByteChannel in;
@@ -35,9 +37,8 @@ public class CompilerDaemon {
 
     private final List<SourceFile> externs;
 
-    private final List<SourceFile> sources;
-
     CompilerDaemon(Path root) {
+        this.root = root;
         ioBuffer = ByteBuffer.allocateDirect(8 * 1024);
         in = Channels.newChannel(System.in);
         out = Channels.newChannel(System.out);
@@ -49,8 +50,6 @@ public class CompilerDaemon {
             System.err.println("Error: Could not load externs: " + e);
             System.exit(1);
         }
-        sources = new ArrayList<>();
-        sources.add(SourceFile.fromPath(root.resolve("demo/main.js"), StandardCharsets.UTF_8));
     }
 
     private void run() {
@@ -123,6 +122,18 @@ public class CompilerDaemon {
 
     private CompilerProtos.BuildResponse compile(CompilerProtos.BuildRequest request) {
         CompilerProtos.BuildResponse.Builder response = CompilerProtos.BuildResponse.newBuilder();
+        final List<SourceFile> sources = new ArrayList<>();
+        for (String source : request.getFileList()) {
+            sources.add(SourceFile.fromPath(root.resolve(source), StandardCharsets.UTF_8));
+        }
+        if (sources.size() == 0) {
+            response.addDiagnostic(
+                    CompilerProtos.Diagnostic.newBuilder()
+                            .setSeverity(CompilerProtos.Diagnostic.Severity.ERROR)
+                            .setMessage("No source files")
+                            .build());
+            return response.build();
+        }
         final Compiler compiler = new Compiler();
         compiler.setErrorManager(new ProtoErrorManager(response));
         compiler.initOptions(options);

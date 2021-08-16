@@ -10,6 +10,7 @@ go_binary(
         "//java:compiler",
     ],
     deps = [
+        "//proto/compiler:compiler_go_proto",
         "//devserver/compiler",
         "//html",
         "@com_github_go_chi_chi_v5//:go_default_library",

@@ -18,6 +18,8 @@ import (
 	"github.com/spf13/pflag"
 
 	"moria.us/js13k/html"
+
+	pb "moria.us/js13k/proto/compiler"
 )
 
 const (
@@ -60,6 +62,24 @@ var statusTemplate = template.Must(template.New("status").Parse(`<!DOCTYPE html>
     <h1>{{.Status}} {{.StatusText}}</h1>
 	{{if .Message}}<p>{{.Message}}</p>{{end}}
   </body>
+</html>
+`))
+
+var buildErrorTemplate = template.Must(template.New("buildError").Parse(`<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <title>Build Failed</title>
+  </head>
+  <h1>Build Failed</h1>
+  <ul>
+    {{range .Diagnostics}}
+      <li>
+        {{- if .File}}{{.File}}:{{if .Line}}{{.Line}}:{{.Column}}:{{end}} {{end -}}
+        {{ .Message -}}
+      </li>
+    {{end}}
+  </ul>
 </html>
 `))
 
@@ -162,12 +182,34 @@ func buildRelease(ctx context.Context, h *handler) ([]byte, error) {
 	return w.Finish()
 }
 
+func serveBuildError(w http.ResponseWriter, r *http.Request, e *buildError) {
+	var buf bytes.Buffer
+	type edata struct {
+		Diagnostics []*pb.Diagnostic
+	}
+	if err := buildErrorTemplate.Execute(&buf, &edata{
+		Diagnostics: e.diagnostics,
+	}); err != nil {
+		serveErrorf(w, r, "buildErrorTemplate.Execute: %v", err)
+		return
+	}
+	logResponse(r, http.StatusInternalServerError, "Build failed")
+	hdr := w.Header()
+	hdr.Set("Content-Type", htmlType)
+	hdr.Set("Content-Length", strconv.Itoa(buf.Len()))
+	w.Write(buf.Bytes())
+}
+
 func serveRelease(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	h := getHandler(ctx)
 	data, err := buildRelease(ctx, h)
 	if err != nil {
-		serveErrorf(w, r, "Could not build: %v", err)
+		if e, ok := err.(*buildError); ok {
+			serveBuildError(w, r, e)
+		} else {
+			serveErrorf(w, r, "Could not build: %v", err)
+		}
 		return
 	}
 	logResponse(r, http.StatusOK, "")

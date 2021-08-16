@@ -10,7 +10,6 @@ import (
 	"syscall"
 
 	"golang.org/x/sys/unix"
-	"google.golang.org/protobuf/encoding/prototext"
 	"google.golang.org/protobuf/proto"
 
 	pb "moria.us/js13k/proto/compiler"
@@ -150,24 +149,14 @@ func (c *Compiler) readMessage() (*pb.BuildResponse, error) {
 	return &msg, nil
 }
 
-func (c *Compiler) Compile() ([]byte, error) {
+func (c *Compiler) Compile(req *pb.BuildRequest) (*pb.BuildResponse, error) {
 	if c.sock == nil {
 		if err := c.start(); err != nil {
 			return nil, err
 		}
 	}
-	if err := c.writeMessage(&pb.BuildRequest{}); err != nil {
+	if err := c.writeMessage(req); err != nil {
 		return nil, err
 	}
-	rsp, err := c.readMessage()
-	if err != nil {
-		return nil, err
-	}
-	t, err := prototext.Marshal(rsp)
-	if err != nil {
-		return nil, err
-	}
-	os.Stderr.Write(t)
-	os.Stderr.Write([]byte{'\n'})
-	return rsp.GetCode(), nil
+	return c.readMessage()
 }

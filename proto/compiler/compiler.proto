@@ -10,7 +10,8 @@ message BuildRequest {
     DEVELOPMENT = 1;
     RELEASE = 2;
   }
-  Config config = 1;
+  repeated string file = 1;
+  Config config = 2;
 }
 
 message Diagnostic {

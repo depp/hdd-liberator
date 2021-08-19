@@ -46,7 +46,8 @@ func (s *script) compile(ctx context.Context, req *pb.BuildRequest) (*pb.BuildRe
 		return nil, err
 	}
 	return s.compiler.Compile(&pb.BuildRequest{
-		File: []string{"demo/main.js"},
+		File:          []string{"demo/main.js"},
+		BaseDirectory: workspaceRoot,
 	})
 }
 

@@ -41,11 +41,6 @@ public class CompilerDaemon {
     final static int MAX_MESSAGE_SIZE = 64 * 1024 * 1024;
 
     /**
-     * Path to the workspace root directory.
-     */
-    private final Path root;
-
-    /**
      * Buffer used for communicating with the devserver. Resized as needed.
      */
     private ByteBuffer ioBuffer;
@@ -72,8 +67,7 @@ public class CompilerDaemon {
      */
     private final List<SourceFile> externs;
 
-    CompilerDaemon(Path root) {
-        this.root = root;
+    CompilerDaemon() {
         ioBuffer = ByteBuffer.allocateDirect(8 * 1024);
         in = Channels.newChannel(System.in);
         out = Channels.newChannel(System.out);
@@ -175,6 +169,7 @@ public class CompilerDaemon {
      * devserver.
      */
     private CompilerProtos.BuildResponse compile(CompilerProtos.BuildRequest request) {
+        final Path root = Path.of(request.getBaseDirectory());
         CompilerProtos.BuildResponse.Builder response = CompilerProtos.BuildResponse.newBuilder();
         final List<SourceFile> sources = new ArrayList<>();
         for (String source : request.getFileList()) {
@@ -258,21 +253,8 @@ public class CompilerDaemon {
         return options;
     }
 
-    /**
-     * Get the workspace root directory. This assumes that the JAR file was
-     * invoked from within Bazel, e.g., by the devserver.
-     */
-    private static Path getRoot() {
-        String workdir = System.getenv("BUILD_WORKING_DIRECTORY");
-        if (workdir != null) {
-            return Paths.get(workdir);
-        }
-        return Paths.get("").toAbsolutePath();
-    }
-
     public static void main(String[] args) {
-        Path root = getRoot();
-        CompilerDaemon daemon = new CompilerDaemon(root);
+        CompilerDaemon daemon = new CompilerDaemon();
         daemon.run();
     }
 }

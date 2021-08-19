@@ -50,11 +50,6 @@ public class CompilerDaemon {
     private final WritableByteChannel out;
 
     /**
-     * Closure compiler options.
-     */
-    private final CompilerOptions options;
-
-    /**
      * List of extern source files for the Closure compiler. These files are
      * typically part of the Closure compiler itself, stored inside the Closure
      * compiler library JAR file.
@@ -65,7 +60,6 @@ public class CompilerDaemon {
         ioBuffer = ByteBuffer.allocateDirect(8 * 1024);
         in = Channels.newChannel(System.in);
         out = Channels.newChannel(System.out);
-        options = getCompilerOptions();
         externs = new ArrayList<>();
         try {
             externs.addAll(AbstractCommandLineRunner.getBuiltinExterns(CompilerOptions.Environment.BROWSER));
@@ -179,8 +173,7 @@ public class CompilerDaemon {
         }
         final Compiler compiler = new Compiler();
         compiler.setErrorManager(new ProtoErrorManager(response, root));
-        String mapPath = request.getOutputSourceMap();
-        options.setSourceMapOutputPath(mapPath);
+        final CompilerOptions options = getCompilerOptions(request, root);
         compiler.initOptions(options);
         if (compiler.hasErrors()) {
             return response.build();
@@ -225,7 +218,7 @@ public class CompilerDaemon {
      * Get the Closure compiler options which will be used to compile the soucre
      * code.
      */
-    private static CompilerOptions getCompilerOptions() {
+    private static CompilerOptions getCompilerOptions(CompilerProtos.BuildRequest request, Path root) {
         CompilerOptions options = new CompilerOptions();
 
         // Set language input & output.
@@ -236,7 +229,18 @@ public class CompilerDaemon {
         options.setEmitUseStrict(false);
 
         // Set source map output.
-        options.setSourceMapDetailLevel(SourceMap.DetailLevel.ALL);
+        String mapPath = request.getOutputSourceMap();
+        if (mapPath != null && !mapPath.isEmpty()) {
+            options.setSourceMapDetailLevel(SourceMap.DetailLevel.ALL);
+            options.setSourceMapOutputPath(mapPath);
+            final List<SourceMap.LocationMapping> locationMaps = new ArrayList<>();
+            String prefix = root.toString();
+            if (!prefix.endsWith("/")) {
+                prefix += "/";
+            }
+            locationMaps.add(new SourceMap.PrefixLocationMapping(prefix, ""));
+            options.setSourceMapLocationMappings(locationMaps);
+        }
 
         // Set -ADVANCED_OPTIMIZATIONS.
         final CompilationLevel level = CompilationLevel.ADVANCED_OPTIMIZATIONS;

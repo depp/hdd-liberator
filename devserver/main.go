@@ -243,16 +243,14 @@ func serveNotFound(w http.ResponseWriter, r *http.Request) {
 var safePath = regexp.MustCompile(
 	"^[a-zA-Z0-9][-._a-zA-Z0-9]*(?:/[a-zA-Z0-9][-._a-zA-Z0-9]*)*$")
 
-func serveStatic(w http.ResponseWriter, r *http.Request) {
+func serveFile(w http.ResponseWriter, r *http.Request, dir, name, ctype string) {
 	ctx := r.Context()
 	h := getHandler(ctx)
-	rctx := chi.RouteContext(ctx)
-	name := rctx.URLParam("*")
 	if !safePath.MatchString(name) {
 		h.serveNotFound(w, r)
 		return
 	}
-	fp, err := os.Open(filepath.Join(workspaceRoot, "devserver", "static", name))
+	fp, err := os.Open(filepath.Join(workspaceRoot, dir, name))
 	if err != nil {
 		if os.IsNotExist(err) {
 			h.serveNotFound(w, r)
@@ -271,6 +269,15 @@ func serveStatic(w http.ResponseWriter, r *http.Request) {
 	hdr := w.Header()
 	hdr.Set("Cache-Control", "no-cache")
 	http.ServeContent(w, r, name, st.ModTime(), fp)
+}
+
+func serveStatic(w http.ResponseWriter, r *http.Request) {
+	serveFile(w, r, "devserver/static", chi.URLParam(r, "*"), "")
+}
+
+func serveSource(w http.ResponseWriter, r *http.Request) {
+	logrus.Infoln("SOURCE:", r.URL.Path[1:])
+	serveFile(w, r, "", r.URL.Path[1:], textType)
 }
 
 func mainE() error {
@@ -302,6 +309,7 @@ func mainE() error {
 	mx.Get("/release", serveRelease)
 	mx.Get("/release.map", serveReleaseMap)
 	mx.Get("/static/*", serveStatic)
+	mx.Get("/demo/*", serveSource)
 	mx.NotFound(serveNotFound)
 	s := http.Server{
 		Handler:     mx,

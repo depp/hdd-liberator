@@ -271,7 +271,6 @@ func serveStatic(w http.ResponseWriter, r *http.Request) {
 }
 
 func serveSource(w http.ResponseWriter, r *http.Request) {
-	logrus.Infoln("SOURCE:", r.URL.Path[1:])
 	serveFile(w, r, "", r.URL.Path[1:], textType)
 }
 

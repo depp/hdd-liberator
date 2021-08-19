@@ -98,6 +98,7 @@ func (h *handler) serveStatus(w http.ResponseWriter, r *http.Request, status int
 	hdr := w.Header()
 	hdr.Set("Content-Type", ctype)
 	hdr.Set("Content-Length", strconv.Itoa(b.Len()))
+	hdr.Set("Cache-Control", "no-cache")
 	w.WriteHeader(status)
 	w.Write(b.Bytes())
 }
@@ -131,6 +132,8 @@ func serveKnownFile(w http.ResponseWriter, r *http.Request, filename string) {
 		return
 	}
 	logResponse(r, http.StatusOK, "")
+	hdr := w.Header()
+	hdr.Set("Cache-Control", "no-cache")
 	http.ServeContent(w, r, filename, st.ModTime(), fp)
 }
 
@@ -249,6 +252,8 @@ func serveStatic(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	logResponse(r, http.StatusOK, "")
+	hdr := w.Header()
+	hdr.Set("Cache-Control", "no-cache")
 	http.ServeContent(w, r, name, st.ModTime(), fp)
 }
 

@@ -11,6 +11,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strconv"
 
 	"github.com/go-chi/chi/v5"
@@ -101,6 +102,13 @@ func (h *handler) serveStatus(w http.ResponseWriter, r *http.Request, status int
 	w.Write(b.Bytes())
 }
 
+func (h *handler) serveError(w http.ResponseWriter, r *http.Request, a ...interface{}) {
+	const status = http.StatusInternalServerError
+	msg := fmt.Sprint(a...)
+	logResponse(r, status, msg)
+	h.serveStatus(w, r, status, msg)
+}
+
 func (h *handler) serveErrorf(w http.ResponseWriter, r *http.Request, format string, a ...interface{}) {
 	const status = http.StatusInternalServerError
 	msg := fmt.Sprintf(format, a...)
@@ -113,13 +121,13 @@ func serveKnownFile(w http.ResponseWriter, r *http.Request, filename string) {
 	h := getHandler(ctx)
 	fp, err := os.Open(filepath.Join(workspaceRoot, filename))
 	if err != nil {
-		h.serveErrorf(w, r, "%v", err)
+		h.serveError(w, r, err)
 		return
 	}
 	defer fp.Close()
 	st, err := fp.Stat()
 	if err != nil {
-		h.serveErrorf(w, r, "%v", err)
+		h.serveError(w, r, err)
 		return
 	}
 	logResponse(r, http.StatusOK, "")
@@ -202,11 +210,46 @@ func serveRelease(w http.ResponseWriter, r *http.Request) {
 	w.Write(data)
 }
 
+func (h *handler) serveNotFound(w http.ResponseWriter, r *http.Request) {
+	logResponse(r, http.StatusNotFound, "")
+	h.serveStatus(w, r, http.StatusNotFound, fmt.Sprintf("Page not found: %q", r.URL))
+}
+
 func serveNotFound(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	h := getHandler(ctx)
-	logResponse(r, http.StatusNotFound, "")
-	h.serveStatus(w, r, http.StatusNotFound, fmt.Sprintf("Page not found: %q", r.URL))
+	h.serveNotFound(w, r)
+}
+
+var safePath = regexp.MustCompile(
+	"^[a-zA-Z0-9][-._a-zA-Z0-9]*(?:/[a-zA-Z0-9][-._a-zA-Z0-9]*)*$")
+
+func serveStatic(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	h := getHandler(ctx)
+	rctx := chi.RouteContext(ctx)
+	name := rctx.URLParam("*")
+	if !safePath.MatchString(name) {
+		h.serveNotFound(w, r)
+		return
+	}
+	fp, err := os.Open(filepath.Join(workspaceRoot, "devserver", "static", name))
+	if err != nil {
+		if os.IsNotExist(err) {
+			h.serveNotFound(w, r)
+		} else {
+			h.serveError(w, r, err)
+		}
+		return
+	}
+	defer fp.Close()
+	st, err := fp.Stat()
+	if err != nil {
+		h.serveError(w, r, err)
+		return
+	}
+	logResponse(r, http.StatusOK, "")
+	http.ServeContent(w, r, name, st.ModTime(), fp)
 }
 
 func mainE() error {
@@ -236,6 +279,7 @@ func mainE() error {
 	mx.Get("/favicon.ico", serveFavicon)
 	mx.Get("/main.js", serveScript)
 	mx.Get("/release", serveRelease)
+	mx.Get("/static/*", serveStatic)
 	mx.NotFound(serveNotFound)
 	s := http.Server{
 		Handler:     mx,

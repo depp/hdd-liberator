@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <title>Build Failed</title>
+  </head>
+  <h1>Build Failed</h1>
+  <ul>
+    {{range .Diagnostics}}
+      <li>
+        {{- if .File}}{{.File}}:{{if .Line}}{{.Line}}:{{.Column}}:{{end}} {{end -}}
+        {{ .Message -}}
+      </li>
+    {{end}}
+  </ul>
+</html>

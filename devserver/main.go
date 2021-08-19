@@ -37,7 +37,27 @@ func (contextKey) String() string {
 }
 
 type handler struct {
-	script script
+	script             script
+	statusTemplate     *template.Template
+	buildErrorTemplate *template.Template
+}
+
+func loadTemplate(name string) (*template.Template, error) {
+	return template.ParseFiles(filepath.Join(workspaceRoot, "devserver", name))
+}
+
+func (h *handler) init() error {
+	t, err := loadTemplate("status.gohtml")
+	if err != nil {
+		return err
+	}
+	h.statusTemplate = t
+	t, err = loadTemplate("build_error.gohtml")
+	if err != nil {
+		return err
+	}
+	h.buildErrorTemplate = t
+	return nil
 }
 
 func getHandler(ctx context.Context) *handler {
@@ -52,37 +72,6 @@ func getHandler(ctx context.Context) *handler {
 	return v
 }
 
-var statusTemplate = template.Must(template.New("status").Parse(`<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8">
-    <title>{{.Status}} {{.StatusText}}</title>
-  </head>
-  <body>
-    <h1>{{.Status}} {{.StatusText}}</h1>
-	{{if .Message}}<p>{{.Message}}</p>{{end}}
-  </body>
-</html>
-`))
-
-var buildErrorTemplate = template.Must(template.New("buildError").Parse(`<!DOCTYPE html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8">
-    <title>Build Failed</title>
-  </head>
-  <h1>Build Failed</h1>
-  <ul>
-    {{range .Diagnostics}}
-      <li>
-        {{- if .File}}{{.File}}:{{if .Line}}{{.Line}}:{{.Column}}:{{end}} {{end -}}
-        {{ .Message -}}
-      </li>
-    {{end}}
-  </ul>
-</html>
-`))
-
 func logResponse(r *http.Request, status int, msg string) {
 	if status >= 400 {
 		if msg == "" {
@@ -94,7 +83,7 @@ func logResponse(r *http.Request, status int, msg string) {
 	}
 }
 
-func serveStatus(w http.ResponseWriter, r *http.Request, status int, msg string) {
+func (h *handler) serveStatus(w http.ResponseWriter, r *http.Request, status int, msg string) {
 	var b bytes.Buffer
 	type tdata struct {
 		Status     int
@@ -107,7 +96,7 @@ func serveStatus(w http.ResponseWriter, r *http.Request, status int, msg string)
 		Message:    msg,
 	}
 	ctype := htmlType
-	if err := statusTemplate.Execute(&b, &d); err != nil {
+	if err := h.statusTemplate.Execute(&b, &d); err != nil {
 		logrus.Errorln("statusTemplate.Execute:", err)
 		b.Reset()
 		ctype = textType
@@ -120,23 +109,25 @@ func serveStatus(w http.ResponseWriter, r *http.Request, status int, msg string)
 	w.Write(b.Bytes())
 }
 
-func serveErrorf(w http.ResponseWriter, r *http.Request, format string, a ...interface{}) {
+func (h *handler) serveErrorf(w http.ResponseWriter, r *http.Request, format string, a ...interface{}) {
 	const status = http.StatusInternalServerError
 	msg := fmt.Sprintf(format, a...)
 	logResponse(r, status, msg)
-	serveStatus(w, r, status, msg)
+	h.serveStatus(w, r, status, msg)
 }
 
 func serveKnownFile(w http.ResponseWriter, r *http.Request, filename string) {
+	ctx := r.Context()
+	h := getHandler(ctx)
 	fp, err := os.Open(filepath.Join(workspaceRoot, filename))
 	if err != nil {
-		serveErrorf(w, r, "%v", err)
+		h.serveErrorf(w, r, "%v", err)
 		return
 	}
 	defer fp.Close()
 	st, err := fp.Stat()
 	if err != nil {
-		serveErrorf(w, r, "%v", err)
+		h.serveErrorf(w, r, "%v", err)
 		return
 	}
 	logResponse(r, http.StatusOK, "")
@@ -155,7 +146,7 @@ func serveFavicon(w http.ResponseWriter, r *http.Request) {
 	serveKnownFile(w, r, "favicon.ico")
 }
 
-func buildRelease(ctx context.Context, h *handler) ([]byte, error) {
+func (h *handler) buildRelease(ctx context.Context) ([]byte, error) {
 	data, err := h.script.build(ctx)
 	if err != nil {
 		return nil, err
@@ -182,15 +173,15 @@ func buildRelease(ctx context.Context, h *handler) ([]byte, error) {
 	return w.Finish()
 }
 
-func serveBuildError(w http.ResponseWriter, r *http.Request, e *buildError) {
+func (h *handler) serveBuildError(w http.ResponseWriter, r *http.Request, e *buildError) {
 	var buf bytes.Buffer
 	type edata struct {
 		Diagnostics []*pb.Diagnostic
 	}
-	if err := buildErrorTemplate.Execute(&buf, &edata{
+	if err := h.buildErrorTemplate.Execute(&buf, &edata{
 		Diagnostics: e.diagnostics,
 	}); err != nil {
-		serveErrorf(w, r, "buildErrorTemplate.Execute: %v", err)
+		h.serveErrorf(w, r, "buildErrorTemplate.Execute: %v", err)
 		return
 	}
 	logResponse(r, http.StatusInternalServerError, "Build failed")
@@ -203,12 +194,12 @@ func serveBuildError(w http.ResponseWriter, r *http.Request, e *buildError) {
 func serveRelease(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	h := getHandler(ctx)
-	data, err := buildRelease(ctx, h)
+	data, err := h.buildRelease(ctx)
 	if err != nil {
 		if e, ok := err.(*buildError); ok {
-			serveBuildError(w, r, e)
+			h.serveBuildError(w, r, e)
 		} else {
-			serveErrorf(w, r, "Could not build: %v", err)
+			h.serveErrorf(w, r, "Could not build: %v", err)
 		}
 		return
 	}
@@ -220,8 +211,10 @@ func serveRelease(w http.ResponseWriter, r *http.Request) {
 }
 
 func serveNotFound(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	h := getHandler(ctx)
 	logResponse(r, http.StatusNotFound, "")
-	serveStatus(w, r, http.StatusNotFound, fmt.Sprintf("Page not found: %q", r.URL))
+	h.serveStatus(w, r, http.StatusNotFound, fmt.Sprintf("Page not found: %q", r.URL))
 }
 
 func mainE() error {
@@ -244,6 +237,9 @@ func mainE() error {
 		return fmt.Errorf("could not look up host: %v", err)
 	}
 	var h handler
+	if err := h.init(); err != nil {
+		return err
+	}
 	ctx = context.WithValue(ctx, contextKey{}, &h)
 	mx := chi.NewMux()
 	mx.Get("/", serveIndex)

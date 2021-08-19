@@ -302,7 +302,7 @@ func mainE() error {
 	mx.Get("/release", serveRelease)
 	mx.Get("/release.map", serveReleaseMap)
 	mx.Get("/static/*", serveStatic)
-	mx.Get("/demo/*", serveSource)
+	mx.Get("/game/*", serveSource)
 	mx.NotFound(serveNotFound)
 	s := http.Server{
 		Handler:     mx,

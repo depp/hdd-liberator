@@ -45,16 +45,14 @@ func (s *script) compile(ctx context.Context, req *pb.BuildRequest) (*pb.BuildRe
 	if err := ctx.Err(); err != nil {
 		return nil, err
 	}
-	return s.compiler.Compile(&pb.BuildRequest{
-		File:            []string{"demo/main.js"},
-		BaseDirectory:   workspaceRoot,
-		OutputSourceMap: "release.map",
-	})
+	return s.compiler.Compile(req)
 }
 
 func (s *script) build(ctx context.Context) (code, sourcemap []byte, err error) {
 	rsp, err := s.compile(ctx, &pb.BuildRequest{
-		File: []string{"demo/main.js"},
+		File:            []string{"demo/main.js"},
+		BaseDirectory:   workspaceRoot,
+		OutputSourceMap: "release.map",
 	})
 	if err != nil {
 		return nil, nil, err

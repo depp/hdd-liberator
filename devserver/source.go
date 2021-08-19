@@ -12,6 +12,7 @@ import (
 )
 
 type srcLoader struct {
+	baseDir string
 	srcfile string
 	srcdata [][]byte
 }
@@ -48,7 +49,7 @@ func (e *srcLoader) loadSource(name string) error {
 	if !safePath.MatchString(name) {
 		return fmt.Errorf("invalid source path: %q", name)
 	}
-	data, err := ioutil.ReadFile(filepath.Join(workspaceRoot, name))
+	data, err := ioutil.ReadFile(filepath.Join(e.baseDir, name))
 	if err != nil {
 		return err
 	}

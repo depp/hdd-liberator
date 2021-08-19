@@ -5,7 +5,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"html/template"
 	"net"
 	"net/http"
 	"net/url"
@@ -13,10 +12,14 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
+	"sync"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
+
+	"moria.us/js13k/devserver/build"
+	"moria.us/js13k/devserver/compiler"
 
 	pb "moria.us/js13k/proto/compiler"
 )
@@ -26,9 +29,6 @@ const (
 	textType = "text/plain; charset=UTF-8"
 )
 
-// workspaceRoot is the path root workspace directory.
-var workspaceRoot string
-
 type contextKey struct{}
 
 func (contextKey) String() string {
@@ -36,20 +36,24 @@ func (contextKey) String() string {
 }
 
 type handler struct {
-	script             script
+	baseDir            string
+	config             string
 	statusTemplate     cachedTemplate
 	buildErrorTemplate cachedTemplate
 	releaseMap         sourcemap
+
+	compilerLock sync.Mutex
+	compiler     compiler.Compiler
 }
 
-func loadTemplate(name string) (*template.Template, error) {
-	return template.ParseFiles(filepath.Join(workspaceRoot, "devserver", name))
-}
-
-func (h *handler) init() {
-	dir := filepath.Join(workspaceRoot, "devserver")
-	h.statusTemplate.filename = filepath.Join(dir, "status.gohtml")
-	h.buildErrorTemplate.filename = filepath.Join(dir, "build_error.gohtml")
+func newHandler(baseDir, config string) *handler {
+	dir := filepath.Join(baseDir, "devserver")
+	return &handler{
+		baseDir:            baseDir,
+		config:             config,
+		statusTemplate:     cachedTemplate{filename: filepath.Join(dir, "status.gohtml")},
+		buildErrorTemplate: cachedTemplate{filename: filepath.Join(dir, "build_error.gohtml")},
+	}
 }
 
 func getHandler(ctx context.Context) *handler {
@@ -119,7 +123,7 @@ func (h *handler) serveErrorf(w http.ResponseWriter, r *http.Request, format str
 func serveKnownFile(w http.ResponseWriter, r *http.Request, filename string) {
 	ctx := r.Context()
 	h := getHandler(ctx)
-	fp, err := os.Open(filepath.Join(workspaceRoot, filename))
+	fp, err := os.Open(filepath.Join(h.baseDir, filename))
 	if err != nil {
 		h.serveError(w, r, err)
 		return
@@ -148,16 +152,29 @@ func serveFavicon(w http.ResponseWriter, r *http.Request) {
 	serveKnownFile(w, r, "favicon.ico")
 }
 
+func (h *handler) compile(ctx context.Context, req *pb.BuildRequest) (*pb.BuildResponse, error) {
+	h.compilerLock.Lock()
+	defer h.compilerLock.Unlock()
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return h.compiler.Compile(req)
+}
+
 func (h *handler) buildRelease(ctx context.Context) ([]byte, error) {
-	code, sm, err := h.script.build(ctx)
+	p, err := build.LoadProject(h.baseDir, h.config)
+	if err != nil {
+		return nil, err
+	}
+	rsp, err := h.compile(ctx, p.BuildRequest())
 	if err != nil {
 		return nil, err
 	}
 	var smURL *url.URL
-	if q := h.releaseMap.set(sm); q != nil {
+	if q := h.releaseMap.set(rsp.GetSourceMap()); q != nil {
 		smURL = &url.URL{Path: "release.map", RawQuery: q.Encode()}
 	}
-	return buildHTML(ctx, code, smURL)
+	return p.BuildHTML(ctx, rsp, smURL)
 }
 
 type errorData struct {
@@ -165,10 +182,11 @@ type errorData struct {
 	srcLoader   srcLoader
 }
 
-func (h *handler) serveBuildError(w http.ResponseWriter, r *http.Request, e *buildError) {
+func (h *handler) serveBuildError(w http.ResponseWriter, r *http.Request, e *compiler.Error) {
 	var buf bytes.Buffer
 	if err := h.buildErrorTemplate.execute(&buf, &errorData{
-		Diagnostics: e.diagnostics,
+		Diagnostics: e.Diagnostics,
+		srcLoader:   srcLoader{baseDir: h.baseDir},
 	}); err != nil {
 		h.serveErrorf(w, r, "buildErrorTemplate.Execute: %v", err)
 		return
@@ -185,7 +203,7 @@ func serveRelease(w http.ResponseWriter, r *http.Request) {
 	h := getHandler(ctx)
 	data, err := h.buildRelease(ctx)
 	if err != nil {
-		if e, ok := err.(*buildError); ok {
+		if e, ok := err.(*compiler.Error); ok {
 			h.serveBuildError(w, r, e)
 		} else {
 			h.serveErrorf(w, r, "Could not build: %v", err)
@@ -227,7 +245,7 @@ func serveFile(w http.ResponseWriter, r *http.Request, dir, name, ctype string) 
 		h.serveNotFound(w, r)
 		return
 	}
-	fp, err := os.Open(filepath.Join(workspaceRoot, dir, name))
+	fp, err := os.Open(filepath.Join(h.baseDir, dir, name))
 	if err != nil {
 		if os.IsNotExist(err) {
 			h.serveNotFound(w, r)
@@ -265,8 +283,8 @@ func mainE() error {
 		return fmt.Errorf("unexpected argument: %q", args[0])
 	}
 
-	workspaceRoot = os.Getenv("BUILD_WORKSPACE_DIRECTORY")
-	if workspaceRoot == "" {
+	baseDir := os.Getenv("BUILD_WORKSPACE_DIRECTORY")
+	if baseDir == "" {
 		return errors.New("BUILD_WORKSPACE_DIRECTORY is not set (this must be run from Bazel)")
 	}
 	ctx := context.Background()
@@ -276,9 +294,8 @@ func mainE() error {
 	if err != nil {
 		return fmt.Errorf("could not look up host: %v", err)
 	}
-	var h handler
-	h.init()
-	ctx = context.WithValue(ctx, contextKey{}, &h)
+	h := newHandler(baseDir, "js13k.json")
+	ctx = context.WithValue(ctx, contextKey{}, h)
 	mx := chi.NewMux()
 	mx.Get("/", serveIndex)
 	mx.Get("/favicon.ico", serveFavicon)

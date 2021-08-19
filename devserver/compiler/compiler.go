@@ -6,9 +6,11 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"sort"
 	"strconv"
 	"syscall"
 
+	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/unix"
 	"google.golang.org/protobuf/proto"
 
@@ -38,6 +40,8 @@ func socketpair() (ss [2]*os.File, err error) {
 	}
 	return ss, nil
 }
+
+// =============================================================================
 
 // A Compiler compiles JavaScript code.
 type Compiler struct {
@@ -149,6 +153,8 @@ func (c *Compiler) readMessage() (*pb.BuildResponse, error) {
 	return &msg, nil
 }
 
+// Compile compiles JavaScript code and returns the result. Compilation errors
+// are returned as the Error type.
 func (c *Compiler) Compile(req *pb.BuildRequest) (*pb.BuildResponse, error) {
 	if c.sock == nil {
 		if err := c.start(); err != nil {
@@ -158,5 +164,77 @@ func (c *Compiler) Compile(req *pb.BuildRequest) (*pb.BuildResponse, error) {
 	if err := c.writeMessage(req); err != nil {
 		return nil, err
 	}
-	return c.readMessage()
+	rsp, err := c.readMessage()
+	if err != nil {
+		return nil, err
+	}
+	var ds diagnostics
+	if rds := rsp.GetDiagnostic(); len(rds) > 0 {
+		ds = make(diagnostics, len(rds))
+		copy(ds, rds)
+		sort.Sort(ds)
+	}
+	var haserr bool
+	for _, d := range ds {
+		if d.GetSeverity() == pb.Diagnostic_ERROR {
+			haserr = true
+			break
+		}
+	}
+	if len(rsp.GetCode()) == 0 && !haserr {
+		ds = append(ds, &pb.Diagnostic{
+			Severity: pb.Diagnostic_ERROR,
+			Message:  "Empty script output.",
+		})
+		haserr = true
+	}
+	log := logrus.StandardLogger()
+	for _, d := range ds {
+		level := logrus.ErrorLevel
+		switch d.GetSeverity() {
+		case pb.Diagnostic_WARNING:
+			level = logrus.WarnLevel
+		case pb.Diagnostic_NOTICE:
+			level = logrus.InfoLevel
+		}
+		msg := d.GetMessage()
+		if f := d.GetFile(); f != "" {
+			if n := d.GetLine(); n != 0 {
+				msg = f + ":" + strconv.FormatUint(uint64(n), 10) + ":" +
+					strconv.FormatUint(uint64(d.GetColumn()), 10) + ": " + msg
+			} else {
+				msg = f + ": " + msg
+			}
+		}
+		log.Log(level, msg)
+	}
+	if haserr {
+		return nil, &Error{ds}
+	}
+	return rsp, nil
 }
+
+// =============================================================================
+
+// An Error is a compilation error.
+type Error struct {
+	Diagnostics []*pb.Diagnostic
+}
+
+func (e *Error) Error() string { return "build failed" }
+
+type diagnostics []*pb.Diagnostic
+
+func (s diagnostics) Len() int { return len(s) }
+func (s diagnostics) Less(i, j int) bool {
+	x := s[i]
+	y := s[j]
+	if x.File != y.File {
+		return x.File < y.File
+	}
+	if x.Line != y.Line {
+		return x.Line < y.Line
+	}
+	return x.Column < y.Column
+}
+func (s diagnostics) Swap(i, j int) { s[i], s[j] = s[j], s[i] }

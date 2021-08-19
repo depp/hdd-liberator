@@ -8,6 +8,10 @@ import com.google.javascript.jscomp.JSError;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Handle errors from the Closure compiler. Errors are added to a protocol
+ * buffer message.
+ */
 class ProtoErrorManager implements ErrorManager {
     private final CompilerProtos.BuildResponse.Builder response;
     private final List<JSError> errors;

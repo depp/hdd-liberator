@@ -22,19 +22,54 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * A daemon process which compiles JavaScript source code. Accepts requests in
+ * protocol buffer format, and sends responses in protocol buffer format.
+ *
+ * The main reason that this process exists is to avoid paying for JVM startup
+ * time each time the JavaScript source code should be compiled. The other
+ * reason this exists is because the API for specifying compiler options is much
+ * nicer to use than specifying command-line flags.
+ */
 public class CompilerDaemon {
+    /**
+     * The maximum size of a protocol buffer message which can be sent or
+     * received. Partly intended as a sanity check. If the stream gets out of
+     * sync, arbitrary bytes will be interpreted as a message size, which may be
+     * too large.
+     */
     final static int MAX_MESSAGE_SIZE = 64 * 1024 * 1024;
 
+    /**
+     * Path to the workspace root directory.
+     */
     private final Path root;
 
+    /**
+     * Buffer used for communicating with the devserver. Resized as needed.
+     */
     private ByteBuffer ioBuffer;
 
+    /**
+     * Input stream for reading messages from the devserver.
+     */
     private final ReadableByteChannel in;
 
+    /**
+     * Output stream for sending messages to the devserver.
+     */
     private final WritableByteChannel out;
 
+    /**
+     * Closure compiler options.
+     */
     private final CompilerOptions options;
 
+    /**
+     * List of extern source files for the Closure compiler. These files are
+     * typically part of the Closure compiler itself, stored inside the Closure
+     * compiler library JAR file.
+     */
     private final List<SourceFile> externs;
 
     CompilerDaemon(Path root) {
@@ -76,6 +111,11 @@ public class CompilerDaemon {
         }
     }
 
+    /**
+     * Set the IO buffer size for communicating with the devserver. This may
+     * replace the buffer with a new one, clearing all data in the old buffer.
+     * The buffer position is reset to 0.
+     */
     private void setBufferSize(int size) {
         if (size > MAX_MESSAGE_SIZE) {
             System.err.println("Error: message too large: " + size);
@@ -87,6 +127,10 @@ public class CompilerDaemon {
         ioBuffer.clear().limit(size);
     }
 
+    /**
+     * Read a fixed amount of data, in bytes, into the buffer. The buffer is
+     * resized as necessary. Existing data in the bufer is overwritten.
+     */
     private void read(int size) throws IOException {
         setBufferSize(size);
         while (ioBuffer.remaining() > 0) {
@@ -95,6 +139,9 @@ public class CompilerDaemon {
         ioBuffer.position(0);
     }
 
+    /**
+     * Read a request message from the devserver.
+     */
     private CompilerProtos.BuildRequest readMessage() throws IOException {
         try {
             read(4);
@@ -109,6 +156,9 @@ public class CompilerDaemon {
         return CompilerProtos.BuildRequest.parseFrom(ioBuffer);
     }
 
+    /**
+     * Write a response message to the devserver.
+     */
     private void writeMessage(CompilerProtos.BuildResponse response) throws IOException {
         int size = response.getSerializedSize();
         setBufferSize(size + 4);
@@ -120,6 +170,10 @@ public class CompilerDaemon {
         }
     }
 
+    /**
+     * Compile JavaScript source code in response to a request from the
+     * devserver.
+     */
     private CompilerProtos.BuildResponse compile(CompilerProtos.BuildRequest request) {
         CompilerProtos.BuildResponse.Builder response = CompilerProtos.BuildResponse.newBuilder();
         final List<SourceFile> sources = new ArrayList<>();
@@ -147,6 +201,12 @@ public class CompilerDaemon {
         return response.build();
     }
 
+    /**
+     * Return the smallest power of two which is equal to or larger than the
+     * input.
+     *
+     * @throws ArithmeticException No such value exists.
+     */
     static int ceilPow2(int x) throws ArithmeticException {
         if (x > (1 << 30)) {
             throw new ArithmeticException("number too large: " + x);
@@ -160,6 +220,10 @@ public class CompilerDaemon {
         return x + 1;
     }
 
+    /**
+     * Get the Closure compiler options which will be used to compile the soucre
+     * code.
+     */
     private static CompilerOptions getCompilerOptions() {
         CompilerOptions options = new CompilerOptions();
 
@@ -194,6 +258,10 @@ public class CompilerDaemon {
         return options;
     }
 
+    /**
+     * Get the workspace root directory. This assumes that the JAR file was
+     * invoked from within Bazel, e.g., by the devserver.
+     */
     private static Path getRoot() {
         String workdir = System.getenv("BUILD_WORKING_DIRECTORY");
         if (workdir != null) {

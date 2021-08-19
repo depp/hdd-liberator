@@ -189,7 +189,7 @@ public class CompilerDaemon {
             return response.build();
         }
         final Compiler compiler = new Compiler();
-        compiler.setErrorManager(new ProtoErrorManager(response));
+        compiler.setErrorManager(new ProtoErrorManager(response, root));
         compiler.initOptions(options);
         if (compiler.hasErrors()) {
             return response.build();

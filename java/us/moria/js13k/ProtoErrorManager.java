@@ -5,6 +5,7 @@ import com.google.javascript.jscomp.CheckLevel;
 import com.google.javascript.jscomp.ErrorManager;
 import com.google.javascript.jscomp.JSError;
 
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -14,12 +15,14 @@ import java.util.List;
  */
 class ProtoErrorManager implements ErrorManager {
     private final CompilerProtos.BuildResponse.Builder response;
+    private final Path root;
     private final List<JSError> errors;
     private final List<JSError> warnings;
     private double typedPercent;
 
-    public ProtoErrorManager(CompilerProtos.BuildResponse.Builder response) {
+    public ProtoErrorManager(CompilerProtos.BuildResponse.Builder response, Path root) {
         this.response = response;
+        this.root = root;
         errors = new ArrayList<>();
         warnings = new ArrayList<>();
     }
@@ -41,7 +44,9 @@ class ProtoErrorManager implements ErrorManager {
         builder.setMessage(error.getDescription());
         String sourceName = error.getSourceName();
         if (sourceName != null) {
-            builder.setFile(sourceName);
+            Path sourcePath = Path.of(sourceName);
+            Path relativePath = root.relativize(sourcePath);
+            builder.setFile(relativePath.toString());
             builder.setLine(error.getLineno());
             builder.setColumn(error.getCharno());
         }

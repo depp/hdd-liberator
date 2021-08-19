@@ -5,9 +5,14 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 	"time"
 )
+
+var funcs = template.FuncMap{
+	"lower": func(x string) string { return strings.ToLower(x) },
+}
 
 type cachedTemplate struct {
 	filename string
@@ -74,6 +79,7 @@ func readTemplate(filename string) (*template.Template, time.Time, error) {
 		}
 	}
 	t := template.New(filepath.Base(filename))
+	t.Funcs(funcs)
 	if _, err := t.Parse(string(data)); err != nil {
 		return nil, mtime, err
 	}

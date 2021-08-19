@@ -185,12 +185,14 @@ func (h *handler) buildRelease(ctx context.Context) ([]byte, error) {
 	return w.Finish()
 }
 
+type errorData struct {
+	Diagnostics []*pb.Diagnostic
+	srcLoader   srcLoader
+}
+
 func (h *handler) serveBuildError(w http.ResponseWriter, r *http.Request, e *buildError) {
 	var buf bytes.Buffer
-	type edata struct {
-		Diagnostics []*pb.Diagnostic
-	}
-	if err := h.buildErrorTemplate.execute(&buf, &edata{
+	if err := h.buildErrorTemplate.execute(&buf, &errorData{
 		Diagnostics: e.diagnostics,
 	}); err != nil {
 		h.serveErrorf(w, r, "buildErrorTemplate.Execute: %v", err)

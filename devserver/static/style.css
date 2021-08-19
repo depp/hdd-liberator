@@ -4,3 +4,25 @@ html {
 h1 {
   text-align: center;
 }
+.diagnostics > div {
+  border: 1px solid #ccc;
+  padding: 4px;
+  margin: 8px;
+}
+.diagnostics > div > * {
+  margin: 0;
+}
+.diagnostics > div > pre {
+  border: 1px solid #ccc;
+  padding: 8px;
+}
+.control {
+  background: #009;
+  color: #fff;
+  font-weight: bold;
+}
+.byte {
+  background: #900;
+  color: #fff;
+  font-weight: bold;
+}

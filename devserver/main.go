@@ -18,8 +18,6 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 
-	"moria.us/js13k/html"
-
 	pb "moria.us/js13k/proto/compiler"
 )
 
@@ -151,7 +149,7 @@ func serveFavicon(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) buildRelease(ctx context.Context) ([]byte, error) {
-	data, sm, err := h.script.build(ctx)
+	code, sm, err := h.script.build(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -159,30 +157,7 @@ func (h *handler) buildRelease(ctx context.Context) ([]byte, error) {
 	if q := h.releaseMap.set(sm); q != nil {
 		smURL = &url.URL{Path: "release.map", RawQuery: q.Encode()}
 	}
-
-	var w html.Writer
-
-	w.OpenTag("meta")
-	w.Attr("charset", "UTF-8")
-
-	w.OpenTag("title")
-	w.Text("JS13K Demo")
-	w.CloseTag("title")
-
-	w.OpenTag("canvas")
-	w.Attr("id", "g")
-	w.CloseTag("canvas")
-
-	w.OpenTag("script")
-	w.Attr("type", "module")
-	w.Text(string(data))
-	if smURL != nil {
-		w.Text("//# sourceMappingURL=")
-		w.Text(smURL.String())
-	}
-	w.CloseTag("script")
-
-	return w.Finish()
+	return buildHTML(ctx, code, smURL)
 }
 
 type errorData struct {

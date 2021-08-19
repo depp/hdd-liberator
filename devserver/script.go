@@ -2,12 +2,15 @@ package main
 
 import (
 	"context"
+	"net/url"
 	"sort"
 	"strconv"
 	"sync"
 
 	"github.com/sirupsen/logrus"
+
 	"moria.us/js13k/devserver/compiler"
+	"moria.us/js13k/html"
 
 	pb "moria.us/js13k/proto/compiler"
 )
@@ -102,4 +105,30 @@ func (s *script) build(ctx context.Context) (code, sourcemap []byte, err error) 
 		return nil, nil, &buildError{ds}
 	}
 	return code, rsp.GetSourceMap(), nil
+}
+
+func buildHTML(ctx context.Context, code []byte, sourceMapURL *url.URL) ([]byte, error) {
+	var w html.Writer
+
+	w.OpenTag("meta")
+	w.Attr("charset", "UTF-8")
+
+	w.OpenTag("title")
+	w.Text("JS13K Demo")
+	w.CloseTag("title")
+
+	w.OpenTag("canvas")
+	w.Attr("id", "g")
+	w.CloseTag("canvas")
+
+	w.OpenTag("script")
+	w.Attr("type", "module")
+	w.Text(string(code))
+	if sourceMapURL != nil {
+		w.Text("//# sourceMappingURL=")
+		w.Text(sourceMapURL.String())
+	}
+	w.CloseTag("script")
+
+	return w.Finish()
 }

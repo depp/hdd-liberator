@@ -41,6 +41,7 @@ type handler struct {
 	script             script
 	statusTemplate     cachedTemplate
 	buildErrorTemplate cachedTemplate
+	releaseMap         sourcemap
 }
 
 func loadTemplate(name string) (*template.Template, error) {
@@ -150,9 +151,13 @@ func serveFavicon(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *handler) buildRelease(ctx context.Context) ([]byte, error) {
-	data, err := h.script.build(ctx)
+	data, sm, err := h.script.build(ctx)
 	if err != nil {
 		return nil, err
+	}
+	var smURL *url.URL
+	if q := h.releaseMap.set(sm); q != nil {
+		smURL = &url.URL{Path: "release.map", RawQuery: q.Encode()}
 	}
 
 	var w html.Writer
@@ -171,6 +176,10 @@ func (h *handler) buildRelease(ctx context.Context) ([]byte, error) {
 	w.OpenTag("script")
 	w.Attr("type", "module")
 	w.Text(string(data))
+	if smURL != nil {
+		w.Text("//# sourceMappingURL=")
+		w.Text(smURL.String())
+	}
 	w.CloseTag("script")
 
 	return w.Finish()
@@ -210,7 +219,14 @@ func serveRelease(w http.ResponseWriter, r *http.Request) {
 	hdr := w.Header()
 	hdr.Set("Content-Type", htmlType)
 	hdr.Set("Content-Length", strconv.Itoa(len(data)))
+	hdr.Set("Cache-Control", "no-cache")
 	w.Write(data)
+}
+
+func serveReleaseMap(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	h := getHandler(ctx)
+	h.releaseMap.serve(h, w, r)
 }
 
 func (h *handler) serveNotFound(w http.ResponseWriter, r *http.Request) {
@@ -284,6 +300,7 @@ func mainE() error {
 	mx.Get("/favicon.ico", serveFavicon)
 	mx.Get("/main.js", serveScript)
 	mx.Get("/release", serveRelease)
+	mx.Get("/release.map", serveReleaseMap)
 	mx.Get("/static/*", serveStatic)
 	mx.NotFound(serveNotFound)
 	s := http.Server{

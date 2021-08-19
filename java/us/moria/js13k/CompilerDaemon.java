@@ -1,12 +1,7 @@
 package us.moria.js13k;
 
-import com.google.javascript.jscomp.AbstractCommandLineRunner;
-import com.google.javascript.jscomp.CodingConventions;
-import com.google.javascript.jscomp.CompilationLevel;
+import com.google.javascript.jscomp.*;
 import com.google.javascript.jscomp.Compiler;
-import com.google.javascript.jscomp.CompilerOptions;
-import com.google.javascript.jscomp.SourceFile;
-import com.google.javascript.jscomp.WarningLevel;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.CodedOutputStream;
 
@@ -18,7 +13,6 @@ import java.nio.channels.ReadableByteChannel;
 import java.nio.channels.WritableByteChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -169,13 +163,8 @@ public class CompilerDaemon {
      * devserver.
      */
     private CompilerProtos.BuildResponse compile(CompilerProtos.BuildRequest request) {
-        final Path root = Path.of(request.getBaseDirectory());
         CompilerProtos.BuildResponse.Builder response = CompilerProtos.BuildResponse.newBuilder();
-        final List<SourceFile> sources = new ArrayList<>();
-        for (String source : request.getFileList()) {
-            sources.add(SourceFile.fromPath(root.resolve(source), StandardCharsets.UTF_8));
-        }
-        if (sources.size() == 0) {
+        if (request.getFileCount() == 0) {
             response.addDiagnostic(
                     CompilerProtos.Diagnostic.newBuilder()
                             .setSeverity(CompilerProtos.Diagnostic.Severity.ERROR)
@@ -183,8 +172,15 @@ public class CompilerDaemon {
                             .build());
             return response.build();
         }
+        final Path root = Path.of(request.getBaseDirectory());
+        final List<SourceFile> sources = new ArrayList<>();
+        for (String source : request.getFileList()) {
+            sources.add(SourceFile.fromPath(root.resolve(source), StandardCharsets.UTF_8));
+        }
         final Compiler compiler = new Compiler();
         compiler.setErrorManager(new ProtoErrorManager(response, root));
+        String mapPath = request.getOutputSourceMap();
+        options.setSourceMapOutputPath(mapPath);
         compiler.initOptions(options);
         if (compiler.hasErrors()) {
             return response.build();
@@ -192,6 +188,16 @@ public class CompilerDaemon {
         compiler.compile(externs, sources, options);
         if (!compiler.hasErrors()) {
             response.setCode(ByteString.copyFromUtf8(compiler.toSource()));
+            SourceMap sourceMap = compiler.getSourceMap();
+            if (sourceMap != null) {
+                StringBuilder builder = new StringBuilder();
+                try {
+                    sourceMap.appendTo(builder, Path.of(request.getFile(0)).getFileName().toString());
+                } catch (IOException e) {
+                }
+                String text = builder.toString();
+                response.setSourceMap(ByteString.copyFromUtf8(text));
+            }
         }
         return response.build();
     }
@@ -228,6 +234,9 @@ public class CompilerDaemon {
         options.setStrictModeInput(true);
         options.setChunkOutputType(CompilerOptions.ChunkOutputType.GLOBAL_NAMESPACE);
         options.setEmitUseStrict(false);
+
+        // Set source map output.
+        options.setSourceMapDetailLevel(SourceMap.DetailLevel.ALL);
 
         // Set -ADVANCED_OPTIMIZATIONS.
         final CompilationLevel level = CompilationLevel.ADVANCED_OPTIMIZATIONS;

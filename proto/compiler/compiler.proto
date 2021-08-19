@@ -13,6 +13,7 @@ message BuildRequest {
   repeated string file = 1;
   Config config = 2;
   string base_directory = 3;
+  string output_source_map = 4;
 }
 
 message Diagnostic {

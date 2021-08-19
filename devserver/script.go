@@ -46,17 +46,18 @@ func (s *script) compile(ctx context.Context, req *pb.BuildRequest) (*pb.BuildRe
 		return nil, err
 	}
 	return s.compiler.Compile(&pb.BuildRequest{
-		File:          []string{"demo/main.js"},
-		BaseDirectory: workspaceRoot,
+		File:            []string{"demo/main.js"},
+		BaseDirectory:   workspaceRoot,
+		OutputSourceMap: "release.map",
 	})
 }
 
-func (s *script) build(ctx context.Context) ([]byte, error) {
+func (s *script) build(ctx context.Context) (code, sourcemap []byte, err error) {
 	rsp, err := s.compile(ctx, &pb.BuildRequest{
 		File: []string{"demo/main.js"},
 	})
 	if err != nil {
-		return nil, err
+		return nil, nil, err
 	}
 	var ds diagnostics
 	if rds := rsp.GetDiagnostic(); len(rds) > 0 {
@@ -71,7 +72,7 @@ func (s *script) build(ctx context.Context) ([]byte, error) {
 			break
 		}
 	}
-	code := rsp.GetCode()
+	code = rsp.GetCode()
 	if len(code) == 0 && !haserr {
 		ds = append(ds, &pb.Diagnostic{
 			Severity: pb.Diagnostic_ERROR,
@@ -100,7 +101,7 @@ func (s *script) build(ctx context.Context) ([]byte, error) {
 		log.Log(level, msg)
 	}
 	if haserr {
-		return nil, &buildError{ds}
+		return nil, nil, &buildError{ds}
 	}
-	return code, nil
+	return code, rsp.GetSourceMap(), nil
 }

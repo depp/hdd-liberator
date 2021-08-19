@@ -38,26 +38,18 @@ func (contextKey) String() string {
 
 type handler struct {
 	script             script
-	statusTemplate     *template.Template
-	buildErrorTemplate *template.Template
+	statusTemplate     cachedTemplate
+	buildErrorTemplate cachedTemplate
 }
 
 func loadTemplate(name string) (*template.Template, error) {
 	return template.ParseFiles(filepath.Join(workspaceRoot, "devserver", name))
 }
 
-func (h *handler) init() error {
-	t, err := loadTemplate("status.gohtml")
-	if err != nil {
-		return err
-	}
-	h.statusTemplate = t
-	t, err = loadTemplate("build_error.gohtml")
-	if err != nil {
-		return err
-	}
-	h.buildErrorTemplate = t
-	return nil
+func (h *handler) init() {
+	dir := filepath.Join(workspaceRoot, "devserver")
+	h.statusTemplate.filename = filepath.Join(dir, "status.gohtml")
+	h.buildErrorTemplate.filename = filepath.Join(dir, "build_error.gohtml")
 }
 
 func getHandler(ctx context.Context) *handler {
@@ -96,7 +88,7 @@ func (h *handler) serveStatus(w http.ResponseWriter, r *http.Request, status int
 		Message:    msg,
 	}
 	ctype := htmlType
-	if err := h.statusTemplate.Execute(&b, &d); err != nil {
+	if err := h.statusTemplate.execute(&b, &d); err != nil {
 		logrus.Errorln("statusTemplate.Execute:", err)
 		b.Reset()
 		ctype = textType
@@ -178,7 +170,7 @@ func (h *handler) serveBuildError(w http.ResponseWriter, r *http.Request, e *bui
 	type edata struct {
 		Diagnostics []*pb.Diagnostic
 	}
-	if err := h.buildErrorTemplate.Execute(&buf, &edata{
+	if err := h.buildErrorTemplate.execute(&buf, &edata{
 		Diagnostics: e.diagnostics,
 	}); err != nil {
 		h.serveErrorf(w, r, "buildErrorTemplate.Execute: %v", err)
@@ -237,9 +229,7 @@ func mainE() error {
 		return fmt.Errorf("could not look up host: %v", err)
 	}
 	var h handler
-	if err := h.init(); err != nil {
-		return err
-	}
+	h.init()
 	ctx = context.WithValue(ctx, contextKey{}, &h)
 	mx := chi.NewMux()
 	mx.Get("/", serveIndex)

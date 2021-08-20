@@ -275,7 +275,7 @@ func serveSource(w http.ResponseWriter, r *http.Request) {
 }
 
 func mainE() error {
-	fHost := pflag.String("host", "localhost", "host to serve from")
+	fHost := pflag.String("host", "localhost", "host to serve from, or * to bind to all local addresses")
 	fPort := pflag.Int("port", 9013, "port to serve from")
 	pflag.Parse()
 	if args := pflag.Args(); len(args) != 0 {
@@ -288,10 +288,21 @@ func mainE() error {
 	}
 	ctx := context.Background()
 	log := logrus.StandardLogger()
-	rslv := net.DefaultResolver
-	addrs, err := rslv.LookupIPAddr(ctx, *fHost)
-	if err != nil {
-		return fmt.Errorf("could not look up host: %v", err)
+	host := *fHost
+	var addrs []net.IPAddr
+	if host == "*" {
+		addrs = []net.IPAddr{{IP: net.IPv6zero}}
+		host = "localhost"
+	} else {
+		var err error
+		rslv := net.DefaultResolver
+		addrs, err = rslv.LookupIPAddr(ctx, host)
+		if err != nil {
+			return fmt.Errorf("could not look up host: %v", err)
+		}
+		if host == "" {
+			host = "localhost"
+		}
 	}
 	h := newHandler(baseDir, "js13k.json")
 	ctx = context.WithValue(ctx, contextKey{}, h)
@@ -320,10 +331,6 @@ func mainE() error {
 			return err
 		}
 		if root == nil {
-			host := *fHost
-			if host == "" {
-				host = "localhost"
-			}
 			root = &url.URL{
 				Scheme: "http",
 				Host:   net.JoinHostPort(host, strconv.Itoa(*fPort)),

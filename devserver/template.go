@@ -15,12 +15,20 @@ var funcs = template.FuncMap{
 }
 
 type cachedTemplate struct {
+	name     string
 	filename string
 
 	lock     sync.Mutex
 	template *template.Template
 	modTime  time.Time
 	err      error
+}
+
+func newTemplate(baseDir, name string) *cachedTemplate {
+	return &cachedTemplate{
+		name:     name,
+		filename: filepath.Join(baseDir, name),
+	}
 }
 
 func (c *cachedTemplate) get() (*template.Template, error) {
@@ -36,7 +44,7 @@ func (c *cachedTemplate) get() (*template.Template, error) {
 	if mtime.Equal(c.modTime) {
 		return c.template, c.err
 	}
-	t, mtime, err := readTemplate(c.filename)
+	t, mtime, err := readTemplate(c.name, c.filename)
 	c.template = t
 	c.modTime = mtime
 	c.err = err
@@ -51,7 +59,7 @@ func (c *cachedTemplate) execute(wr io.Writer, data interface{}) error {
 	return t.Execute(wr, data)
 }
 
-func readTemplate(filename string) (*template.Template, time.Time, error) {
+func readTemplate(name, filename string) (*template.Template, time.Time, error) {
 	fp, err := os.Open(filename)
 	if err != nil {
 		return nil, time.Time{}, err
@@ -78,7 +86,7 @@ func readTemplate(filename string) (*template.Template, time.Time, error) {
 			return nil, mtime, err
 		}
 	}
-	t := template.New(filepath.Base(filename))
+	t := template.New(name)
 	t.Funcs(funcs)
 	if _, err := t.Parse(string(data)); err != nil {
 		return nil, mtime, err

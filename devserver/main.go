@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"path"
 	"path/filepath"
 	"regexp"
 	"strconv"
@@ -38,8 +39,9 @@ func (contextKey) String() string {
 type handler struct {
 	baseDir            string
 	config             string
-	statusTemplate     cachedTemplate
-	buildErrorTemplate cachedTemplate
+	statusTemplate     *cachedTemplate
+	buildErrorTemplate *cachedTemplate
+	gameTemplate       *cachedTemplate
 	releaseMap         sourcemap
 
 	compilerLock sync.Mutex
@@ -47,12 +49,12 @@ type handler struct {
 }
 
 func newHandler(baseDir, config string) *handler {
-	dir := filepath.Join(baseDir, "devserver")
 	return &handler{
 		baseDir:            baseDir,
 		config:             config,
-		statusTemplate:     cachedTemplate{filename: filepath.Join(dir, "status.gohtml")},
-		buildErrorTemplate: cachedTemplate{filename: filepath.Join(dir, "build_error.gohtml")},
+		statusTemplate:     newTemplate(baseDir, "devserver/status.gohtml"),
+		buildErrorTemplate: newTemplate(baseDir, "devserver/build_error.gohtml"),
+		gameTemplate:       newTemplate(baseDir, "game/index.gohtml"),
 	}
 }
 
@@ -74,8 +76,10 @@ func logResponse(r *http.Request, status int, msg string) {
 			msg = http.StatusText(status)
 		}
 		logrus.Errorln(status, r.URL, msg)
-	} else {
+	} else if msg == "" {
 		logrus.Infoln(status, r.URL)
+	} else {
+		logrus.Infoln(status, r.URL, msg)
 	}
 }
 
@@ -120,6 +124,27 @@ func (h *handler) serveErrorf(w http.ResponseWriter, r *http.Request, format str
 	h.serveStatus(w, r, status, msg)
 }
 
+func (h *handler) serveRedirect(w http.ResponseWriter, r *http.Request, u *url.URL) {
+	loc := u.String()
+	const status = http.StatusTemporaryRedirect
+	logResponse(r, status, "-> "+loc)
+	w.Header().Set("Location", loc)
+	h.serveStatus(w, r, http.StatusTemporaryRedirect, "")
+}
+
+func (h *handler) serveTemplate(w http.ResponseWriter, r *http.Request, t *cachedTemplate, data interface{}) {
+	var buf bytes.Buffer
+	if err := t.execute(&buf, data); err != nil {
+		h.serveError(w, r, err)
+		return
+	}
+	hdr := w.Header()
+	hdr.Set("Cache-Control", "no-cache")
+	hdr.Set("Content-Length", strconv.Itoa(buf.Len()))
+	hdr.Set("Content-Type", htmlType)
+	w.Write(buf.Bytes())
+}
+
 func serveKnownFile(w http.ResponseWriter, r *http.Request, filename string) {
 	ctx := r.Context()
 	h := getHandler(ctx)
@@ -140,12 +165,30 @@ func serveKnownFile(w http.ResponseWriter, r *http.Request, filename string) {
 	http.ServeContent(w, r, filename, st.ModTime(), fp)
 }
 
-func serveIndex(w http.ResponseWriter, r *http.Request) {
-	serveKnownFile(w, r, "demo/index.html")
+func redirectAddSlash(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	h := getHandler(ctx)
+	u := *r.URL
+	u.Path += "/"
+	h.serveRedirect(w, r, &u)
 }
 
-func serveScript(w http.ResponseWriter, r *http.Request) {
-	serveKnownFile(w, r, "demo/main.js")
+func serveIndex(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	h := getHandler(ctx)
+	p, err := build.LoadProject(h.baseDir, h.config)
+	if err != nil {
+		h.serveError(w, r, err)
+		return
+	}
+	type idata struct {
+		Title string
+		Main  string
+	}
+	h.serveTemplate(w, r, h.gameTemplate, &idata{
+		Title: p.Config.Title,
+		Main:  path.Join("/", p.Config.Main),
+	})
 }
 
 func serveFavicon(w http.ResponseWriter, r *http.Request) {
@@ -267,11 +310,7 @@ func serveFile(w http.ResponseWriter, r *http.Request, dir, name, ctype string) 
 }
 
 func serveStatic(w http.ResponseWriter, r *http.Request) {
-	serveFile(w, r, "devserver/static", chi.URLParam(r, "*"), "")
-}
-
-func serveSource(w http.ResponseWriter, r *http.Request) {
-	serveFile(w, r, "", r.URL.Path[1:], textType)
+	serveFile(w, r, "", r.URL.Path[1:], "")
 }
 
 func mainE() error {
@@ -309,11 +348,11 @@ func mainE() error {
 	mx := chi.NewMux()
 	mx.Get("/", serveIndex)
 	mx.Get("/favicon.ico", serveFavicon)
-	mx.Get("/main.js", serveScript)
-	mx.Get("/release", serveRelease)
-	mx.Get("/release.map", serveReleaseMap)
+	mx.Get("/release", redirectAddSlash)
+	mx.Get("/release/", serveRelease)
+	mx.Get("/release/release.map", serveReleaseMap)
 	mx.Get("/static/*", serveStatic)
-	mx.Get("/game/*", serveSource)
+	mx.Get("/game/*", serveStatic)
 	mx.NotFound(serveNotFound)
 	s := http.Server{
 		Handler:     mx,

@@ -24,15 +24,15 @@ type Config struct {
 
 // A Project is a JS13K project which can be built.
 type Project struct {
-	baseDir string
-	config  Config
+	BaseDir string
+	Config  Config
 }
 
 // LoadProject loads a project with the given base directory and configuration
 // file.
 func LoadProject(base, config string) (*Project, error) {
 	p := Project{
-		baseDir: filepath.Clean(base),
+		BaseDir: filepath.Clean(base),
 	}
 	data, err := ioutil.ReadFile(filepath.Join(base, config))
 	if err != nil {
@@ -40,7 +40,7 @@ func LoadProject(base, config string) (*Project, error) {
 	}
 	dec := json.NewDecoder(bytes.NewReader(data))
 	dec.DisallowUnknownFields()
-	c := &p.config
+	c := &p.Config
 	if err := dec.Decode(c); err != nil {
 		return nil, fmt.Errorf("invalid config %q: %v", config, err)
 	}
@@ -56,8 +56,8 @@ func LoadProject(base, config string) (*Project, error) {
 
 func (p *Project) BuildRequest() *pb.BuildRequest {
 	return &pb.BuildRequest{
-		File:            []string{p.config.Main},
-		BaseDirectory:   p.baseDir,
+		File:            []string{p.Config.Main},
+		BaseDirectory:   p.BaseDir,
 		OutputSourceMap: "release.map",
 	}
 }
@@ -70,7 +70,7 @@ func (p *Project) BuildHTML(ctx context.Context, rsp *pb.BuildResponse, sourceMa
 	w.Attr("charset", "UTF-8")
 
 	w.OpenTag("title")
-	w.Text(p.config.Title)
+	w.Text(p.Config.Title)
 	w.CloseTag("title")
 
 	w.OpenTag("canvas")

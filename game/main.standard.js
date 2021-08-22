@@ -1,4 +1,4 @@
-import {SetGLContext, Render} from './render.js';
+import { SetCanvasContext, Render } from './render.js';
 
 /**
  * The requestAnimationFrame handle.
@@ -37,15 +37,15 @@ function Frame(time) {
  */
 function Start() {
   const canvas = document.createElement('canvas');
-  const gl = canvas.getContext('webgl', {
+  const ctx = canvas.getContext('2d', {
     alpha: false,
   });
-  if (gl == null) {
-    PutErrorMessage('Could not create WebGL context.');
+  if (ctx == null) {
+    PutErrorMessage('Could not create 2D context.');
     return;
   }
   document.body.appendChild(canvas);
-  SetGLContext(gl);
+  SetCanvasContext(ctx);
   Frame(0);
 }
 

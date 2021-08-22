@@ -187,7 +187,7 @@ func serveIndex(w http.ResponseWriter, r *http.Request) {
 	}
 	h.serveTemplate(w, r, h.gameTemplate, &idata{
 		Title: p.Config.Title,
-		Main:  path.Join("/", p.Config.Main),
+		Main:  path.Join("/", p.Config.MainStandard),
 	})
 }
 

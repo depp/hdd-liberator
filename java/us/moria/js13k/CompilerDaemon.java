@@ -192,10 +192,6 @@ public class CompilerDaemon {
         } catch (BadRequest e) {
             return stringError(e.toString());
         }
-        compiler.initOptions(options);
-        if (compiler.hasErrors()) {
-            return response.build();
-        }
         compiler.compile(externs, sources, options);
         if (!compiler.hasErrors()) {
             response.setCode(ByteString.copyFromUtf8(compiler.toSource()));
@@ -245,12 +241,6 @@ public class CompilerDaemon {
         options.setStrictModeInput(true);
         options.setChunkOutputType(CompilerOptions.ChunkOutputType.GLOBAL_NAMESPACE);
         options.setEmitUseStrict(false);
-        final List<ModuleIdentifier> entryPoints = new ArrayList();
-        for (String entry : request.getEntryPointList()) {
-            System.err.println("ENTRY: " + entry);
-            entryPoints.add(ModuleIdentifier.forFile(entry));
-        }
-        options.setDependencyOptions(DependencyOptions.pruneForEntryPoints(entryPoints));
 
         // Set defines.
         for (CompilerProtos.Define define : request.getDefineList()) {
@@ -304,6 +294,15 @@ public class CompilerDaemon {
         // options.setContinueAfterErrors
         // options.renamePrefix
         // options.renamePrefixNamespace
+
+        // Set entry points. This must be below ADVANCED_OPTIMIZATIONS, which
+        // will override this.
+        final List<ModuleIdentifier> entryPoints = new ArrayList();
+        for (String entry : request.getEntryPointList()) {
+            String fullPath = root.resolve(entry).toString();
+            entryPoints.add(ModuleIdentifier.forFile(fullPath));
+        }
+        options.setDependencyOptions(DependencyOptions.pruneForEntryPoints(entryPoints));
 
         return options;
     }

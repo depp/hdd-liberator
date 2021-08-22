@@ -35,7 +35,7 @@ function Frame(time) {
 /**
  * Start the game. Called once, when the script is run.
  */
-export function Start() {
+function Start() {
   const canvas = document.createElement('canvas');
   const gl = canvas.getContext('webgl', {
     alpha: false,
@@ -48,3 +48,5 @@ export function Start() {
   SetGLContext(gl);
   Frame(0);
 }
+
+Start();

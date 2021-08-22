@@ -1,4 +1,5 @@
-import {gl, SetGLContext, Render} from './render.js';
+import './common.js';
+import { gl, SetGLContext, Render } from './render.js';
 
 /**
  * Callback for requestAnimationFrame.
@@ -12,7 +13,7 @@ function Frame(time) {
 /**
  * Start the game. Called once, when the script is run.
  */
-export function Start() {
+function Start() {
   /** @type {HTMLCanvasElement!} */
   const canvas = window['g'];
   SetGLContext(/** @type {WebGLRenderingContext?} */ (canvas.getContext('webgl', {
@@ -24,3 +25,5 @@ export function Start() {
   }
   Frame(0);
 }
+
+Start();

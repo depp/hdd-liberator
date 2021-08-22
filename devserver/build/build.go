@@ -29,9 +29,10 @@ func defineBoolean(name string, value bool) *pb.Define {
 
 // A Config contains the project configuration.
 type Config struct {
-	Title      string   `json:"title"`
-	Main       string   `json:"main"`
-	SourceDirs []string `json:"srcDirs"`
+	Title        string   `json:"title"`
+	MainCompo    string   `json:"main.compo"`
+	MainStandard string   `json:"main.standard"`
+	SourceDirs   []string `json:"srcDirs"`
 }
 
 // A Project is a JS13K project which can be built.
@@ -60,8 +61,11 @@ func LoadProject(base, config string) (*Project, error) {
 	if c.Title == "" {
 		log.Warnf("missing or empty 'title'")
 	}
-	if c.Main == "" {
-		log.Warnf("missing or empty 'main'")
+	if c.MainCompo == "" {
+		log.Warnf("missing or empty 'main.compo'")
+	}
+	if c.MainStandard == "" {
+		log.Warnf("missing or empty 'main.standard'")
 	}
 	if len(c.SourceDirs) == 0 {
 		log.Warnf("missing or empty 'srcDir'")
@@ -110,7 +114,7 @@ func (p *Project) BuildRequest() (*pb.BuildRequest, error) {
 	}
 	return &pb.BuildRequest{
 		File:            srcs,
-		EntryPoint:      []string{p.Config.Main},
+		EntryPoint:      []string{p.Config.MainCompo},
 		BaseDirectory:   p.BaseDir,
 		OutputSourceMap: "main.map",
 		Define: []*pb.Define{

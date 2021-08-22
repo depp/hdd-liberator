@@ -1,5 +1,6 @@
 {
   "title": "JS13K Demo",
-  "main": "game/main.js",
+  "main.compo": "game/main.compo.js",
+  "main.standard": "game/main.standard.js",
   "srcDirs": ["game"]
 }

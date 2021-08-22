@@ -1,5 +1,5 @@
 import './common.js';
-import { gl, SetGLContext, Render } from './render.js';
+import { ctx, SetCanvasContext, Render } from './render.js';
 
 /**
  * Callback for requestAnimationFrame.
@@ -16,10 +16,14 @@ function Frame(time) {
 function Start() {
   /** @type {HTMLCanvasElement!} */
   const canvas = window['g'];
-  SetGLContext(/** @type {WebGLRenderingContext?} */ (canvas.getContext('webgl', {
-    alpha: 0,
-  })));
-  if (!gl) {
+  SetCanvasContext(
+    /** @type {CanvasRenderingContext2D?} */ (
+      canvas.getContext('2d', {
+        alpha: false,
+      })
+    ),
+  );
+  if (!ctx) {
     document.body.innerHTML = 'Error :(';
     return;
   }

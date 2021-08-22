@@ -12,6 +12,9 @@
   "[java]": {
     "editor.tabSize": 4
   },
+  "[python]": {
+    "editor.tabSize": 4
+  },
   "[starlark]": {
     "editor.tabSize": 4
   },

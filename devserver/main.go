@@ -209,13 +209,17 @@ func (h *handler) buildRelease(ctx context.Context) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	rsp, err := h.compile(ctx, p.BuildRequest())
+	req, err := p.BuildRequest()
+	if err != nil {
+		return nil, err
+	}
+	rsp, err := h.compile(ctx, req)
 	if err != nil {
 		return nil, err
 	}
 	var smURL *url.URL
 	if q := h.releaseMap.set(rsp.GetSourceMap()); q != nil {
-		smURL = &url.URL{Path: "release.map", RawQuery: q.Encode()}
+		smURL = &url.URL{Path: "main.map", RawQuery: q.Encode()}
 	}
 	return p.BuildHTML(ctx, rsp, smURL)
 }
@@ -350,7 +354,7 @@ func mainE() error {
 	mx.Get("/favicon.ico", serveFavicon)
 	mx.Get("/release", redirectAddSlash)
 	mx.Get("/release/", serveRelease)
-	mx.Get("/release/release.map", serveReleaseMap)
+	mx.Get("/release/main.map", serveReleaseMap)
 	mx.Get("/static/*", serveStatic)
 	mx.Get("/game/*", serveStatic)
 	mx.NotFound(serveNotFound)

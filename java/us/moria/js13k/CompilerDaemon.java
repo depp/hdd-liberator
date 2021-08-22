@@ -1,5 +1,6 @@
 package us.moria.js13k;
 
+import com.google.common.collect.ImmutableList;
 import com.google.javascript.jscomp.*;
 import com.google.javascript.jscomp.Compiler;
 import com.google.protobuf.ByteString;
@@ -56,6 +57,12 @@ public class CompilerDaemon {
      */
     private final List<SourceFile> externs;
 
+    static class BadRequest extends Exception {
+        public BadRequest(String message) {
+            super(message);
+        }
+    }
+
     CompilerDaemon() {
         ioBuffer = ByteBuffer.allocateDirect(8 * 1024);
         in = Channels.newChannel(System.in);
@@ -67,6 +74,7 @@ public class CompilerDaemon {
             System.err.println("Error: Could not load externs: " + e);
             System.exit(1);
         }
+        externs.add(SourceFile.fromCode("ccl.js", "var goog;\n"));
     }
 
     private void run() {
@@ -152,6 +160,16 @@ public class CompilerDaemon {
         }
     }
 
+    private static CompilerProtos.BuildResponse stringError(String msg) {
+        return CompilerProtos.BuildResponse.newBuilder()
+                .addDiagnostic(
+                        CompilerProtos.Diagnostic.newBuilder()
+                                .setSeverity(CompilerProtos.Diagnostic.Severity.ERROR)
+                                .setMessage(msg)
+                                .build())
+                .build();
+    }
+
     /**
      * Compile JavaScript source code in response to a request from the
      * devserver.
@@ -159,12 +177,7 @@ public class CompilerDaemon {
     private CompilerProtos.BuildResponse compile(CompilerProtos.BuildRequest request) {
         CompilerProtos.BuildResponse.Builder response = CompilerProtos.BuildResponse.newBuilder();
         if (request.getFileCount() == 0) {
-            response.addDiagnostic(
-                    CompilerProtos.Diagnostic.newBuilder()
-                            .setSeverity(CompilerProtos.Diagnostic.Severity.ERROR)
-                            .setMessage("No source files")
-                            .build());
-            return response.build();
+            return stringError("No source files");
         }
         final Path root = Path.of(request.getBaseDirectory());
         final List<SourceFile> sources = new ArrayList<>();
@@ -173,7 +186,12 @@ public class CompilerDaemon {
         }
         final Compiler compiler = new Compiler();
         compiler.setErrorManager(new ProtoErrorManager(response, root));
-        final CompilerOptions options = getCompilerOptions(request, root);
+        CompilerOptions options;
+        try {
+            options = getCompilerOptions(request, root);
+        } catch (BadRequest e) {
+            return stringError(e.toString());
+        }
         compiler.initOptions(options);
         if (compiler.hasErrors()) {
             return response.build();
@@ -218,7 +236,7 @@ public class CompilerDaemon {
      * Get the Closure compiler options which will be used to compile the soucre
      * code.
      */
-    private static CompilerOptions getCompilerOptions(CompilerProtos.BuildRequest request, Path root) {
+    private static CompilerOptions getCompilerOptions(CompilerProtos.BuildRequest request, Path root) throws BadRequest{
         CompilerOptions options = new CompilerOptions();
 
         // Set language input & output.
@@ -227,10 +245,34 @@ public class CompilerDaemon {
         options.setStrictModeInput(true);
         options.setChunkOutputType(CompilerOptions.ChunkOutputType.GLOBAL_NAMESPACE);
         options.setEmitUseStrict(false);
+        final List<ModuleIdentifier> entryPoints = new ArrayList();
+        for (String entry : request.getEntryPointList()) {
+            System.err.println("ENTRY: " + entry);
+            entryPoints.add(ModuleIdentifier.forFile(entry));
+        }
+        options.setDependencyOptions(DependencyOptions.pruneForEntryPoints(entryPoints));
+
+        // Set defines.
+        for (CompilerProtos.Define define : request.getDefineList()) {
+            final String name = define.getName();
+            if (name.isEmpty()) {
+                throw new BadRequest("empty name for define");
+            }
+            final CompilerProtos.Define.ValueCase valueCase = define.getValueCase();
+            if (valueCase == CompilerProtos.Define.ValueCase.BOOLEAN) {
+                options.setDefineToBooleanLiteral(name, define.getBoolean());
+            } else if (valueCase == CompilerProtos.Define.ValueCase.NUMBER) {
+                options.setDefineToDoubleLiteral(name, define.getNumber());
+            } else if (valueCase == CompilerProtos.Define.ValueCase.STRING) {
+                options.setDefineToStringLiteral(name, define.getString());
+            } else {
+                throw new BadRequest("empty value for define");
+            }
+        }
 
         // Set source map output.
         String mapPath = request.getOutputSourceMap();
-        if (mapPath != null && !mapPath.isEmpty()) {
+        if (!mapPath.isEmpty()) {
             options.setSourceMapDetailLevel(SourceMap.DetailLevel.ALL);
             options.setSourceMapOutputPath(mapPath);
             final List<SourceMap.LocationMapping> locationMaps = new ArrayList<>();

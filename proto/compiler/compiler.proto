@@ -4,16 +4,21 @@ package compiler;
 option java_package = "us.moria.js13k";
 option java_outer_classname = "CompilerProtos";
 
-message BuildRequest {
-  enum Config {
-    UNKNOWN = 0;
-    DEVELOPMENT = 1;
-    RELEASE = 2;
+message Define {
+  string name = 1;
+  oneof value {
+    bool boolean = 2;
+    double number = 3;
+    string string = 4;
   }
+}
+
+message BuildRequest {
   repeated string file = 1;
-  Config config = 2;
+  repeated string entry_point = 2;
   string base_directory = 3;
   string output_source_map = 4;
+  repeated Define define = 5;
 }
 
 message Diagnostic {

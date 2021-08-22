@@ -17,5 +17,5 @@ go_proto_library(
 
 java_proto_library(
     name = "compiler_java_proto",
-    deps = [":compiler_proto"]
+    deps = [":compiler_proto"],
 )

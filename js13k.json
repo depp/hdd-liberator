@@ -1,4 +1,5 @@
 {
   "title": "JS13K Demo",
-  "main": "game/main.js"
+  "main": "game/main.js",
+  "srcDirs": ["game"]
 }

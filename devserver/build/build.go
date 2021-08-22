@@ -7,7 +7,11 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/url"
+	"os"
+	"path"
 	"path/filepath"
+	"regexp"
+	"strings"
 
 	"github.com/sirupsen/logrus"
 
@@ -16,10 +20,18 @@ import (
 	pb "moria.us/js13k/proto/compiler"
 )
 
+func defineBoolean(name string, value bool) *pb.Define {
+	return &pb.Define{
+		Name:  name,
+		Value: &pb.Define_Boolean{Boolean: value},
+	}
+}
+
 // A Config contains the project configuration.
 type Config struct {
-	Title string `json:"title"`
-	Main  string `json:"main"`
+	Title      string   `json:"title"`
+	Main       string   `json:"main"`
+	SourceDirs []string `json:"srcDirs"`
 }
 
 // A Project is a JS13K project which can be built.
@@ -46,20 +58,65 @@ func LoadProject(base, config string) (*Project, error) {
 	}
 	log := logrus.StandardLogger().WithField("config", config)
 	if c.Title == "" {
-		log.Warnf("missing 'title'")
+		log.Warnf("missing or empty 'title'")
 	}
 	if c.Main == "" {
-		log.Warnf("missing 'main'")
+		log.Warnf("missing or empty 'main'")
+	}
+	if len(c.SourceDirs) == 0 {
+		log.Warnf("missing or empty 'srcDir'")
 	}
 	return &p, nil
 }
 
-func (p *Project) BuildRequest() *pb.BuildRequest {
-	return &pb.BuildRequest{
-		File:            []string{p.Config.Main},
-		BaseDirectory:   p.BaseDir,
-		OutputSourceMap: "release.map",
+var sourceName = regexp.MustCompile("^[a-zA-Z0-9]+([-._][a-zA-Z0-9]+)*$")
+
+func listSources(srcs []string, absDir, relDir string, depth int) ([]string, error) {
+	const maxDepth = 10
+	if depth > maxDepth {
+		return nil, fmt.Errorf("source directory too deep: %q", relDir)
 	}
+	fs, err := ioutil.ReadDir(absDir)
+	if err != nil {
+		return nil, err
+	}
+	for _, f := range fs {
+		name := f.Name()
+		if sourceName.MatchString(name) {
+			switch f.Mode() & os.ModeType {
+			case 0:
+				if strings.HasSuffix(name, ".js") {
+					srcs = append(srcs, path.Join(relDir, name))
+				}
+			case os.ModeDir:
+				srcs, err = listSources(srcs, filepath.Join(absDir, name), path.Join(relDir, name), depth+1)
+				if err != nil {
+					return nil, err
+				}
+			}
+		}
+	}
+	return srcs, nil
+}
+
+func (p *Project) BuildRequest() (*pb.BuildRequest, error) {
+	var srcs []string
+	for _, d := range p.Config.SourceDirs {
+		var err error
+		srcs, err = listSources(srcs, filepath.Join(p.BaseDir, d), d, 0)
+		if err != nil {
+			return nil, err
+		}
+	}
+	return &pb.BuildRequest{
+		File:            srcs,
+		EntryPoint:      []string{p.Config.Main},
+		BaseDirectory:   p.BaseDir,
+		OutputSourceMap: "main.map",
+		Define: []*pb.Define{
+			defineBoolean("COMPO", true),
+		},
+	}, nil
 }
 
 func (p *Project) BuildHTML(ctx context.Context, rsp *pb.BuildResponse, sourceMapURL *url.URL) ([]byte, error) {

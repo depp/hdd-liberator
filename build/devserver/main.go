@@ -19,8 +19,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 
-	"moria.us/js13k/devserver/compiler"
-	"moria.us/js13k/devserver/project"
+	"moria.us/js13k/build/compiler"
+	"moria.us/js13k/build/project"
 
 	pb "moria.us/js13k/proto/compiler"
 )
@@ -52,8 +52,8 @@ func newHandler(baseDir, config string) *handler {
 	return &handler{
 		baseDir:            baseDir,
 		config:             config,
-		statusTemplate:     newTemplate(baseDir, "devserver/status.gohtml"),
-		buildErrorTemplate: newTemplate(baseDir, "devserver/build_error.gohtml"),
+		statusTemplate:     newTemplate(baseDir, "build/devserver/status.gohtml"),
+		buildErrorTemplate: newTemplate(baseDir, "build/devserver/build_error.gohtml"),
 		gameTemplate:       newTemplate(baseDir, "game/index.gohtml"),
 	}
 }

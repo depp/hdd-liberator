@@ -15,7 +15,7 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"moria.us/js13k/html"
+	"moria.us/js13k/build/html"
 
 	pb "moria.us/js13k/proto/compiler"
 )

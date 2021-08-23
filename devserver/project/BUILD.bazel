@@ -1,9 +1,9 @@
 load("@io_bazel_rules_go//go:def.bzl", "go_library")
 
 go_library(
-    name = "build",
-    srcs = ["build.go"],
-    importpath = "moria.us/js13k/devserver/build",
+    name = "project",
+    srcs = ["project.go"],
+    importpath = "moria.us/js13k/devserver/project",
     visibility = ["//devserver:__subpackages__"],
     deps = [
         "//devserver/compiler",

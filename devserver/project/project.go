@@ -1,4 +1,4 @@
-package build
+package project
 
 import (
 	"bytes"
@@ -41,9 +41,9 @@ type Project struct {
 	Config  Config
 }
 
-// LoadProject loads a project with the given base directory and configuration
+// Load loads a project with the given base directory and configuration
 // file.
-func LoadProject(base, config string) (*Project, error) {
+func Load(base, config string) (*Project, error) {
 	p := Project{
 		BaseDir: filepath.Clean(base),
 	}

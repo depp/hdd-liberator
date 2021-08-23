@@ -19,8 +19,8 @@ import (
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 
-	"moria.us/js13k/devserver/build"
 	"moria.us/js13k/devserver/compiler"
+	"moria.us/js13k/devserver/project"
 
 	pb "moria.us/js13k/proto/compiler"
 )
@@ -176,7 +176,7 @@ func redirectAddSlash(w http.ResponseWriter, r *http.Request) {
 func serveIndex(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	h := getHandler(ctx)
-	p, err := build.LoadProject(h.baseDir, h.config)
+	p, err := project.Load(h.baseDir, h.config)
 	if err != nil {
 		h.serveError(w, r, err)
 		return
@@ -205,7 +205,7 @@ func (h *handler) compile(ctx context.Context, req *pb.BuildRequest) (*pb.BuildR
 }
 
 func (h *handler) buildRelease(ctx context.Context) ([]byte, error) {
-	p, err := build.LoadProject(h.baseDir, h.config)
+	p, err := project.Load(h.baseDir, h.config)
 	if err != nil {
 		return nil, err
 	}

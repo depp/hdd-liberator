@@ -1,4 +1,5 @@
-import { SetCanvasContext, Render } from './render.js';
+import * as render2D from './render2d.js';
+import * as game from './game.js';
 
 /**
  * The requestAnimationFrame handle.
@@ -25,10 +26,11 @@ function PutErrorMessage(msg) {
 
 /**
  * Callback for requestAnimationFrame.
- * @param {number} time
+ * @param {number} timestamp Timestamp, in milliseconds.
  */
-function Frame(time) {
-  Render(time);
+function Frame(timestamp) {
+  game.Update(timestamp);
+  game.Render2D();
   RAFHandle = requestAnimationFrame(Frame);
 }
 
@@ -45,7 +47,8 @@ function Start() {
     return;
   }
   document.body.appendChild(canvas);
-  SetCanvasContext(ctx);
+  render2D.SetContext(ctx);
+  game.Start();
   Frame(0);
 }
 

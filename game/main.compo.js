@@ -1,12 +1,14 @@
 import './common.js';
-import { ctx, SetCanvasContext, Render } from './render.js';
+import { ctx, SetContext } from './render2d.js';
+import * as game from './game.js';
 
 /**
  * Callback for requestAnimationFrame.
- * @param {number} time
+ * @param {number} timestamp
  */
-function Frame(time) {
-  Render(time);
+function Frame(timestamp) {
+  game.Update(timestamp);
+  game.Render2D();
   requestAnimationFrame(Frame);
 }
 
@@ -16,7 +18,7 @@ function Frame(time) {
 function Start() {
   /** @type {HTMLCanvasElement!} */
   const canvas = window['g'];
-  SetCanvasContext(
+  SetContext(
     /** @type {CanvasRenderingContext2D?} */ (
       canvas.getContext('2d', {
         alpha: false,
@@ -27,6 +29,7 @@ function Start() {
     document.body.innerHTML = 'Error :(';
     return;
   }
+  game.Start();
   Frame(0);
 }
 

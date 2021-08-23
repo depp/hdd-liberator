@@ -18,5 +18,7 @@
   "[starlark]": {
     "editor.tabSize": 4
   },
-  "rewrap.wrappingColumn": 80
+  "rewrap.wrappingColumn": 80,
+  "javascript.preferences.importModuleSpecifier": "relative",
+  "javascript.preferences.importModuleSpecifierEnding": "js"
 }

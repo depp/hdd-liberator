@@ -29,12 +29,6 @@ export function Render2D() {
   ctx.save();
   ctx.fillStyle = '#ccc';
   ctx.fillRect(0, 0, w, h);
-  const t = time.Now * 0.001;
-  ctx.fillStyle = `rgb(${[
-    128 + 128 * Math.cos(t),
-    128 + 128 * Math.cos(t + (Math.PI * 2) / 3),
-    128 + 128 * Math.cos(t - (Math.PI * 2) / 3),
-  ]})`;
   const gs = 32;
   let pos;
   ctx.lineWidth = 2;

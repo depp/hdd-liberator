@@ -53,7 +53,7 @@ function ZeroButtons(record) {
 }
 
 /**
- * @param {KeyboardEvent} evt
+ * @param {Event} evt
  */
 function HandleKeyDown(evt) {
   const binding = ButtonBindings[evt.code];
@@ -64,7 +64,7 @@ function HandleKeyDown(evt) {
 }
 
 /**
- * @param {KeyboardEvent} evt
+ * @param {Event} evt
  */
 function HandleKeyUp(evt) {
   const binding = ButtonBindings[evt.code];
@@ -86,8 +86,8 @@ export function Start() {
 /**
  * Get the value of an axis controlled by button precess.
  *
- * @param {number} negative The button which adds -1 to the axis.
- * @param {number} positive The button which adds +1 to the axis.
+ * @param {string} negative The button which adds -1 to the axis.
+ * @param {string} positive The button which adds +1 to the axis.
  * @returns {number} -1, 0, or +1.
  */
 export function ButtonAxis(negative, positive) {

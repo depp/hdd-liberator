@@ -33,7 +33,7 @@ func ceilPow2(x int) int {
 }
 
 func socketpair() (ss [2]*os.File, err error) {
-	fds, err := unix.Socketpair(syscall.AF_UNIX, syscall.SOCK_STREAM, 0)
+	fds, err := unix.Socketpair(syscall.AF_UNIX, syscall.SOCK_STREAM|syscall.SOCK_CLOEXEC, 0)
 	if err != nil {
 		return ss, err
 	}

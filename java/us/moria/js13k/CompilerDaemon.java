@@ -5,7 +5,6 @@ import com.google.javascript.jscomp.Compiler;
 import com.google.protobuf.ByteString;
 import com.google.protobuf.CodedOutputStream;
 
-import java.io.EOFException;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.Channels;
@@ -105,10 +104,9 @@ public class CompilerDaemon {
      * replace the buffer with a new one, clearing all data in the old buffer.
      * The buffer position is reset to 0.
      */
-    private void setBufferSize(int size) {
+    private void setBufferSize(int size) throws IOException {
         if (size > MAX_MESSAGE_SIZE) {
-            System.err.println("Error: message too large: " + size);
-            System.exit(1);
+            throw new IOException("message too large: " + size);
         }
         if (size > ioBuffer.capacity()) {
             ioBuffer = ByteBuffer.allocateDirect(ceilPow2(size));
@@ -120,28 +118,33 @@ public class CompilerDaemon {
      * Read a fixed amount of data, in bytes, into the buffer. The buffer is
      * resized as necessary. Existing data in the bufer is overwritten.
      */
-    private void read(int size) throws IOException {
+    private boolean read(int size) throws IOException {
         setBufferSize(size);
         while (ioBuffer.remaining() > 0) {
-            in.read(ioBuffer);
+            int amt = in.read(ioBuffer);
+            if (amt < 0) {
+                return false;
+            }
         }
         ioBuffer.position(0);
+        return true;
     }
 
     /**
      * Read a request message from the devserver.
+     * @return The parsed message, or null if no more messages are pending.
      */
     private CompilerProtos.BuildRequest readMessage() throws IOException {
-        try {
-            read(4);
-        } catch (EOFException e) {
+        if (!read(4)) {
             if (ioBuffer.position() == 0) {
                 return null;
             }
-            throw e;
+            throw new IOException("unexpected EOF");
         }
         int length = ioBuffer.getInt();
-        read(length);
+        if (!read(length)) {
+            throw new IOException("unexpected EOF");
+        }
         return CompilerProtos.BuildRequest.parseFrom(ioBuffer);
     }
 

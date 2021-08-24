@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/hex"
+	"errors"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -42,15 +43,23 @@ func (m *sourcemap) set(data []byte) url.Values {
 	return q
 }
 
-func (m *sourcemap) get(r *http.Request) []byte {
+var (
+	noHashErr       = errors.New("no hash parameter")
+	hashNotFoundErr = errors.New("hash not found")
+)
+
+func (m *sourcemap) get(r *http.Request) ([]byte, error) {
 	q := r.URL.Query()
 	hv := q.Get("hash")
 	if len(hv) != hashSize*2 {
-		return nil
+		if len(hv) == 0 {
+			return nil, noHashErr
+		}
+		return nil, hashNotFoundErr
 	}
 	var b [hashSize]byte
 	if _, err := hex.Decode(b[:], []byte(hv)); err != nil {
-		return nil
+		return nil, hashNotFoundErr
 	}
 
 	var d []byte
@@ -60,12 +69,33 @@ func (m *sourcemap) get(r *http.Request) []byte {
 	}
 	m.lock.RUnlock()
 
-	return d
+	if len(d) == 0 {
+		return nil, hashNotFoundErr
+	}
+	return d, nil
 }
 
 func (m *sourcemap) serve(h *handler, w http.ResponseWriter, r *http.Request) {
-	d := m.get(r)
-	if len(d) == 0 {
+	d, err := m.get(r)
+	if err != nil {
+		if err == noHashErr {
+			var b [hashSize]byte
+			var ok bool
+
+			m.lock.RLock()
+			if len(m.data) != 0 {
+				b = m.hash
+				ok = true
+			}
+			m.lock.RUnlock()
+
+			if ok {
+				u := *r.URL
+				u.RawQuery = url.Values{"hash": {hex.EncodeToString(b[:])}}.Encode()
+				h.serveRedirect(w, r, &u)
+				return
+			}
+		}
 		h.serveNotFound(w, r)
 		return
 	}

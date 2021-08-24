@@ -2,7 +2,12 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library")
 
 go_library(
     name = "compiler",
-    srcs = ["compiler.go"],
+    srcs = [
+        "compiler.go",
+    ] + select({
+        "@platforms//os:linux": ["socketpair_linux.go"],
+        "//conditions:default": ["socketpair_bsd.go"],
+    }),
     data = [
         "//java:compiler",
     ],

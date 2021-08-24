@@ -1,12 +1,9 @@
 load("@io_bazel_rules_go//go:def.bzl", "go_binary")
 
 go_binary(
-    name = "devserver",
+    name = "archive",
     srcs = [
-        "main.go",
-        "source.go",
-        "sourcemap.go",
-        "template.go",
+        "archive.go",
     ],
     deps = [
         "//build/compiler",

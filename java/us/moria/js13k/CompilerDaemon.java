@@ -1,6 +1,5 @@
 package us.moria.js13k;
 
-import com.google.common.collect.ImmutableList;
 import com.google.javascript.jscomp.*;
 import com.google.javascript.jscomp.Compiler;
 import com.google.protobuf.ByteString;
@@ -270,7 +269,7 @@ public class CompilerDaemon {
             if (!prefix.endsWith("/")) {
                 prefix += "/";
             }
-            locationMaps.add(new SourceMap.PrefixLocationMapping(prefix, ""));
+            locationMaps.add(new SourceMap.PrefixLocationMapping(prefix, "/"));
             options.setSourceMapLocationMappings(locationMaps);
         }
 

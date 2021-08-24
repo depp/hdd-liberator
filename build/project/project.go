@@ -6,19 +6,20 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"net/url"
-	"os"
 	"path"
 	"path/filepath"
 	"regexp"
-	"strings"
+	"time"
 
 	"github.com/sirupsen/logrus"
 
-	"moria.us/js13k/build/html"
-
 	pb "moria.us/js13k/proto/compiler"
 )
+
+// A Compiler compiles JavaScript source code.
+type Compiler interface {
+	Compile(ctx context.Context, req *pb.BuildRequest) (*pb.BuildResponse, error)
+}
 
 func defineBoolean(name string, value bool) *pb.Define {
 	return &pb.Define{
@@ -29,10 +30,12 @@ func defineBoolean(name string, value bool) *pb.Define {
 
 // A Config contains the project configuration.
 type Config struct {
-	Title        string   `json:"title"`
-	MainCompo    string   `json:"main.compo"`
-	MainStandard string   `json:"main.standard"`
-	SourceDirs   []string `json:"srcDirs"`
+	Title        string    `json:"title"`
+	Filename     string    `json:"filename"`
+	MainCompo    string    `json:"main.compo"`
+	MainStandard string    `json:"main.standard"`
+	SourceDir    string    `json:"srcDir"`
+	Timestamp    time.Time `json:"timestamp"`
 }
 
 // A Project is a JS13K project which can be built.
@@ -59,93 +62,106 @@ func Load(base, config string) (*Project, error) {
 	}
 	log := logrus.StandardLogger().WithField("config", config)
 	if c.Title == "" {
-		log.Warnf("missing or empty 'title'")
+		log.Warn("missing or empty 'title'")
+	}
+	if c.Filename == "" {
+		log.Warn("missing or empty 'filename'")
+	} else if !safeName.MatchString(c.Filename) {
+		log.Warnf("invalid filename: %q", c.Filename)
+		c.Filename = ""
 	}
 	if c.MainCompo == "" {
-		log.Warnf("missing or empty 'main.compo'")
+		log.Warn("missing or empty 'main.compo'")
 	}
 	if c.MainStandard == "" {
-		log.Warnf("missing or empty 'main.standard'")
+		log.Warn("missing or empty 'main.standard'")
 	}
-	if len(c.SourceDirs) == 0 {
-		log.Warnf("missing or empty 'srcDir'")
+	if c.SourceDir == "" {
+		log.Warn("missing or empty 'srcDir'")
 	}
 	return &p, nil
 }
 
-var sourceName = regexp.MustCompile("^[a-zA-Z0-9]+([-._][a-zA-Z0-9]+)*$")
+var (
+	safeName   = regexp.MustCompile(`^[a-zA-Z0-9]+([-._][a-zA-Z0-9]+)*$`)
+	sourceName = regexp.MustCompile(`^[a-zA-Z0-9]+([-._][a-zA-Z0-9]+)*\.js$`)
+)
 
-func listSources(srcs []string, absDir, relDir string, depth int) ([]string, error) {
-	const maxDepth = 10
-	if depth > maxDepth {
-		return nil, fmt.Errorf("source directory too deep: %q", relDir)
-	}
-	fs, err := ioutil.ReadDir(absDir)
+// listSources returns a list of all JavaScript source files which might be used
+// to compile the game. This just lists all JavaScript source files in the
+// source directory, the compiler or browser will figure out which ones to
+// include based on the entry point.
+func (p *Project) listSources() ([]string, error) {
+	fs, err := ioutil.ReadDir(filepath.Join(p.BaseDir, p.Config.SourceDir))
 	if err != nil {
 		return nil, err
 	}
+	var srcs []string
 	for _, f := range fs {
-		name := f.Name()
-		if sourceName.MatchString(name) {
-			switch f.Mode() & os.ModeType {
-			case 0:
-				if strings.HasSuffix(name, ".js") {
-					srcs = append(srcs, path.Join(relDir, name))
-				}
-			case os.ModeDir:
-				srcs, err = listSources(srcs, filepath.Join(absDir, name), path.Join(relDir, name), depth+1)
-				if err != nil {
-					return nil, err
-				}
+		if f.Mode().IsRegular() {
+			if name := f.Name(); sourceName.MatchString(name) {
+				srcs = append(srcs, path.Join(p.Config.SourceDir, name))
 			}
 		}
 	}
 	return srcs, nil
 }
 
-func (p *Project) BuildRequest() (*pb.BuildRequest, error) {
-	var srcs []string
-	for _, d := range p.Config.SourceDirs {
-		var err error
-		srcs, err = listSources(srcs, filepath.Join(p.BaseDir, d), d, 0)
-		if err != nil {
-			return nil, err
-		}
+func (p *Project) CompileOptimized(ctx context.Context, c Compiler) (*OptimizedData, error) {
+	srcs, err := p.listSources()
+	if err != nil {
+		return nil, err
 	}
-	return &pb.BuildRequest{
+	rsp, err := c.Compile(ctx, &pb.BuildRequest{
 		File:            srcs,
-		EntryPoint:      []string{p.Config.MainCompo},
+		EntryPoint:      []string{path.Join(p.Config.SourceDir, p.Config.MainStandard)},
+		BaseDirectory:   p.BaseDir,
+		OutputSourceMap: "main.map",
+		Define: []*pb.Define{
+			defineBoolean("COMPO", false),
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &OptimizedData{
+		Config:      p.Config,
+		Code:        rsp.GetCode(),
+		SourceMap:   rsp.GetSourceMap(),
+		Diagnostics: rsp.GetDiagnostic(),
+	}, nil
+}
+
+func (p *Project) CompileCompo(ctx context.Context, c Compiler) (*CompoData, error) {
+	srcs, err := p.listSources()
+	if err != nil {
+		return nil, err
+	}
+	rsp, err := c.Compile(ctx, &pb.BuildRequest{
+		File:            srcs,
+		EntryPoint:      []string{path.Join(p.Config.SourceDir, p.Config.MainCompo)},
 		BaseDirectory:   p.BaseDir,
 		OutputSourceMap: "main.map",
 		Define: []*pb.Define{
 			defineBoolean("COMPO", true),
 		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	return &CompoData{
+		Config:      p.Config,
+		SourceMap:   rsp.GetSourceMap(),
+		Diagnostics: rsp.GetDiagnostic(),
+		code:        rsp.GetCode(),
 	}, nil
 }
 
-func (p *Project) BuildHTML(ctx context.Context, rsp *pb.BuildResponse, sourceMapURL *url.URL) ([]byte, error) {
-	code := rsp.GetCode()
-	var w html.Writer
-
-	w.OpenTag("meta")
-	w.Attr("charset", "UTF-8")
-
-	w.OpenTag("title")
-	w.Text(p.Config.Title)
-	w.CloseTag("title")
-
-	w.OpenTag("canvas")
-	w.Attr("id", "g")
-	w.CloseTag("canvas")
-
-	w.OpenTag("script")
-	w.Attr("type", "module")
-	w.Text(string(code))
-	if sourceMapURL != nil {
-		w.Text("//# sourceMappingURL=")
-		w.Text(sourceMapURL.String())
-	}
-	w.CloseTag("script")
-
-	return w.Finish()
+// An OptimizedData contains the data and compiled JavaScript for an optimized
+// (but non-competition) build.
+type OptimizedData struct {
+	Config      Config
+	Code        []byte
+	SourceMap   []byte
+	Diagnostics []*pb.Diagnostic
 }

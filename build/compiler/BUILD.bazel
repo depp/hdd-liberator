@@ -3,6 +3,9 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library")
 go_library(
     name = "compiler",
     srcs = ["compiler.go"],
+    data = [
+        "//java:compiler",
+    ],
     importpath = "moria.us/js13k/build/compiler",
     visibility = ["//build:__subpackages__"],
     deps = [

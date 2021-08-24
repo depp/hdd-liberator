@@ -13,7 +13,6 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
-	"sync"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/sirupsen/logrus"
@@ -44,8 +43,7 @@ type handler struct {
 	gameTemplate       *cachedTemplate
 	releaseMap         sourcemap
 
-	compilerLock sync.Mutex
-	compiler     compiler.Compiler
+	compiler compiler.Locked
 }
 
 func newHandler(baseDir, config string) *handler {
@@ -187,7 +185,7 @@ func serveIndex(w http.ResponseWriter, r *http.Request) {
 	}
 	h.serveTemplate(w, r, h.gameTemplate, &idata{
 		Title: p.Config.Title,
-		Main:  path.Join("/", p.Config.MainStandard),
+		Main:  path.Join("/", p.Config.SourceDir, p.Config.MainStandard),
 	})
 }
 
@@ -195,33 +193,20 @@ func serveFavicon(w http.ResponseWriter, r *http.Request) {
 	serveKnownFile(w, r, "favicon.ico")
 }
 
-func (h *handler) compile(ctx context.Context, req *pb.BuildRequest) (*pb.BuildResponse, error) {
-	h.compilerLock.Lock()
-	defer h.compilerLock.Unlock()
-	if err := ctx.Err(); err != nil {
-		return nil, err
-	}
-	return h.compiler.Compile(req)
-}
-
 func (h *handler) buildRelease(ctx context.Context) ([]byte, error) {
 	p, err := project.Load(h.baseDir, h.config)
 	if err != nil {
 		return nil, err
 	}
-	req, err := p.BuildRequest()
-	if err != nil {
-		return nil, err
-	}
-	rsp, err := h.compile(ctx, req)
+	d, err := p.CompileCompo(ctx, &h.compiler)
 	if err != nil {
 		return nil, err
 	}
 	var smURL *url.URL
-	if q := h.releaseMap.set(rsp.GetSourceMap()); q != nil {
+	if q := h.releaseMap.set(d.SourceMap); q != nil {
 		smURL = &url.URL{Path: "main.map", RawQuery: q.Encode()}
 	}
-	return p.BuildHTML(ctx, rsp, smURL)
+	return d.BuildHTML(smURL)
 }
 
 type errorData struct {

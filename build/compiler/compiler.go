@@ -2,12 +2,14 @@
 package compiler
 
 import (
+	"context"
 	"encoding/binary"
 	"fmt"
 	"os"
 	"os/exec"
 	"sort"
 	"strconv"
+	"sync"
 	"syscall"
 
 	"github.com/sirupsen/logrus"
@@ -155,7 +157,7 @@ func (c *Compiler) readMessage() (*pb.BuildResponse, error) {
 
 // Compile compiles JavaScript code and returns the result. Compilation errors
 // are returned as the Error type.
-func (c *Compiler) Compile(req *pb.BuildRequest) (*pb.BuildResponse, error) {
+func (c *Compiler) Compile(_ context.Context, req *pb.BuildRequest) (*pb.BuildResponse, error) {
 	if c.sock == nil {
 		if err := c.start(); err != nil {
 			return nil, err
@@ -212,6 +214,22 @@ func (c *Compiler) Compile(req *pb.BuildRequest) (*pb.BuildResponse, error) {
 		return nil, &Error{ds}
 	}
 	return rsp, nil
+}
+
+// =============================================================================
+
+type Locked struct {
+	lock     sync.Mutex
+	compiler Compiler
+}
+
+func (c *Locked) Compile(ctx context.Context, req *pb.BuildRequest) (*pb.BuildResponse, error) {
+	c.lock.Lock()
+	defer c.lock.Unlock()
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	return c.compiler.Compile(ctx, req)
 }
 
 // =============================================================================

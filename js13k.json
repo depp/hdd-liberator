@@ -1,6 +1,8 @@
 {
   "title": "JS13K Demo",
-  "main.compo": "game/main.compo.js",
-  "main.standard": "game/main.standard.js",
-  "srcDirs": ["game"]
+  "filename": "JS13K_Unnamed",
+  "main.compo": "main.compo.js",
+  "main.standard": "main.standard.js",
+  "srcDir": "game",
+  "timestamp": "2021-09-13T11:00:00Z"
 }

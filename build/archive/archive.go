@@ -41,6 +41,13 @@ func mainE() error {
 		return err
 	}
 	logrus.Infoln("Output:", zpath)
+	logrus.Infoln("Size:", len(z))
+	n := len(z) - project.TargetSize
+	if n <= 0 {
+		logrus.Infof("Size OK: %d bytes free (%.1f%%)", -n, float64(-n*100)/project.TargetSize)
+	} else {
+		logrus.Errorf("Size over: %d bytes over (%.1f%%)", n, float64(n*100)/project.TargetSize)
+	}
 	return nil
 }
 

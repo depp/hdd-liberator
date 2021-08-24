@@ -11,6 +11,10 @@ import (
 	pb "moria.us/js13k/proto/compiler"
 )
 
+// TargetSize is the maximum permitted size of the zip file, in bytes, accodring
+// to competition rules.
+const TargetSize = 13 * 1024
+
 // A CompoData contains the data and compiled JavaScript for a compo build.
 type CompoData struct {
 	Config      Config

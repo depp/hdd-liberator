@@ -5,6 +5,7 @@ import (
 	"errors"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path/filepath"
 
 	"github.com/sirupsen/logrus"
@@ -39,6 +40,13 @@ func mainE() error {
 	zpath := filepath.Join(baseDir, p.Config.Filename+".zip")
 	if err := ioutil.WriteFile(zpath, z, 0666); err != nil {
 		return err
+	}
+	cmd := exec.CommandContext(ctx, "unzip", "-t", zpath)
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		if e, ok := err.(*exec.ExitError); ok && e.ProcessState.Exited() {
+			return errors.New("failed to validate output zip file")
+		}
 	}
 	logrus.Infoln("Output:", zpath)
 	logrus.Infoln("Size:", len(z))

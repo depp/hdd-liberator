@@ -87,6 +87,11 @@ var (
 	sourceName = regexp.MustCompile(`^[a-zA-Z0-9]+([-._][a-zA-Z0-9]+)*\.js$`)
 )
 
+// IsSourceName returns true if the filename is the name of a source file.
+func IsSourceName(name string) bool {
+	return sourceName.MatchString(name)
+}
+
 // listSources returns a list of all JavaScript source files which might be used
 // to compile the game. This just lists all JavaScript source files in the
 // source directory, the compiler or browser will figure out which ones to

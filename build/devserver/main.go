@@ -20,6 +20,7 @@ import (
 
 	"moria.us/js13k/build/compiler"
 	"moria.us/js13k/build/project"
+	"moria.us/js13k/build/watcher"
 
 	pb "moria.us/js13k/proto/compiler"
 )
@@ -333,6 +334,17 @@ func mainE() error {
 		}
 	}
 	h := newHandler(baseDir, "js13k.json")
+	ch, err := watcher.Watch(ctx, baseDir, "js13k.json")
+	if err != nil {
+		return err
+	}
+	for r := range ch {
+		if r.Err != nil {
+			logrus.Error(r.Err)
+			continue
+		}
+		logrus.Info("SUCCESS")
+	}
 	ctx = context.WithValue(ctx, contextKey{}, h)
 	mx := chi.NewMux()
 	mx.Get("/", serveIndex)

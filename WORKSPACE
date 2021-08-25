@@ -97,8 +97,8 @@ go_repository(
 go_repository(
     name = "org_golang_x_sys",
     importpath = "golang.org/x/sys",
-    sum = "h1:SrN+KX8Art/Sf4HNj6Zcz06G7VEz+7w9tdXTPOZ7+l4=",
-    version = "v0.0.0-20210615035016-665e8c7367d1",
+    sum = "h1:F1jZWGFhYfh0Ci55sIpILtKKK8p3i2/krTr0H1rg74I=",
+    version = "v0.0.0-20210630005230-0f9fa26af87c",
 )
 
 go_repository(
@@ -162,6 +162,13 @@ go_repository(
     importpath = "golang.org/x/tools",
     sum = "h1:FDhOuMEY4JVRztM/gsbk+IKUQ8kj74bxZrgw87eMMVc=",
     version = "v0.0.0-20180917221912-90fa682c2a6e",
+)
+
+go_repository(
+    name = "com_github_fsnotify_fsnotify",
+    importpath = "github.com/fsnotify/fsnotify",
+    sum = "h1:mZcQUHVQUQWoPXXtuf9yuEXKudkV2sx1E06UadKWpgI=",
+    version = "v1.5.1",
 )
 
 gazelle_dependencies()

@@ -45,9 +45,9 @@ func splitChunks(data []byte) ([]chunk, error) {
 
 // A Head contains the header information for a MIDI file.
 type Head struct {
-	format  uint16
-	ntracks uint16
-	tickdiv uint16
+	Format       uint16
+	TrackCount   uint16
+	TickDivision uint16
 }
 
 // parseHead parses the MThd chunk in a MIDI file.
@@ -56,9 +56,9 @@ func parseHead(data []byte) (h Head, err error) {
 		return h, errors.New("MThd too short")
 	}
 	return Head{
-		format:  binary.BigEndian.Uint16(data),
-		ntracks: binary.BigEndian.Uint16(data[2:]),
-		tickdiv: binary.BigEndian.Uint16(data[4:]),
+		Format:       binary.BigEndian.Uint16(data),
+		TrackCount:   binary.BigEndian.Uint16(data[2:]),
+		TickDivision: binary.BigEndian.Uint16(data[4:]),
 	}, nil
 }
 

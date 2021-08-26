@@ -12,6 +12,12 @@
   "[java]": {
     "editor.tabSize": 4
   },
+  "[javascript]": {
+    "editor.formatOnSave": true
+  },
+  "[json]": {
+    "editor.formatOnSave": true
+  },
   "[python]": {
     "editor.tabSize": 4
   },

@@ -1,17 +1,14 @@
-package main
+package midi
 
 import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"io/ioutil"
-	"os"
-	"path/filepath"
+	"io"
 	"strconv"
-
-	"github.com/sirupsen/logrus"
 )
 
+// A chunk is a chunk in a MIDI file.
 type chunk struct {
 	id   [4]byte
 	data []byte
@@ -22,7 +19,11 @@ var (
 	errInvalidChunks = errors.New("invalid MIDI file chunks")
 )
 
+// splitChunks splits a MIDI file into its constituent chunks.
 func splitChunks(data []byte) ([]chunk, error) {
+	if len(data) < 8 || string(data[0:4]) != "MThd" {
+		return nil, errNotMIDI
+	}
 	var r []chunk
 	for len(data) > 0 {
 		if len(data) < 8 {
@@ -42,133 +43,183 @@ func splitChunks(data []byte) ([]chunk, error) {
 	return r, nil
 }
 
-type head struct {
+// A Head contains the header information for a MIDI file.
+type Head struct {
 	format  uint16
 	ntracks uint16
 	tickdiv uint16
 }
 
-func parseHead(data []byte) (h head, err error) {
+// parseHead parses the MThd chunk in a MIDI file.
+func parseHead(data []byte) (h Head, err error) {
 	if len(data) < 6 {
 		return h, errors.New("MThd too short")
 	}
-	return head{
+	return Head{
 		format:  binary.BigEndian.Uint16(data),
 		ntracks: binary.BigEndian.Uint16(data[2:]),
 		tickdiv: binary.BigEndian.Uint16(data[4:]),
 	}, nil
 }
 
-type event struct {
-	time  uint32
-	ctl   uint8
-	data  [2]uint8
-	vdata []byte
+// A Track is an individual track in a MIDI file.
+type Track []byte
+
+func (t Track) Events() (es EventStream) {
+	return EventStream{data: []byte(t)}
 }
 
-func (e event) String() string {
-	switch e.ctl >> 4 {
-	case noteOff:
-		if e.data[1] == 0 {
-			return fmt.Sprintf("noteOff ch.%d %d", e.ctl&15, e.data[0])
+// A File is a parsed MIDI file.
+type File struct {
+	Head   Head
+	Tracks []Track
+}
+
+// Parse parses a MIDI file.
+func Parse(data []byte) (*File, error) {
+	cks, err := splitChunks(data)
+	if err != nil {
+		return nil, err
+	}
+	h, err := parseHead(cks[0].data)
+	if err != nil {
+		return nil, err
+	}
+	tracks := make([]Track, len(cks)-1)
+	for i, ck := range cks[1:] {
+		if string(ck.id[:]) != string("MTrk") {
+			return nil, fmt.Errorf("unknown MIDI chunk type: %q", ck.id[:])
 		}
-		return fmt.Sprintf("noteOff ch.%d %d %d", e.ctl&15, e.data[0], e.data[1])
-	case noteOn:
-		return fmt.Sprintf("noteOn ch.%d %d %d", e.ctl&15, e.data[0], e.data[1])
-	case polyTouch:
-		return fmt.Sprintf("polyTouch ch.%d %d %d", e.ctl&15, e.data[0], e.data[1])
-	case controller:
-		return fmt.Sprintf("controller ch.%d %d %d", e.ctl&15, e.data[0], e.data[1])
-	case programChange:
-		return fmt.Sprintf("programChange ch.%d %d", e.ctl&15, e.data[0])
-	case channelTouch:
-		return fmt.Sprintf("channelTouch ch.%d %d", e.ctl&15, e.data[0])
-	case pitchBend:
-		return fmt.Sprintf("pitchBend ch.%d %d", e.ctl&15, uint32(e.data[0])<<7|uint32(e.data[1]))
+		tracks[i] = Track(ck.data)
+	}
+	return &File{
+		Head:   h,
+		Tracks: tracks,
+	}, nil
+}
+
+// An Event is an event in a MIDI file.
+type Event struct {
+	Time   uint32
+	Status uint8
+	Data   [2]uint8
+	MData  []byte
+}
+
+func (e Event) String() string {
+	switch EventType(e.Status) >> 4 {
+	case NoteOff:
+		if e.Data[1] == 0 {
+			return fmt.Sprintf("noteOff ch.%d %d", e.Status&15, e.Data[0])
+		}
+		return fmt.Sprintf("noteOff ch.%d %d %d", e.Status&15, e.Data[0], e.Data[1])
+	case NoteOn:
+		return fmt.Sprintf("noteOn ch.%d %d %d", e.Status&15, e.Data[0], e.Data[1])
+	case PolyTouch:
+		return fmt.Sprintf("polyTouch ch.%d %d %d", e.Status&15, e.Data[0], e.Data[1])
+	case Controller:
+		return fmt.Sprintf("controller ch.%d %d %d", e.Status&15, e.Data[0], e.Data[1])
+	case ProgramChange:
+		return fmt.Sprintf("programChange ch.%d %d", e.Status&15, e.Data[0])
+	case ChannelTouch:
+		return fmt.Sprintf("channelTouch ch.%d %d", e.Status&15, e.Data[0])
+	case PitchBend:
+		return fmt.Sprintf("pitchBend ch.%d %d", e.Status&15, uint32(e.Data[0])<<7|uint32(e.Data[1]))
 	default:
-		if e.ctl == 0xff {
-			return fmt.Sprintf("meta %d %q", e.data[0], e.vdata)
+		if e.Status == 0xff {
+			return fmt.Sprintf("meta %d %q", e.Data[0], e.MData)
 		} else {
 			return "<invalid>"
 		}
 	}
 }
 
-type track struct {
+// A EventStream is a sequence of events in a MIDI file.
+type EventStream struct {
 	time   uint32
 	status byte
 	data   []byte
 }
 
+type EventType uint32
+
 const (
-	noteOff       = 8
-	noteOn        = 9
-	polyTouch     = 10
-	controller    = 11
-	programChange = 12
-	channelTouch  = 13
-	pitchBend     = 14
+	NoteOff       EventType = 8
+	NoteOn        EventType = 9
+	PolyTouch     EventType = 10
+	Controller    EventType = 11
+	ProgramChange EventType = 12
+	ChannelTouch  EventType = 13
+	PitchBend     EventType = 14
 )
 
-func (t *track) readVar() (q uint32, ok bool) {
+var errInvalidTrackData = errors.New("invalid track data")
+
+func (t *EventStream) readVar() (uint32, error) {
+	var q uint32
 	for {
 		if len(t.data) == 0 {
-			return 0, false
+			return 0, errInvalidTrackData
 		}
 		c := t.data[0]
 		t.data = t.data[1:]
 		if q > ^uint32(0)>>7 {
-			return 0, false
+			return 0, errInvalidTrackData
 		}
 		q = (q << 7) | (uint32(c) & 0x7f)
 		if c&0x80 == 0 {
-			return q, true
+			return q, nil
 		}
 		// Theoretically allowed, but non-canonical. Probably indicates an error
 		// reading.
 		if q == 0 {
-			return 0, false
+			return 0, errInvalidTrackData
 		}
 	}
 }
 
-func (t *track) next() (e event, ok bool) {
-	delta, ok := t.readVar()
-	if !ok {
-		return e, false
+// Next returns the next event in the stream, or io.EOF if there are no more
+// events.
+func (t *EventStream) Next() (e Event, err error) {
+	if len(t.data) == 0 {
+		return e, io.EOF
+	}
+	delta, err := t.readVar()
+	if err != nil {
+		return e, err
 	}
 	if len(t.data) == 0 {
-		return e, false
+		return e, errInvalidTrackData
 	}
-	if delta > ^e.time {
-		return e, false
+	if delta > ^e.Time {
+		return e, errInvalidTrackData
 	}
-	e.time = t.time + delta
-	t.time = e.time
+	e.Time = t.time + delta
+	t.time = e.Time
 	ctl := t.data[0]
 	if ctl&0x80 == 0 {
 		ctl = t.status
 		if ctl == 0 {
-			return e, false
+			return e, errInvalidTrackData
 		}
 	} else {
 		t.data = t.data[1:]
 	}
 	var elen int
-	switch ctl >> 4 {
-	case noteOff:
+	switch EventType(ctl >> 4) {
+	case NoteOff:
 		elen = 2
-	case noteOn:
+	case NoteOn:
 		elen = 2
-	case polyTouch:
+	case PolyTouch:
 		elen = 2
-	case controller:
+	case Controller:
 		elen = 2
-	case programChange:
+	case ProgramChange:
 		elen = 1
-	case channelTouch:
+	case ChannelTouch:
 		elen = 1
-	case pitchBend:
+	case PitchBend:
 		elen = 2
 	case 15:
 		if ctl == 255 {
@@ -177,21 +228,21 @@ func (t *track) next() (e event, ok bool) {
 			}
 			mt := t.data[0]
 			t.data = t.data[1:]
-			n, ok := t.readVar()
-			if !ok {
-				return e, false
+			n, err := t.readVar()
+			if err != nil {
+				return e, err
 			}
 			if int(n) > len(t.data) {
-				return e, false
+				return e, errInvalidTrackData
 			}
 			t.status = 0
 			vdata := t.data[:n]
 			t.data = t.data[n:]
-			return event{
-				ctl:   255,
-				data:  [2]byte{mt, 0},
-				vdata: vdata,
-			}, true
+			return Event{
+				Status: 255,
+				Data:   [2]byte{mt, 0},
+				MData:  vdata,
+			}, nil
 		}
 	default:
 		panic("invalid status")
@@ -203,76 +254,22 @@ func (t *track) next() (e event, ok bool) {
 	switch elen {
 	case 1:
 		d1 = t.data[0]
+		if d1&0x80 != 0 {
+			return e, errInvalidTrackData
+		}
 	case 2:
 		d1 = t.data[0]
 		d2 = t.data[1]
+		if d1&0x80 != 0 || d2&0x80 != 0 {
+			return e, errInvalidTrackData
+		}
 	default:
 		panic("bad length: " + strconv.Itoa(elen))
 	}
 	t.data = t.data[elen:]
 	t.status = ctl
-	return event{
-		ctl:  ctl,
-		data: [2]byte{d1, d2},
-	}, true
-}
-
-func dumpFile(name string) error {
-	data, err := ioutil.ReadFile(name)
-	if err != nil {
-		return err
-	}
-	if len(data) < 8 || string(data[0:4]) != "MThd" {
-		return errNotMIDI
-	}
-	cks, err := splitChunks(data)
-	if err != nil {
-		return err
-	}
-	h, err := parseHead(cks[0].data)
-	if err != nil {
-		return err
-	}
-	fmt.Printf("head: %+v\n", &h)
-	for i, ck := range cks[1:] {
-		fmt.Println("Track:", i)
-		if string(ck.id[:]) != "MTrk" {
-			return fmt.Errorf("unknown chunk type: %q", ck.id[:])
-		}
-		tr := track{data: ck.data}
-		for len(tr.data) != 0 {
-			e, ok := tr.next()
-			if !ok {
-				return errors.New("invalid event")
-			}
-			fmt.Print("  ", e.String(), "\n")
-		}
-	}
-	return nil
-}
-
-func mainE() error {
-	if len(os.Args) <= 1 {
-		return errors.New("usage: midi <file>...")
-	}
-	wd := os.Getenv("BUILD_WORKING_DIRECTORY")
-	fmt.Println("args", os.Args)
-	for _, arg := range os.Args[1:] {
-		fmt.Println(arg)
-		fname := arg
-		if !filepath.IsAbs(fname) && wd != "" {
-			fname = filepath.Join(wd, fname)
-		}
-		if err := dumpFile(fname); err != nil {
-			logrus.Errorf("file %q: %v", arg, err)
-		}
-	}
-	return nil
-}
-
-func main() {
-	if err := mainE(); err != nil {
-		logrus.Error(err)
-		os.Exit(1)
-	}
+	return Event{
+		Status: ctl,
+		Data:   [2]byte{d1, d2},
+	}, nil
 }

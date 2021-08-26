@@ -1,3 +1,4 @@
+import * as audio from './audio.js';
 import * as input from './input.js';
 import * as player from './player.js';
 import * as time from './time.js';
@@ -8,6 +9,7 @@ import { ctx } from './render2d.js';
  */
 export function Start() {
   input.Start();
+  audio.Start();
 }
 
 /**

@@ -41,7 +41,15 @@ func (d *CompoData) BuildHTML(sourceMapURL *url.URL) ([]byte, error) {
 
 	w.OpenTag("canvas")
 	w.Attr("id", "g")
+	w.Attr("style", "display:none")
 	w.CloseTag("canvas")
+
+	w.OpenTag("button")
+	w.Attr("id", "b")
+	w.Attr("style", "font-size:60")
+	// U+25B6 black right-pointing triangle
+	// U+FE0f variation selector 16 (previous character is emoji)
+	w.Text("\u25b6\ufe0f")
 
 	w.OpenTag("script")
 	w.Attr("type", "module")

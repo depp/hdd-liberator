@@ -13,14 +13,13 @@ function Frame(timestamp) {
 }
 
 /**
- * Start the game. Called once, when the script is run.
+ * Start the game. Called once, when the play button is clicked.
  */
 function Start() {
-  /** @type {HTMLCanvasElement!} */
-  const canvas = window['g'];
+  window.b.remove();
   SetContext(
-    /** @type {CanvasRenderingContext2D?} */ (
-      canvas.getContext('2d', {
+    /** @type {CanvasRenderingContext2D} */ (
+      window.g.getContext('2d', {
         alpha: false,
       })
     ),
@@ -29,8 +28,9 @@ function Start() {
     document.body.innerHTML = 'Error :(';
     return;
   }
+  window.g.style.display = '';
   game.Start();
   Frame(0);
 }
 
-Start();
+window.b.onclick = Start;

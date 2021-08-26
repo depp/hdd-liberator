@@ -2,11 +2,44 @@ import * as render2D from './render2d.js';
 import * as game from './game.js';
 
 /**
+ * The div containing the game canvas.
+ * @type {HTMLElement}
+ */
+let CanvasContainer;
+
+/**
+ * The game canvas.
+ * @type {HTMLCanvasElement}
+ */
+let Canvas;
+
+/**
  * The requestAnimationFrame handle.
  *
  * @type {number?}
  */
 let RAFHandle;
+
+/**
+ * Handle a window resize event.
+ */
+function HandleResize() {
+  const xmargin = 32;
+  const ymargin = 100;
+  const minsize = 8;
+  const ww = window.innerWidth;
+  const wh = window.innerHeight;
+  const s = Math.max(
+    minsize,
+    Math.floor(Math.min((ww - xmargin) / 16, (wh - ymargin) / 9)),
+  );
+  const cw = s * 16;
+  const ch = s * 9;
+  CanvasContainer.style.width = `${cw}px`;
+  CanvasContainer.style.height = `${ch}px`;
+  Canvas.width = cw;
+  Canvas.height = ch;
+}
 
 /**
  * Show an error message.
@@ -35,20 +68,41 @@ function Frame(timestamp) {
 }
 
 /**
+ * Handle a click on the "start" overlay.
+ * @param {Event} evt
+ */
+function HandleClickStart(evt) {
+  /** @type {HTMLElement} */ (evt.target).remove();
+  game.Start();
+}
+
+/**
  * Start the game. Called once, when the script is run.
  */
 function Start() {
-  const canvas = document.createElement('canvas');
-  const ctx = canvas.getContext('2d', {
+  Canvas = document.createElement('canvas');
+  const ctx = Canvas.getContext('2d', {
     alpha: false,
   });
   if (ctx == null) {
     PutErrorMessage('Could not create 2D context.');
     return;
   }
-  document.body.appendChild(canvas);
+
+  const overlay = document.createElement('button');
+  overlay.appendChild(document.createTextNode('\u25b6\ufe0f'));
+
+  const par = document.createElement('div');
+  par.setAttribute('id', 'game');
+  par.appendChild(Canvas);
+  par.appendChild(overlay);
+  window.addEventListener('resize', HandleResize);
+  CanvasContainer = par;
+  HandleResize();
+  document.body.appendChild(par);
+
   render2D.SetContext(ctx);
-  game.Start();
+  overlay.addEventListener('click', HandleClickStart);
   Frame(0);
 }
 

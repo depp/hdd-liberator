@@ -171,4 +171,11 @@ go_repository(
     version = "v1.5.1",
 )
 
+go_repository(
+    name = "com_github_gorilla_websocket",
+    importpath = "github.com/gorilla/websocket",
+    sum = "h1:+/TMaTYc4QFitKJxsQ7Yye35DkWvkdLcvGKqM+x0Ufc=",
+    version = "v1.4.2",
+)
+
 gazelle_dependencies()

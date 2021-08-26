@@ -5,11 +5,16 @@
     <title>{{.Title}}</title>
     <link rel="stylesheet" href="/static/style.css">
     <script>var goog = { define(name, value) { return value; } };</script>
+    <script type="module" src="/game/websocket.js"></script>
     <script type="module" src="{{.Main}}"></script>
   </head>
   <body>
     <nav>
       <h1>{{.Title}}</h1>
+      <p id="status-box" class="status-unknown">
+        <span id="status-icon">?</p>
+        <span id="status-text">Not connected</span>
+      </p>
       <p><a href="/release/">Release</a></p>
     </nav>
   </body>

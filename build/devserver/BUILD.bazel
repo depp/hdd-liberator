@@ -6,6 +6,7 @@ go_binary(
         "main.go",
         "source.go",
         "template.go",
+        "websocket.go",
     ],
     deps = [
         "//build/compiler",
@@ -13,6 +14,7 @@ go_binary(
         "//build/watcher",
         "//proto/compiler:compiler_go_proto",
         "@com_github_go_chi_chi_v5//:chi",
+        "@com_github_gorilla_websocket//:websocket",
         "@com_github_sirupsen_logrus//:logrus",
         "@com_github_spf13_pflag//:pflag",
         "@org_golang_x_crypto//blake2b",

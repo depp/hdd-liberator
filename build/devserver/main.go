@@ -133,11 +133,49 @@ func (h *handler) watch(ctx context.Context, config string) {
 
 		h.lock.Lock()
 		h.compo = d
-		for _, l := range h.listeners {
-			l <- d
+		ls := h.listeners
+		var pos int
+		for _, l := range ls {
+			select {
+			case l <- d:
+				ls[pos] = l
+				pos++
+			default:
+				close(l)
+			}
+		}
+		h.listeners = ls[:pos]
+		for ; pos < len(ls); pos++ {
+			ls[pos] = nil
 		}
 		h.lock.Unlock()
 	}
+}
+
+func (h *handler) addListener(ch chan<- *buildState) *buildState {
+	if ch == nil {
+		panic("nil channel")
+	}
+
+	h.lock.Lock()
+	d := h.compo
+	h.listeners = append(h.listeners, ch)
+	h.lock.Unlock()
+
+	return d
+}
+
+func (h *handler) removeListener(ch chan<- *buildState) {
+	h.lock.Lock()
+	for i, l := range h.listeners {
+		if l == ch {
+			h.listeners[i] = h.listeners[len(h.listeners)-1]
+			h.listeners[len(h.listeners)-1] = nil
+			h.listeners = h.listeners[:len(h.listeners)-1]
+			close(ch)
+		}
+	}
+	h.lock.Unlock()
 }
 
 func (h *handler) getBuildState(ctx context.Context, f func(*buildState) bool) *buildState {
@@ -171,15 +209,7 @@ loop:
 		}
 	}
 
-	h.lock.Lock()
-	for i, l := range h.listeners {
-		if l == ch {
-			h.listeners[i] = h.listeners[len(h.listeners)-1]
-			h.listeners[len(h.listeners)-1] = nil
-			h.listeners = h.listeners[:len(h.listeners)-1]
-		}
-	}
-	h.lock.Unlock()
+	h.removeListener(ch)
 
 	return d
 }
@@ -489,6 +519,7 @@ func mainE() error {
 	mx.Get("/release/main.map", serveReleaseMap)
 	mx.Get("/static/*", serveStatic)
 	mx.Get("/game/*", serveStatic)
+	mx.Get("/socket", serveSocket)
 	mx.NotFound(serveNotFound)
 	s := http.Server{
 		Handler:     mx,

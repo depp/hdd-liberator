@@ -20,7 +20,7 @@ type CompoData struct {
 	Config      Config
 	SourceMap   []byte
 	Diagnostics []*pb.Diagnostic
-	code        []byte
+	Code        []byte
 }
 
 // BuildHTML returns the HTML page.
@@ -45,7 +45,7 @@ func (d *CompoData) BuildHTML(sourceMapURL *url.URL) ([]byte, error) {
 
 	w.OpenTag("script")
 	w.Attr("type", "module")
-	w.Text(string(d.code))
+	w.Text(string(d.Code))
 	if sourceMapURL != nil {
 		w.Text("//# sourceMappingURL=")
 		w.Text(sourceMapURL.String())

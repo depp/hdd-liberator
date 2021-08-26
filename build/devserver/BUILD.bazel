@@ -5,7 +5,6 @@ go_binary(
     srcs = [
         "main.go",
         "source.go",
-        "sourcemap.go",
         "template.go",
     ],
     deps = [

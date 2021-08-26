@@ -156,9 +156,9 @@ func (p *Project) CompileCompo(ctx context.Context, c Compiler) (*CompoData, err
 	}
 	return &CompoData{
 		Config:      p.Config,
+		Code:        rsp.GetCode(),
 		SourceMap:   rsp.GetSourceMap(),
 		Diagnostics: rsp.GetDiagnostic(),
-		code:        rsp.GetCode(),
 	}, nil
 }
 

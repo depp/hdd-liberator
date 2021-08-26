@@ -13,6 +13,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
+	"sync"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/sirupsen/logrus"
@@ -36,21 +37,68 @@ func (contextKey) String() string {
 	return "devserver context key"
 }
 
+var errBuildFailed = errors.New("build failed")
+
+type buildState struct {
+	err        error
+	project    *project.Project
+	diagnostic []*pb.Diagnostic
+	html       []byte
+	sourcemap  []byte
+}
+
+func newBuildState(s *watcher.State) *buildState {
+	logrus.Infoln("Starting build.")
+	if s == nil {
+		return nil
+	}
+	d := buildState{
+		err:     s.Err,
+		project: s.Project,
+	}
+	if d.err != nil {
+		if e, ok := s.Err.(*compiler.Error); ok {
+			d.diagnostic = e.Diagnostics
+		}
+		logrus.Errorln("Build:", d.err)
+		return &d
+	}
+	if c := s.Compo; c != nil {
+		d.diagnostic = c.Diagnostics
+		if len(s.Compo.Code) == 0 {
+			d.err = errBuildFailed
+			logrus.Errorln("Build:", d.err)
+			return &d
+		}
+		hd, err := s.Compo.BuildHTML(&releaseMapURL)
+		if err != nil {
+			d.err = err
+			logrus.Errorln("BuildHTML:", err)
+			return &d
+		}
+		d.html = hd
+		d.sourcemap = s.Compo.SourceMap
+		logrus.Infoln("Done building.")
+	} else {
+		logrus.Infoln("Loaded project.")
+	}
+	return &d
+}
+
 type handler struct {
 	baseDir            string
-	config             string
 	statusTemplate     *cachedTemplate
 	buildErrorTemplate *cachedTemplate
 	gameTemplate       *cachedTemplate
-	releaseMap         sourcemap
 
-	compiler compiler.Locked
+	lock      sync.RWMutex
+	compo     *buildState
+	listeners []chan<- *buildState
 }
 
-func newHandler(baseDir, config string) *handler {
+func newHandler(baseDir string) *handler {
 	return &handler{
 		baseDir:            baseDir,
-		config:             config,
 		statusTemplate:     newTemplate(baseDir, "build/devserver/status.gohtml"),
 		buildErrorTemplate: newTemplate(baseDir, "build/devserver/build_error.gohtml"),
 		gameTemplate:       newTemplate(baseDir, "game/index.gohtml"),
@@ -67,6 +115,99 @@ func getHandler(ctx context.Context) *handler {
 		panic("context key has wrong value")
 	}
 	return v
+}
+
+var releaseMapURL = url.URL{Path: "/release/main.map"}
+
+func (h *handler) watch(ctx context.Context, config string) {
+	ch, err := watcher.Watch(ctx, h.baseDir, config)
+	if err != nil {
+		logrus.Fatalln("watcher.Watch:", err)
+	}
+	for {
+		s, ok := <-ch
+		if !ok {
+			logrus.Fatalln("watch channel closed")
+		}
+		d := newBuildState(s)
+
+		h.lock.Lock()
+		h.compo = d
+		for _, l := range h.listeners {
+			l <- d
+		}
+		h.lock.Unlock()
+	}
+}
+
+func (h *handler) getBuildState(ctx context.Context, f func(*buildState) bool) *buildState {
+	h.lock.RLock()
+	d := h.compo
+	h.lock.RUnlock()
+
+	if f(d) {
+		return d
+	}
+	ch := make(chan *buildState, 1)
+
+	h.lock.Lock()
+	if d = h.compo; f(d) {
+		h.lock.Unlock()
+		return d
+	}
+	h.listeners = append(h.listeners, ch)
+	h.lock.Unlock()
+
+loop:
+	for {
+		select {
+		case d = <-ch:
+			if f(d) {
+				break loop
+			}
+			d = nil
+		case <-ctx.Done():
+			break loop
+		}
+	}
+
+	h.lock.Lock()
+	for i, l := range h.listeners {
+		if l == ch {
+			h.listeners[i] = h.listeners[len(h.listeners)-1]
+			h.listeners[len(h.listeners)-1] = nil
+			h.listeners = h.listeners[:len(h.listeners)-1]
+		}
+	}
+	h.lock.Unlock()
+
+	return d
+}
+
+func (h *handler) getProject(ctx context.Context) (*project.Project, error) {
+	d := h.getBuildState(ctx, func(d *buildState) bool {
+		return d != nil
+	})
+	if d == nil {
+		return nil, ctx.Err()
+	}
+	if d.project != nil {
+		return d.project, nil
+	}
+	if d.err != nil {
+		return nil, d.err
+	}
+	panic("bad build result")
+}
+
+func (h *handler) getBuild(ctx context.Context) (*buildState, error) {
+	d := h.getBuildState(ctx, func(d *buildState) bool {
+		return d != nil && (d.err != nil || d.html != nil)
+	})
+	if d == nil {
+		return nil, ctx.Err()
+	}
+	return d, nil
 }
 
 func logResponse(r *http.Request, status int, msg string) {
@@ -175,7 +316,7 @@ func redirectAddSlash(w http.ResponseWriter, r *http.Request) {
 func serveIndex(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	h := getHandler(ctx)
-	p, err := project.Load(h.baseDir, h.config)
+	p, err := h.getProject(ctx)
 	if err != nil {
 		h.serveError(w, r, err)
 		return
@@ -192,22 +333,6 @@ func serveIndex(w http.ResponseWriter, r *http.Request) {
 
 func serveFavicon(w http.ResponseWriter, r *http.Request) {
 	serveKnownFile(w, r, "favicon.ico")
-}
-
-func (h *handler) buildRelease(ctx context.Context) ([]byte, error) {
-	p, err := project.Load(h.baseDir, h.config)
-	if err != nil {
-		return nil, err
-	}
-	d, err := p.CompileCompo(ctx, &h.compiler)
-	if err != nil {
-		return nil, err
-	}
-	var smURL *url.URL
-	if q := h.releaseMap.set(d.SourceMap); q != nil {
-		smURL = &url.URL{Path: "main.map", RawQuery: q.Encode()}
-	}
-	return d.BuildHTML(smURL)
 }
 
 type errorData struct {
@@ -234,8 +359,12 @@ func (h *handler) serveBuildError(w http.ResponseWriter, r *http.Request, e *com
 func serveRelease(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	h := getHandler(ctx)
-	data, err := h.buildRelease(ctx)
+	d, err := h.getBuild(ctx)
 	if err != nil {
+		// ctx canceled.
+		return
+	}
+	if err := d.err; err != nil {
 		if e, ok := err.(*compiler.Error); ok {
 			h.serveBuildError(w, r, e)
 		} else {
@@ -243,6 +372,7 @@ func serveRelease(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
+	data := d.html
 	logResponse(r, http.StatusOK, "")
 	hdr := w.Header()
 	hdr.Set("Content-Type", htmlType)
@@ -254,7 +384,22 @@ func serveRelease(w http.ResponseWriter, r *http.Request) {
 func serveReleaseMap(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	h := getHandler(ctx)
-	h.releaseMap.serve(h, w, r)
+	d, err := h.getBuild(ctx)
+	if err != nil {
+		// ctx canceled.
+		return
+	}
+	data := d.sourcemap
+	if len(data) == 0 {
+		h.serveNotFound(w, r)
+		return
+	}
+	logResponse(r, http.StatusOK, "")
+	hdr := w.Header()
+	hdr.Set("Content-Type", "application/json")
+	hdr.Set("Content-Length", strconv.Itoa(len(data)))
+	hdr.Set("Cache-Control", "no-cache")
+	w.Write(data)
 }
 
 func (h *handler) serveNotFound(w http.ResponseWriter, r *http.Request) {
@@ -333,18 +478,8 @@ func mainE() error {
 			host = "localhost"
 		}
 	}
-	h := newHandler(baseDir, "js13k.json")
-	ch, err := watcher.Watch(ctx, baseDir, "js13k.json")
-	if err != nil {
-		return err
-	}
-	for r := range ch {
-		if r.Err != nil {
-			logrus.Error(r.Err)
-			continue
-		}
-		logrus.Info("SUCCESS")
-	}
+	h := newHandler(baseDir)
+	go h.watch(ctx, "js13k.json")
 	ctx = context.WithValue(ctx, contextKey{}, h)
 	mx := chi.NewMux()
 	mx.Get("/", serveIndex)

@@ -4,7 +4,11 @@ go_library(
     name = "midi",
     srcs = [
         "midi.go",
+        "note.go",
     ],
     importpath = "moria.us/js13k/build/midi",
     visibility = ["//build:__subpackages__"],
+    deps = [
+        "@com_github_sirupsen_logrus//:logrus",
+    ],
 )

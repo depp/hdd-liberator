@@ -49,6 +49,13 @@ func dumpFile(name string) error {
 				fmt.Print("  ", e.String(), "\n")
 			}
 		}
+		ns, err := trk.ParseNotes()
+		if err != nil {
+			return err
+		}
+		for _, n := range ns {
+			fmt.Print("  ", midi.NoteName(n.Value), "\n")
+		}
 	}
 	return nil
 }

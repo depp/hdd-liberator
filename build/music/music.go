@@ -35,7 +35,19 @@ func dumpFile(name string) error {
 				}
 				return err
 			}
-			fmt.Print("  ", e.String(), "\n")
+			if e.IsMeta() {
+				m, err := e.ParseMeta()
+				if err != nil {
+					if err == midi.ErrUnknownMetaEvent {
+						fmt.Print("  ", e.String(), "\n")
+						continue
+					}
+					return err
+				}
+				fmt.Print("  ", m.String(), "\n")
+			} else {
+				fmt.Print("  ", e.String(), "\n")
+			}
 		}
 	}
 	return nil

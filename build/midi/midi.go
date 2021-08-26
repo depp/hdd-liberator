@@ -103,7 +103,12 @@ type Event struct {
 	Time   uint32
 	Status uint8
 	Data   [2]uint8
-	MData  []byte
+	VData  []byte
+}
+
+// IsMeta returns true if this is a meta event.
+func (e Event) IsMeta() bool {
+	return e.Status == 0xff
 }
 
 func (e Event) String() string {
@@ -127,10 +132,69 @@ func (e Event) String() string {
 		return fmt.Sprintf("pitchBend ch.%d %d", e.Status&15, uint32(e.Data[0])<<7|uint32(e.Data[1]))
 	default:
 		if e.Status == 0xff {
-			return fmt.Sprintf("meta %d %q", e.Data[0], e.MData)
+			return fmt.Sprintf("meta %d %q", e.Data[0], e.VData)
 		} else {
 			return "<invalid>"
 		}
+	}
+}
+
+// ErrUnknownMetaEvent indicates that the meta event type is not recognized.
+var ErrUnknownMetaEvent = errors.New("unknown meta event type")
+
+// ParseMeta parses the specific meta event and returns it. Returns
+// ErrUnknownMetaEvent if the meta event type is not recognized.
+func (e Event) ParseMeta() (Meta, error) {
+	if e.Status != 0xff {
+		return nil, errors.New("not a meta event")
+	}
+	switch e.Data[0] {
+	case 0x01:
+		return Text(copyBytes(e.VData)), nil
+	case 0x02:
+		return Copyright(copyBytes(e.VData)), nil
+	case 0x03:
+		return TrackName(copyBytes(e.VData)), nil
+	case 0x04:
+		return InstrumentName(copyBytes(e.VData)), nil
+	case 0x20:
+		if len(e.VData) != 1 {
+			return nil, errors.New("invalid channel prefix event")
+		}
+		return ChannelPrefix(e.VData[0]), nil
+	case 0x51:
+		if len(e.VData) != 3 {
+			return nil, errors.New("invalid tempo event")
+		}
+		return Tempo(
+			(uint32(e.VData[0]) << 16) |
+				(uint32(e.VData[1]) << 7) |
+				uint32(e.VData[2])), nil
+	case 0x58:
+		if len(e.VData) != 4 {
+			return nil, errors.New("invalid time signature event")
+		}
+		return TimeSignature{
+			Numerator:         e.VData[0],
+			DenominatorLog2:   e.VData[1],
+			MetronomeInterval: e.VData[2],
+			QuarterNote:       e.VData[3],
+		}, nil
+	case 0x59:
+		if len(e.VData) != 2 {
+			return nil, errors.New("invalid key signature event")
+		}
+		return KeySignature{
+			SharpsFlats: int8(e.VData[0]),
+			IsMinor:     e.VData[1],
+		}, nil
+	case 0x7f:
+		if len(e.VData) != 0 {
+			return nil, errors.New("invalid end event")
+		}
+		return End{}, nil
+	default:
+		return nil, ErrUnknownMetaEvent
 	}
 }
 
@@ -176,6 +240,15 @@ func (t *EventStream) readVar() (uint32, error) {
 			return 0, errInvalidTrackData
 		}
 	}
+}
+
+func copyBytes(d []byte) []byte {
+	if len(d) == 0 {
+		return nil
+	}
+	m := make([]byte, len(d))
+	copy(m, d)
+	return m
 }
 
 // Next returns the next event in the stream, or io.EOF if there are no more
@@ -241,7 +314,7 @@ func (t *EventStream) Next() (e Event, err error) {
 			return Event{
 				Status: 255,
 				Data:   [2]byte{mt, 0},
-				MData:  vdata,
+				VData:  vdata,
 			}, nil
 		}
 	default:
@@ -273,3 +346,77 @@ func (t *EventStream) Next() (e Event, err error) {
 		Data:   [2]byte{d1, d2},
 	}, nil
 }
+
+type Meta interface {
+	fmt.Stringer
+	IsMetaEvent()
+}
+
+// A Text is a meta event containing arbitrary text data.
+type Text []byte
+
+func (Text) IsMetaEvent()     {}
+func (m Text) String() string { return "Text(" + strconv.Quote(string(m)) + ")" }
+
+// A Copyright is a meta event containing data
+type Copyright []byte
+
+func (Copyright) IsMetaEvent()     {}
+func (m Copyright) String() string { return "Copyright(" + strconv.Quote(string(m)) + ")" }
+
+// A TrackName is a meta event containing a track name.
+type TrackName []byte
+
+func (TrackName) IsMetaEvent()     {}
+func (m TrackName) String() string { return "TrackName(" + strconv.Quote(string(m)) + ")" }
+
+// An InstrumentName is a meta event containing an instrument name.
+type InstrumentName []byte
+
+func (InstrumentName) IsMetaEvent()     {}
+func (m InstrumentName) String() string { return "InstrumentName(" + strconv.Quote(string(m)) + ")" }
+
+// A ChannelPrefix is a meta event which describes which channel future SysEx
+// and Meta events belong to.
+type ChannelPrefix uint8
+
+func (ChannelPrefix) IsMetaEvent()     {}
+func (m ChannelPrefix) String() string { return "ChannelPrefix(" + strconv.Itoa(int(m)) + ")" }
+
+// A Tempo is a meta event containing the tempo, in microseconds per quarter
+// note.
+type Tempo uint32
+
+func (Tempo) IsMetaEvent()     {}
+func (m Tempo) String() string { return "Tempo(" + strconv.Itoa(int(m)) + ")" }
+
+// A TimeSignature is a meta event containing the musical time signature.
+type TimeSignature struct {
+	Numerator         uint8
+	DenominatorLog2   uint8
+	MetronomeInterval uint8
+	QuarterNote       uint8
+}
+
+func (TimeSignature) IsMetaEvent() {}
+func (m TimeSignature) String() string {
+	return fmt.Sprintf("TimeSignature(%d, %d, %d, %d)",
+		m.Numerator, m.DenominatorLog2, m.MetronomeInterval, m.QuarterNote)
+}
+
+// A KeySignature is a meta event containing the musical key signature.
+type KeySignature struct {
+	SharpsFlats int8
+	IsMinor     uint8
+}
+
+func (KeySignature) IsMetaEvent() {}
+func (m KeySignature) String() string {
+	return fmt.Sprintf("KeySignature(%d, %d)", m.SharpsFlats, m.IsMinor)
+}
+
+// An End is a meta event indicating the end of the track.
+type End struct{}
+
+func (End) IsMetaEvent()   {}
+func (End) String() string { return "End" }

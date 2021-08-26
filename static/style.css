@@ -1,8 +1,23 @@
 html {
   background-color: white;
 }
+body {
+  margin: 0;
+}
 h1 {
   text-align: center;
+}
+nav {
+  display: flex;
+  background-color: #ccc;
+  margin-bottom: 8px;
+  align-items: center;
+}
+nav > * {
+  margin: 4px;
+}
+nav h1 {
+  flex-grow: 1;
 }
 .diagnostics > div {
   border: 1px solid #ccc;

@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -14,6 +15,7 @@ import (
 	"github.com/spf13/cobra"
 
 	"moria.us/js13k/build/midi"
+	"moria.us/js13k/build/song"
 )
 
 var workingDirectory string
@@ -349,6 +351,25 @@ var extractNotes = cobra.Command{
 	},
 }
 
+var convert = cobra.Command{
+	Use:  "convert <song>",
+	Args: cobra.ExactArgs(1),
+	RunE: func(_ *cobra.Command, args []string) error {
+		fname := argToFilePath(args[0])
+		data, err := ioutil.ReadFile(fname)
+		if err != nil {
+			return err
+		}
+		sn, err := song.Parse(data)
+		if err != nil {
+			return err
+		}
+		jdata := json.NewEncoder(os.Stdout)
+		jdata.SetIndent("", "  ")
+		return jdata.Encode(sn)
+	},
+}
+
 var root = cobra.Command{
 	Use:           "music",
 	Short:         "Music is a tool for generating JS13K music from MIDI files.",
@@ -357,7 +378,7 @@ var root = cobra.Command{
 }
 
 func main() {
-	root.AddCommand(&listTracks, &dumpTrack, &extractNotes)
+	root.AddCommand(&listTracks, &dumpTrack, &extractNotes, &convert)
 	f := extractNotes.Flags()
 	f.Uint32Var(&flagGrid, "grid", 48, "size of musical grid, default is 1/48 (32nd note triplets)")
 	workingDirectory = os.Getenv("BUILD_WORKING_DIRECTORY")

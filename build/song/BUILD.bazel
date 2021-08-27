@@ -1,0 +1,10 @@
+load("@io_bazel_rules_go//go:def.bzl", "go_library")
+
+go_library(
+    name = "song",
+    srcs = [
+        "song.go",
+    ],
+    importpath = "moria.us/js13k/build/song",
+    visibility = ["//build:__subpackages__"],
+)

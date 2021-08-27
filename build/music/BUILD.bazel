@@ -7,6 +7,7 @@ go_binary(
     ],
     deps = [
         "//build/midi",
+        "//build/song",
         "@com_github_sirupsen_logrus//:logrus",
         "@com_github_spf13_cobra//:cobra",
         "@com_github_spf13_pflag//:pflag",

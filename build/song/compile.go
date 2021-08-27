@@ -13,6 +13,7 @@ const (
 	restValue = 0x80
 	trackEnd  = 0x81
 	songEnd   = 0x82
+	dataEnd   = 0x83
 
 	startValue = 0x40
 )
@@ -35,6 +36,7 @@ func compile(songs []*Song) (*Compiled, error) {
 						return nil, fmt.Errorf("note value out of range: %d", n.Value)
 					}
 					value = (n.Value - last) & 0x7f
+					last = n.Value
 				}
 				values = append(values, value)
 				durations = append(durations, n.Duration)
@@ -44,6 +46,7 @@ func compile(songs []*Song) (*Compiled, error) {
 		values = append(values, songEnd)
 	}
 	var data = values
+	data = append(data, dataEnd)
 	data = append(data, durations...)
 	return &Compiled{
 		Data: data,

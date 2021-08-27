@@ -327,6 +327,7 @@ func serveMusic(w http.ResponseWriter, r *http.Request) {
 	}
 	logResponse(r, http.StatusOK, "")
 	hdr := w.Header()
+	hdr.Set("Cache-Control", "no-cache")
 	hdr.Set("Content-Type", "application/octet-stream")
 	hdr.Set("Content-Length", strconv.Itoa(len(cd.Data)))
 	w.Write(cd.Data)

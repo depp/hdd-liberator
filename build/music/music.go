@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
 	"io"
@@ -10,10 +11,27 @@ import (
 	"strconv"
 
 	"github.com/sirupsen/logrus"
-	"github.com/spf13/pflag"
+	"github.com/spf13/cobra"
 
 	"moria.us/js13k/build/midi"
 )
+
+var workingDirectory string
+
+func argToFilePath(name string) string {
+	if workingDirectory != "" && !filepath.IsAbs(name) {
+		return filepath.Join(workingDirectory, name)
+	}
+	return name
+}
+
+func readMIDI(name string) (*midi.File, error) {
+	data, err := ioutil.ReadFile(name)
+	if err != nil {
+		return nil, err
+	}
+	return midi.Parse(data)
+}
 
 func trackName(tr midi.Track) (string, error) {
 	ev := tr.Events()
@@ -31,18 +49,6 @@ func trackName(tr midi.Track) (string, error) {
 			}
 		}
 	}
-}
-
-func listTracks(f *midi.File) error {
-	for i, tr := range f.Tracks {
-		name, err := trackName(tr)
-		if err != nil {
-			logrus.Errorf("error in track %d: %v", i, err)
-			continue
-		}
-		fmt.Printf("Track %d: %q\n", i, name)
-	}
-	return nil
 }
 
 func findTrack(f *midi.File, name string) (midi.Track, error) {
@@ -67,70 +73,295 @@ func findTrack(f *midi.File, name string) (midi.Track, error) {
 	return nil, fmt.Errorf("no track exists named %q", name)
 }
 
-func dumpTrack(f *midi.File, name string) error {
-	tr, err := findTrack(f, name)
-	if err != nil {
-		return err
+type global struct {
+	ticksPerQuarter uint32
+	tempo           midi.Tempo
+	timeSignature   midi.TimeSignature
+	keySignature    midi.KeySignature
+}
+
+func getGlobal(f *midi.File) (g global, err error) {
+	if f.Head.Format != 1 {
+		return g, errors.New("not a format 1 MIDI file")
 	}
-	evs := tr.Events()
+	ticks := f.Head.TickDivision
+	if ticks&0x8000 != 0 {
+		return g, errors.New("this MIDI file uses timecode, which is not supported")
+	}
+	g.ticksPerQuarter = uint32(ticks)
+	if len(f.Tracks) == 0 {
+		return g, errors.New("no tracks in MIDI file")
+	}
+	evs := f.Tracks[0].Events()
 	for {
 		e, err := evs.Next()
 		if err != nil {
 			if err == io.EOF {
 				break
 			}
+			return g, fmt.Errorf("in global track: %v", err)
+		}
+		if m, err := e.ParseMeta(); err == nil {
+			switch m := m.(type) {
+			case midi.Tempo:
+				g.tempo = m
+			case midi.TimeSignature:
+				g.timeSignature = m
+			case midi.KeySignature:
+				g.keySignature = m
+			}
+		}
+	}
+	if g.tempo == 0 {
+		return g, errors.New("no tempo")
+	}
+	if g.timeSignature == (midi.TimeSignature{}) {
+		return g, errors.New("no time signature")
+	}
+	return g, nil
+}
+
+func (g *global) ticksPerMeasure() (uint32, error) {
+	beat := g.ticksPerQuarter
+	if g.timeSignature.DenominatorLog2 < 2 {
+		beat <<= 2 - g.timeSignature.DenominatorLog2
+	} else {
+		shift := int(g.timeSignature.DenominatorLog2) - 2
+		if shift >= 32 || beat&^(^uint32(0)<<shift) != 0 {
+			return 0, errors.New("ticks per beat is not an integer")
+		}
+		beat >>= shift
+	}
+	if g.timeSignature.Numerator == 0 {
+		return 0, errors.New("invalid time signature")
+	}
+	return uint32(g.timeSignature.Numerator) * beat, nil
+}
+
+var flagGrid uint32
+
+func (g *global) gridTicks() (uint32, error) {
+	grid := flagGrid
+	if grid == 0 {
+		return 0, errors.New("0 is not a valid grid")
+	}
+	if grid&3 != 0 {
+		return 0, fmt.Errorf("grid is not a multiple of 4: 1/%d", grid)
+	}
+	qgrid := grid >> 2
+	if qgrid >= g.ticksPerQuarter {
+		if qgrid%g.ticksPerQuarter != 0 {
+			return 0, fmt.Errorf("grid of 1/%d does is not evenly divide a tick, 1/%d", grid, g.ticksPerQuarter*4)
+		}
+		return 1, nil
+	}
+	if g.ticksPerQuarter%qgrid != 0 {
+		return 0, fmt.Errorf("grid of 1/%d is not an integer number of ticks, 1/%d", grid, g.ticksPerQuarter*4)
+	}
+	return g.ticksPerQuarter / qgrid, nil
+}
+
+var listTracks = cobra.Command{
+	Use:  "list-tracks <midi>",
+	Args: cobra.ExactArgs(1),
+	RunE: func(_ *cobra.Command, args []string) error {
+		midiFile := args[0]
+		f, err := readMIDI(midiFile)
+		if err != nil {
 			return err
 		}
-		if e.IsMeta() {
-			m, err := e.ParseMeta()
+		for i, tr := range f.Tracks {
+			name, err := trackName(tr)
 			if err != nil {
-				if err == midi.ErrUnknownMetaEvent {
-					fmt.Println(e.String())
-					continue
+				logrus.Errorf("error in track %d: %v", i, err)
+				continue
+			}
+			fmt.Printf("Track %d: %q\n", i, name)
+		}
+		return nil
+	},
+}
+
+var dumpTrack = cobra.Command{
+	Use:  "dump-track <midi> <track>",
+	Args: cobra.ExactArgs(2),
+	RunE: func(_ *cobra.Command, args []string) error {
+		midiFile := args[0]
+		trackName := args[1]
+		f, err := readMIDI(midiFile)
+		if err != nil {
+			return err
+		}
+		tr, err := findTrack(f, trackName)
+		if err != nil {
+			return err
+		}
+		evs := tr.Events()
+		for {
+			e, err := evs.Next()
+			if err != nil {
+				if err == io.EOF {
+					break
 				}
 				return err
 			}
-			fmt.Println(m.String())
-		} else {
-			fmt.Println(e.String())
+			if e.IsMeta() {
+				m, err := e.ParseMeta()
+				if err != nil {
+					if err == midi.ErrUnknownMetaEvent {
+						fmt.Println(e.String())
+						continue
+					}
+					return err
+				}
+				fmt.Println(m.String())
+			} else {
+				fmt.Println(e.String())
+			}
 		}
-	}
-	return nil
+		return nil
+	},
 }
 
-func mainE() error {
-	fListTracks := pflag.Bool("list-tracks", false, "list all tracks")
-	fDumpEvents := pflag.String("dump-events", "", "dump events for track `track`")
-	pflag.Parse()
-	args := pflag.Args()
-	if len(args) == 0 {
-		return errors.New("usage: music <file> [<option>...]")
+type note struct {
+	start uint32
+	end   uint32
+	value uint8
+}
+
+type noteWriter struct {
+	time     uint32
+	barstart uint32
+	barlen   uint32
+	hasline  bool
+	out      *bufio.Writer
+}
+
+func (w *noteWriter) advance(time uint32) {
+	for w.time < time {
+		bend := w.barstart + w.barlen
+		if w.hasline {
+			w.out.WriteByte(' ')
+		}
+		if bend > time {
+			fmt.Fprintf(w.out, "r%d", time-w.time)
+			w.time = time
+			w.hasline = true
+			break
+		}
+		fmt.Fprintf(w.out, "r%d |\n", bend-w.time)
+		w.time = bend
+		w.hasline = false
+		w.barstart += w.barlen
 	}
-	wd := os.Getenv("BUILD_WORKING_DIRECTORY")
-	arg := args[0]
-	fname := arg
-	if !filepath.IsAbs(fname) && wd != "" {
-		fname = filepath.Join(wd, fname)
+}
+
+func (w *noteWriter) write(n note) {
+	w.advance(n.start)
+	v := midi.NoteName(n.value) + "."
+	for w.time < n.end {
+		bend := w.barstart + w.barlen
+		if w.hasline {
+			w.out.WriteByte(' ')
+		}
+		w.out.WriteString(v)
+		v = "~"
+		if bend > n.end {
+			w.out.WriteString(strconv.FormatUint(uint64(n.end-w.time), 10))
+			w.time = n.end
+			w.hasline = true
+			break
+		}
+		w.out.WriteString(strconv.FormatUint(uint64(bend-w.time), 10))
+		w.out.WriteString(" |\n")
+		w.time = bend
+		w.hasline = false
+		w.barstart += w.barlen
 	}
-	data, err := ioutil.ReadFile(fname)
-	if err != nil {
-		return err
-	}
-	f, err := midi.Parse(data)
-	if err != nil {
-		return err
-	}
-	if *fListTracks {
-		return listTracks(f)
-	}
-	if *fDumpEvents != "" {
-		return dumpTrack(f, *fDumpEvents)
-	}
-	return nil
+}
+
+var extractNotes = cobra.Command{
+	Use:  "extract-notes <midi> <track>",
+	Args: cobra.ExactArgs(2),
+	RunE: func(_ *cobra.Command, args []string) error {
+		midiFile := args[0]
+		trackName := args[1]
+		f, err := readMIDI(midiFile)
+		if err != nil {
+			return err
+		}
+		g, err := getGlobal(f)
+		if err != nil {
+			return err
+		}
+		grid, err := g.gridTicks()
+		if err != nil {
+			return err
+		}
+		tr, err := findTrack(f, trackName)
+		if err != nil {
+			return err
+		}
+		ns, err := tr.ParseNotes()
+		if err != nil {
+			return err
+		}
+		if len(ns) == 0 {
+			return errors.New("no notes in track")
+		}
+		measure, err := g.ticksPerMeasure()
+		if err != nil {
+			return err
+		}
+		gmeasure := measure / grid
+		logrus.Infoln("Measure size (ticks):", measure)
+		logrus.Infoln("Grid size (ticks):", grid)
+		nns := make([]note, len(ns))
+		for i, n := range ns {
+			t0 := (n.Time + grid/2) / grid
+			dur := (n.Duration + grid - 1) / grid
+			nns[i] = note{
+				start: t0,
+				end:   t0 + dur,
+				value: n.Value,
+			}
+		}
+		for i, n := range nns[:len(nns)-1] {
+			lim := nns[i+1].start
+			if lim <= n.start {
+				return errors.New("reverse sorted notes")
+			}
+			if lim < n.end {
+				nns[i].end = lim
+			}
+		}
+		w := noteWriter{
+			barlen: gmeasure,
+			out:    bufio.NewWriter(os.Stdout),
+		}
+		for _, n := range nns {
+			w.write(n)
+		}
+		if w.hasline {
+			w.advance(w.barstart + w.barlen)
+		}
+		return w.out.Flush()
+	},
+}
+
+var root = cobra.Command{
+	Use:           "music",
+	Short:         "Music is a tool for generating JS13K music from MIDI files.",
+	SilenceErrors: true,
+	SilenceUsage:  true,
 }
 
 func main() {
-	if err := mainE(); err != nil {
+	root.AddCommand(&listTracks, &dumpTrack, &extractNotes)
+	f := extractNotes.Flags()
+	f.Uint32Var(&flagGrid, "grid", 48, "size of musical grid, default is 1/48 (32nd note triplets)")
+	workingDirectory = os.Getenv("BUILD_WORKING_DIRECTORY")
+	if err := root.Execute(); err != nil {
 		logrus.Error(err)
 		os.Exit(1)
 	}

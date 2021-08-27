@@ -227,7 +227,7 @@ func (t *EventStream) readVar() (uint32, error) {
 		}
 		c := t.data[0]
 		t.data = t.data[1:]
-		if q > ^uint32(0)>>7 {
+		if q > (^uint32(0))>>7 {
 			return 0, errInvalidTrackData
 		}
 		q = (q << 7) | (uint32(c) & 0x7f)
@@ -309,13 +309,11 @@ func (t *EventStream) Next() (e Event, err error) {
 				return e, errInvalidTrackData
 			}
 			t.status = 0
-			vdata := t.data[:n]
+			e.Status = 255
+			e.Data[0] = mt
+			e.VData = t.data[:n]
 			t.data = t.data[n:]
-			return Event{
-				Status: 255,
-				Data:   [2]byte{mt, 0},
-				VData:  vdata,
-			}, nil
+			return e, nil
 		}
 	default:
 		panic("invalid status")
@@ -323,17 +321,16 @@ func (t *EventStream) Next() (e Event, err error) {
 	if len(t.data) < elen {
 		return
 	}
-	var d1, d2 byte
 	switch elen {
 	case 1:
-		d1 = t.data[0]
-		if d1&0x80 != 0 {
+		e.Data[0] = t.data[0]
+		if e.Data[0]&0x80 != 0 {
 			return e, errInvalidTrackData
 		}
 	case 2:
-		d1 = t.data[0]
-		d2 = t.data[1]
-		if d1&0x80 != 0 || d2&0x80 != 0 {
+		e.Data[0] = t.data[0]
+		e.Data[1] = t.data[1]
+		if e.Data[0]&0x80 != 0 || e.Data[1]&0x80 != 0 {
 			return e, errInvalidTrackData
 		}
 	default:
@@ -341,10 +338,8 @@ func (t *EventStream) Next() (e Event, err error) {
 	}
 	t.data = t.data[elen:]
 	t.status = ctl
-	return Event{
-		Status: ctl,
-		Data:   [2]byte{d1, d2},
-	}, nil
+	e.Status = ctl
+	return e, nil
 }
 
 type Meta interface {

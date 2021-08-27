@@ -14,6 +14,7 @@ const (
 	maxTempo = 280
 )
 
+// An Info contains the metadata for a song.
 type Info struct {
 	Name     string
 	Composer string
@@ -21,12 +22,27 @@ type Info struct {
 	Division int
 }
 
-type Track struct {
-	Name      string
-	Values    []byte
-	Durations []byte
+// A TrackInfo contains the metadata for an instrument track within a song.
+type TrackInfo struct {
+	Name string
 }
 
+// A Note is an individual note in an instrument track. A note does not store
+// the time when it starts, instead, a note starts when the previous note
+// finishes.
+type Note struct {
+	IsRest   bool
+	Value    uint8
+	Duration uint8
+}
+
+// A Track is an individual instrument track within a song.
+type Track struct {
+	Name  string
+	Notes []Note
+}
+
+// A Song is a complete piece of music.
 type Song struct {
 	Info   Info
 	Tracks []*Track
@@ -236,18 +252,12 @@ func (tr *Track) setProp(key, value string) error {
 	}
 }
 
-type note struct {
-	isrest   bool
-	value    uint8
-	duration uint8
-}
-
 type noteParser struct {
 	division int
 	time     int
 	bar      int
 	barstart int
-	notes    []note
+	notes    []Note
 }
 
 func (p *noteParser) parseLine(text string) error {
@@ -328,19 +338,19 @@ func (p *noteParser) parseToken(text string) error {
 		}
 		// Coalesce with previous rest.
 		if len(p.notes) != 0 {
-			if n := p.notes[len(p.notes)-1]; n.isrest {
-				lim := int(^n.duration)
+			if n := p.notes[len(p.notes)-1]; n.IsRest {
+				lim := int(^n.Duration)
 				if dur <= lim {
-					n.duration += uint8(dur)
+					n.Duration += uint8(dur)
 					dur = 0
 				} else {
-					n.duration = ^uint8(0)
+					n.Duration = ^uint8(0)
 					dur -= lim
 				}
 			}
 		}
 		if dur > 0 {
-			p.notes = append(p.notes, note{true, 0, uint8(dur)})
+			p.notes = append(p.notes, Note{true, 0, uint8(dur)})
 		}
 		return nil
 	case '~':
@@ -355,13 +365,13 @@ func (p *noteParser) parseToken(text string) error {
 			return err
 		}
 		n := p.notes[len(p.notes)-1]
-		if n.isrest {
+		if n.IsRest {
 			return errors.New("cannot tie to rest")
 		}
-		if uint8(dur) > ^n.duration {
+		if uint8(dur) > ^n.Duration {
 			return errors.New("duration overflow")
 		}
-		p.notes[len(p.notes)-1].duration += uint8(dur)
+		p.notes[len(p.notes)-1].Duration += uint8(dur)
 		return nil
 	case '|':
 		if text != "|" {
@@ -411,13 +421,14 @@ func (p *noteParser) parseToken(text string) error {
 		if err := p.advanceTime(dur); err != nil {
 			return err
 		}
-		p.notes = append(p.notes, note{false, uint8(value), uint8(dur)})
+		p.notes = append(p.notes, Note{false, uint8(value), uint8(dur)})
 		return nil
 	default:
 		return errors.New("unknown token")
 	}
 }
 
+// Parse parses a text song file.
 func Parse(data []byte) (*Song, error) {
 	ss, err := parseSections(data)
 	if err != nil {
@@ -456,22 +467,10 @@ func Parse(data []byte) (*Song, error) {
 					return nil, &Error{l.lineno, err}
 				}
 			}
-			for len(np.notes) != 0 && np.notes[len(np.notes)-1].isrest {
+			for len(np.notes) != 0 && np.notes[len(np.notes)-1].IsRest {
 				np.notes = np.notes[:len(np.notes)-1]
 			}
-			var last uint8 = 64
-			for _, n := range np.notes {
-				var value uint8
-				if n.isrest {
-					value = 128
-				} else {
-					value = (n.value - last + 64) & 0x7f
-					last = n.value
-				}
-				last = n.value
-				tr.Values = append(tr.Values, value)
-				tr.Durations = append(tr.Durations, n.duration)
-			}
+			tr.Notes = np.notes
 			sn.Tracks = append(sn.Tracks, &tr)
 		default:
 			return nil, &Error{s.lineno, fmt.Errorf("unknown section: %q", s.kind)}

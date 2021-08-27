@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
@@ -14,42 +15,55 @@ import (
 
 const loadProjectDelay = 10 * time.Millisecond
 
-// A State contains the state of the project.
-type State struct {
+// A CodeState contains the state of the project code (JavaScript).
+type CodeState struct {
 	Err     error
 	Project *project.Project
 	Compo   *project.CompoData
 }
 
-func Watch(ctx context.Context, baseDir, config string) (<-chan *State, error) {
-	pch := make(chan *State, 1)
-	bch := make(chan *State, 1)
+func Watch(ctx context.Context, baseDir, config string) (<-chan *CodeState, <-chan *SongState, error) {
+	codesrc := make(chan *CodeState, 1)
+	codeout := make(chan *CodeState, 1)
+	songsrc := make(chan struct{}, 1)
+	songout := make(chan *SongState, 1)
+	songdir := filepath.Join(baseDir, "music")
 	w := watcher{
-		base:   baseDir,
-		config: config,
+		base:    baseDir,
+		config:  config,
+		songdir: songdir,
 	}
 	go func() {
-		defer close(pch)
-		err := w.watch(ctx, pch)
+		defer func() {
+			close(codesrc)
+			close(songsrc)
+		}()
+		err := w.watch(ctx, codesrc, songsrc)
 		logrus.Fatalln("w.watch:", err)
 	}()
 	go func() {
-		defer close(bch)
-		err := build(ctx, bch, pch)
+		defer close(codeout)
+		err := build(ctx, codeout, codesrc)
 		logrus.Fatalln("build:", err)
 	}()
-	return bch, nil
+	go func() {
+		defer close(songout)
+		err := buildsong(ctx, songdir, songout, songsrc)
+		logrus.Fatalln("buildsong:", err)
+	}()
+	return codeout, songout, nil
 }
 
 // A watcher watches the project and source files.
 type watcher struct {
 	base    string
 	config  string
+	songdir string
 	watcher *fsnotify.Watcher
 	srcdir  string
 }
 
-func (w *watcher) watch(ctx context.Context, output chan<- *State) error {
+func (w *watcher) watch(ctx context.Context, codesrc chan<- *CodeState, songsrc chan<- struct{}) error {
 	fw, err := fsnotify.NewWatcher()
 	if err != nil {
 		return err
@@ -60,12 +74,15 @@ func (w *watcher) watch(ctx context.Context, output chan<- *State) error {
 	if err := fw.Add(filepath.Dir(cfgpath)); err != nil {
 		return err
 	}
+	if err := fw.Add(w.songdir); err != nil {
+		return err
+	}
 	s, err := w.load()
 	if err != nil {
 		return err
 	}
 	if s != nil {
-		output <- s
+		codesrc <- s
 	}
 	var delay delay
 	for {
@@ -74,19 +91,24 @@ func (w *watcher) watch(ctx context.Context, output chan<- *State) error {
 			if !ok {
 				return errors.New("watcher channel closed")
 			}
+			dir := filepath.Dir(ev.Name)
+			base := filepath.Base(ev.Name)
 			// Project config changed.
 			if ev.Name == cfgpath {
 				if s != nil {
 					s = nil
-					output <- nil
+					codesrc <- nil
 				}
 				delay.trigger(loadProjectDelay)
 			}
 			// Source file changed.
 			if s != nil && s.Err == nil {
-				if filepath.Dir(ev.Name) == w.srcdir && project.IsSourceName(filepath.Base(ev.Name)) {
-					output <- s
+				if dir == w.srcdir && project.IsSourceName(base) {
+					codesrc <- s
 				}
+			}
+			if dir == w.songdir && (base == songList || strings.HasSuffix(base, ".txt")) {
+				songsrc <- struct{}{}
 			}
 		case err, ok := <-fw.Errors:
 			if !ok {
@@ -102,7 +124,7 @@ func (w *watcher) watch(ctx context.Context, output chan<- *State) error {
 				if err != nil {
 					return err
 				}
-				output <- s
+				codesrc <- s
 			}
 		case <-ctx.Done():
 			return ctx.Err()
@@ -110,10 +132,10 @@ func (w *watcher) watch(ctx context.Context, output chan<- *State) error {
 	}
 }
 
-func (w *watcher) load() (*State, error) {
+func (w *watcher) load() (*CodeState, error) {
 	p, err := project.Load(w.base, w.config)
 	if err != nil {
-		return &State{Err: err}, nil
+		return &CodeState{Err: err}, nil
 	}
 	if srcdir := filepath.Join(w.base, p.Config.SourceDir); w.srcdir != srcdir {
 		if w.srcdir != "" {
@@ -126,5 +148,5 @@ func (w *watcher) load() (*State, error) {
 		}
 		w.srcdir = srcdir
 	}
-	return &State{Project: p}, nil
+	return &CodeState{Project: p}, nil
 }

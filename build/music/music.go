@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
@@ -374,23 +375,11 @@ var convert = cobra.Command{
 var flagOutput string
 
 var compile = cobra.Command{
-	Use:  "compile <song>...",
-	Args: cobra.MinimumNArgs(1),
+	Use:  "compile <songs.json>",
+	Args: cobra.ExactArgs(1),
 	RunE: func(_ *cobra.Command, args []string) error {
-		var songs []*song.Song
-		for _, arg := range args {
-			fname := argToFilePath(arg)
-			data, err := ioutil.ReadFile(fname)
-			if err != nil {
-				return err
-			}
-			sn, err := song.Parse(data)
-			if err != nil {
-				return fmt.Errorf("song %s: %v", arg, err)
-			}
-			songs = append(songs, sn)
-		}
-		cd, err := song.Compile(songs)
+		ctx := context.Background()
+		cd, err := song.Compile(ctx, argToFilePath(args[0]))
 		if err != nil {
 			return err
 		}

@@ -1,6 +1,13 @@
 package song
 
-import "fmt"
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"fmt"
+	"io/ioutil"
+	"path/filepath"
+)
 
 const (
 	restValue = 0x80
@@ -14,7 +21,7 @@ type Compiled struct {
 	Data []byte
 }
 
-func Compile(songs []*Song) (*Compiled, error) {
+func compile(songs []*Song) (*Compiled, error) {
 	var values, durations []uint8
 	for _, sn := range songs {
 		for _, tr := range sn.Tracks {
@@ -41,4 +48,38 @@ func Compile(songs []*Song) (*Compiled, error) {
 	return &Compiled{
 		Data: data,
 	}, nil
+}
+
+type songs struct {
+	Songs []string `json:"songs"`
+}
+
+func Compile(ctx context.Context, filename string) (*Compiled, error) {
+	data, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return nil, err
+	}
+	dec := json.NewDecoder(bytes.NewReader(data))
+	dec.DisallowUnknownFields()
+	var spec songs
+	if err := dec.Decode(&spec); err != nil {
+		return nil, fmt.Errorf("songs %s: %v", filename, err)
+	}
+	var sns []*Song
+	dir := filepath.Dir(filename)
+	for _, name := range spec.Songs {
+		if err := ctx.Err(); err != nil {
+			return nil, err
+		}
+		data, err := ioutil.ReadFile(filepath.Join(dir, name))
+		if err != nil {
+			return nil, err
+		}
+		sn, err := Parse(data)
+		if err != nil {
+			return nil, fmt.Errorf("song %s: %v", name, err)
+		}
+		sns = append(sns, sn)
+	}
+	return compile(sns)
 }

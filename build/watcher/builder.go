@@ -9,10 +9,10 @@ import (
 
 const rebuildDelay = 100 * time.Millisecond
 
-func build(ctx context.Context, out chan<- *State, in <-chan *State) error {
-	var s *State
+func build(ctx context.Context, out chan<- *CodeState, in <-chan *CodeState) error {
+	var s *CodeState
 	var delay delay
-	var bresult chan *State
+	var bresult chan *CodeState
 	var cancel context.CancelFunc
 	var wantbuild bool
 	var cm compiler.Compiler
@@ -65,14 +65,14 @@ func build(ctx context.Context, out chan<- *State, in <-chan *State) error {
 		if wantbuild && bresult == nil {
 			wantbuild = false
 			ctx, cancelf := context.WithCancel(ctx)
-			bresult = make(chan *State, 1)
+			bresult = make(chan *CodeState, 1)
 			cancel = cancelf
 			go doBuild(ctx, &cm, bresult, s)
 		}
 	}
 }
 
-func doBuild(ctx context.Context, cm *compiler.Compiler, out chan<- *State, s *State) {
+func doBuild(ctx context.Context, cm *compiler.Compiler, out chan<- *CodeState, s *CodeState) {
 	defer close(out)
 	p := s.Project
 	if p == nil {
@@ -80,8 +80,8 @@ func doBuild(ctx context.Context, cm *compiler.Compiler, out chan<- *State, s *S
 	}
 	d, err := p.CompileCompo(ctx, cm)
 	if err != nil {
-		out <- &State{Err: err, Project: p}
-		return
+		out <- &CodeState{Err: err, Project: p}
+	} else {
+		out <- &CodeState{Project: p, Compo: d}
 	}
-	out <- &State{Project: p, Compo: d}
 }

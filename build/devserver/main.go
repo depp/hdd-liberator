@@ -13,14 +13,12 @@ import (
 	"path/filepath"
 	"regexp"
 	"strconv"
-	"sync"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/pflag"
 
 	"moria.us/js13k/build/compiler"
-	"moria.us/js13k/build/project"
 	"moria.us/js13k/build/watcher"
 
 	pb "moria.us/js13k/proto/compiler"
@@ -37,63 +35,13 @@ func (contextKey) String() string {
 	return "devserver context key"
 }
 
-var errBuildFailed = errors.New("build failed")
-
-type buildState struct {
-	err        error
-	project    *project.Project
-	diagnostic []*pb.Diagnostic
-	html       []byte
-	sourcemap  []byte
-}
-
-func newBuildState(s *watcher.State) *buildState {
-	logrus.Infoln("Starting build.")
-	if s == nil {
-		return nil
-	}
-	d := buildState{
-		err:     s.Err,
-		project: s.Project,
-	}
-	if d.err != nil {
-		if e, ok := s.Err.(*compiler.Error); ok {
-			d.diagnostic = e.Diagnostics
-		}
-		logrus.Errorln("Build:", d.err)
-		return &d
-	}
-	if c := s.Compo; c != nil {
-		d.diagnostic = c.Diagnostics
-		if len(s.Compo.Code) == 0 {
-			d.err = errBuildFailed
-			logrus.Errorln("Build:", d.err)
-			return &d
-		}
-		hd, err := s.Compo.BuildHTML(&releaseMapURL)
-		if err != nil {
-			d.err = err
-			logrus.Errorln("BuildHTML:", err)
-			return &d
-		}
-		d.html = hd
-		d.sourcemap = s.Compo.SourceMap
-		logrus.Infoln("Done building.")
-	} else {
-		logrus.Infoln("Loaded project.")
-	}
-	return &d
-}
-
 type handler struct {
 	baseDir            string
 	statusTemplate     *cachedTemplate
 	buildErrorTemplate *cachedTemplate
 	gameTemplate       *cachedTemplate
-
-	lock      sync.RWMutex
-	compo     *buildState
-	listeners []chan<- *buildState
+	code               code
+	music              music
 }
 
 func newHandler(baseDir string) *handler {
@@ -120,124 +68,12 @@ func getHandler(ctx context.Context) *handler {
 var releaseMapURL = url.URL{Path: "/release/main.map"}
 
 func (h *handler) watch(ctx context.Context, config string) {
-	ch, err := watcher.Watch(ctx, h.baseDir, config)
+	cch, sch, err := watcher.Watch(ctx, h.baseDir, config)
 	if err != nil {
 		logrus.Fatalln("watcher.Watch:", err)
 	}
-	for {
-		s, ok := <-ch
-		if !ok {
-			logrus.Fatalln("watch channel closed")
-		}
-		d := newBuildState(s)
-
-		h.lock.Lock()
-		h.compo = d
-		ls := h.listeners
-		var pos int
-		for _, l := range ls {
-			select {
-			case l <- d:
-				ls[pos] = l
-				pos++
-			default:
-				close(l)
-			}
-		}
-		h.listeners = ls[:pos]
-		for ; pos < len(ls); pos++ {
-			ls[pos] = nil
-		}
-		h.lock.Unlock()
-	}
-}
-
-func (h *handler) addListener(ch chan<- *buildState) *buildState {
-	if ch == nil {
-		panic("nil channel")
-	}
-
-	h.lock.Lock()
-	d := h.compo
-	h.listeners = append(h.listeners, ch)
-	h.lock.Unlock()
-
-	return d
-}
-
-func (h *handler) removeListener(ch chan<- *buildState) {
-	h.lock.Lock()
-	for i, l := range h.listeners {
-		if l == ch {
-			h.listeners[i] = h.listeners[len(h.listeners)-1]
-			h.listeners[len(h.listeners)-1] = nil
-			h.listeners = h.listeners[:len(h.listeners)-1]
-			close(ch)
-		}
-	}
-	h.lock.Unlock()
-}
-
-func (h *handler) getBuildState(ctx context.Context, f func(*buildState) bool) *buildState {
-	h.lock.RLock()
-	d := h.compo
-	h.lock.RUnlock()
-
-	if f(d) {
-		return d
-	}
-	ch := make(chan *buildState, 1)
-
-	h.lock.Lock()
-	if d = h.compo; f(d) {
-		h.lock.Unlock()
-		return d
-	}
-	h.listeners = append(h.listeners, ch)
-	h.lock.Unlock()
-
-loop:
-	for {
-		select {
-		case d = <-ch:
-			if f(d) {
-				break loop
-			}
-			d = nil
-		case <-ctx.Done():
-			break loop
-		}
-	}
-
-	h.removeListener(ch)
-
-	return d
-}
-
-func (h *handler) getProject(ctx context.Context) (*project.Project, error) {
-	d := h.getBuildState(ctx, func(d *buildState) bool {
-		return d != nil
-	})
-	if d == nil {
-		return nil, ctx.Err()
-	}
-	if d.project != nil {
-		return d.project, nil
-	}
-	if d.err != nil {
-		return nil, d.err
-	}
-	panic("bad build result")
-}
-
-func (h *handler) getBuild(ctx context.Context) (*buildState, error) {
-	d := h.getBuildState(ctx, func(d *buildState) bool {
-		return d != nil && (d.err != nil || d.html != nil)
-	})
-	if d == nil {
-		return nil, ctx.Err()
-	}
-	return d, nil
+	go h.code.watch(ctx, cch)
+	go h.music.watch(ctx, sch)
 }
 
 func logResponse(r *http.Request, status int, msg string) {
@@ -346,7 +182,7 @@ func redirectAddSlash(w http.ResponseWriter, r *http.Request) {
 func serveIndex(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	h := getHandler(ctx)
-	p, err := h.getProject(ctx)
+	p, err := h.code.getProject(ctx)
 	if err != nil {
 		h.serveError(w, r, err)
 		return
@@ -389,7 +225,7 @@ func (h *handler) serveBuildError(w http.ResponseWriter, r *http.Request, e *com
 func serveRelease(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	h := getHandler(ctx)
-	d, err := h.getBuild(ctx)
+	d, err := h.code.getBuild(ctx)
 	if err != nil {
 		// ctx canceled.
 		return
@@ -414,7 +250,7 @@ func serveRelease(w http.ResponseWriter, r *http.Request) {
 func serveReleaseMap(w http.ResponseWriter, r *http.Request) {
 	ctx := r.Context()
 	h := getHandler(ctx)
-	d, err := h.getBuild(ctx)
+	d, err := h.code.getBuild(ctx)
 	if err != nil {
 		// ctx canceled.
 		return
@@ -478,6 +314,24 @@ func serveStatic(w http.ResponseWriter, r *http.Request) {
 	serveFile(w, r, "", r.URL.Path[1:], "")
 }
 
+func serveMusic(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	h := getHandler(ctx)
+	cd, err := h.music.getMusic(ctx)
+	if err != nil {
+		if err == context.Canceled {
+			return
+		}
+		h.serveError(w, r, err)
+		return
+	}
+	logResponse(r, http.StatusOK, "")
+	hdr := w.Header()
+	hdr.Set("Content-Type", "application/octet-stream")
+	hdr.Set("Content-Length", strconv.Itoa(len(cd.Data)))
+	w.Write(cd.Data)
+}
+
 func mainE() error {
 	fHost := pflag.String("host", "localhost", "host to serve from, or * to bind to all local addresses")
 	fPort := pflag.Int("port", 9013, "port to serve from")
@@ -519,6 +373,7 @@ func mainE() error {
 	mx.Get("/release/main.map", serveReleaseMap)
 	mx.Get("/static/*", serveStatic)
 	mx.Get("/game/*", serveStatic)
+	mx.Get("/music", serveMusic)
 	mx.Get("/socket", serveSocket)
 	mx.NotFound(serveNotFound)
 	s := http.Server{

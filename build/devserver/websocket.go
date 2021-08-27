@@ -52,8 +52,8 @@ func (h *wshandler) read() {
 func (h *wshandler) write() {
 	defer h.conn.Close()
 	ch := make(chan *buildState, 10)
-	d := h.handler.addListener(ch)
-	defer h.handler.removeListener(ch)
+	d := h.handler.code.addListener(ch)
+	defer h.handler.code.removeListener(ch)
 	if err := h.send(d); err != nil {
 		logrus.Error("send:", err)
 		return

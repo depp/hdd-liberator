@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -370,6 +371,55 @@ var convert = cobra.Command{
 	},
 }
 
+var flagOutput string
+
+var compile = cobra.Command{
+	Use:  "compile <song>...",
+	Args: cobra.MinimumNArgs(1),
+	RunE: func(_ *cobra.Command, args []string) error {
+		var songs []*song.Song
+		for _, arg := range args {
+			fname := argToFilePath(arg)
+			data, err := ioutil.ReadFile(fname)
+			if err != nil {
+				return err
+			}
+			sn, err := song.Parse(data)
+			if err != nil {
+				return fmt.Errorf("song %s: %v", arg, err)
+			}
+			songs = append(songs, sn)
+		}
+		cd, err := song.Compile(songs)
+		if err != nil {
+			return err
+		}
+		logrus.Infoln("Data size:", len(cd.Data))
+		if flagOutput == "" {
+			data := cd.Data
+			const lineBytes = 32
+			var ldata [lineBytes * 2]byte
+			w := bufio.NewWriter(os.Stdout)
+			for len(data) > 0 {
+				var line []byte
+				if len(data) >= lineBytes {
+					line = data[:lineBytes]
+					data = data[lineBytes:]
+				} else {
+					line = data
+					data = nil
+				}
+				lout := ldata[:len(line)*2]
+				hex.Encode(lout, line)
+				w.Write(lout)
+				w.WriteByte('\n')
+			}
+			return w.Flush()
+		}
+		return ioutil.WriteFile(argToFilePath(flagOutput), cd.Data, 0666)
+	},
+}
+
 var root = cobra.Command{
 	Use:           "music",
 	Short:         "Music is a tool for generating JS13K music from MIDI files.",
@@ -378,9 +428,11 @@ var root = cobra.Command{
 }
 
 func main() {
-	root.AddCommand(&listTracks, &dumpTrack, &extractNotes, &convert)
+	root.AddCommand(&listTracks, &dumpTrack, &extractNotes, &convert, &compile)
 	f := extractNotes.Flags()
 	f.Uint32Var(&flagGrid, "grid", 48, "size of musical grid, default is 1/48 (32nd note triplets)")
+	f = compile.Flags()
+	f.StringVarP(&flagOutput, "output", "o", "", "output file for compiled songs")
 	workingDirectory = os.Getenv("BUILD_WORKING_DIRECTORY")
 	if err := root.Execute(); err != nil {
 		logrus.Error(err)

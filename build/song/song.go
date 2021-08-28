@@ -14,11 +14,18 @@ const (
 	maxTempo = 280
 )
 
+// A TimeSignature is the time signature for a song.
+type TimeSignature struct {
+	Numerator       int
+	DenominatorLog2 int
+}
+
 // An Info contains the metadata for a song.
 type Info struct {
 	Name     string
 	Composer string
 	Tempo    float64
+	Time     TimeSignature
 	Division int
 }
 
@@ -209,6 +216,20 @@ func parseSections(data []byte) ([]section, error) {
 
 // =============================================================================
 
+func ilog2(x uint64) int {
+	if x <= 0 {
+		return 0
+	}
+	var i int
+	for {
+		x >>= 1
+		if x == 0 {
+			return i
+		}
+		i++
+	}
+}
+
 func (d *Info) setProp(key, value string) error {
 	switch key {
 	case "name":
@@ -226,6 +247,30 @@ func (d *Info) setProp(key, value string) error {
 			return fmt.Errorf("tempo %f is not in allowed range %d..%d", n, minTempo, maxTempo)
 		}
 		d.Tempo = n
+		return nil
+	case "time":
+		i := strings.IndexByte(value, '/')
+		if i == -1 {
+			return errors.New("time signature must be N/M")
+		}
+		n, err := strconv.ParseUint(value[:i], 10, strconv.IntSize-1)
+		if err != nil {
+			return err
+		}
+		m, err := strconv.ParseUint(value[:i], 10, strconv.IntSize-1)
+		if err != nil {
+			return err
+		}
+		if n == 0 {
+			return errors.New("zero numerator")
+		}
+		if m == 0 || (m&(m-1)) != 0 {
+			return fmt.Errorf("denominator is not a power of two: %d", m)
+		}
+		d.Time = TimeSignature{
+			Numerator:       int(n),
+			DenominatorLog2: ilog2(m),
+		}
 		return nil
 	case "division":
 		n, err := strconv.ParseUint(value, 10, strconv.IntSize-1)
@@ -253,7 +298,7 @@ func (tr *Track) setProp(key, value string) error {
 }
 
 type noteParser struct {
-	division int
+	barlen   int
 	time     int
 	bar      int
 	barstart int
@@ -298,7 +343,7 @@ func (p *noteParser) parseDur(text string) (int, error) {
 		return 0, errors.New("zero length")
 	}
 	dur := int(n)
-	if dur > p.division {
+	if dur > p.barlen {
 		return 0, errors.New("longer than one measure")
 	}
 	return dur, nil
@@ -306,7 +351,7 @@ func (p *noteParser) parseDur(text string) (int, error) {
 
 func (p *noteParser) advanceTime(dur int) error {
 	time := p.time + dur
-	if time > p.barstart+p.division {
+	if time > p.barstart+p.barlen {
 		return fmt.Errorf("note crosses barline at end of measure %d", p.bar+1)
 	}
 	p.time = time
@@ -377,7 +422,7 @@ func (p *noteParser) parseToken(text string) error {
 		if text != "|" {
 			return errors.New("unexpected character after |")
 		}
-		barend := p.barstart + p.division
+		barend := p.barstart + p.barlen
 		if p.time != barend {
 			return fmt.Errorf("shart measure in measure %d", p.bar+1)
 		}
@@ -436,6 +481,7 @@ func Parse(data []byte) (*Song, error) {
 	}
 	var sn Song
 	var hasinfo bool
+	var barlen int
 	for _, s := range ss {
 		switch s.kind {
 		case "info":
@@ -446,6 +492,21 @@ func Parse(data []byte) (*Song, error) {
 				if err := sn.Info.setProp(p.key, p.value); err != nil {
 					return nil, &Error{p.lineno, err}
 				}
+			}
+			if sn.Info.Division == 0 {
+				return nil, &Error{s.lineno, errors.New("song is missing duration")}
+			}
+			if sn.Info.Time.Numerator == 0 {
+				sn.Info.Time = TimeSignature{4, 2} // 4/4
+			}
+			t := sn.Info.Time
+			barlen = sn.Info.Division * t.Numerator
+			if barlen&((1<<t.DenominatorLog2)-1) != 0 {
+				return nil, &Error{s.lineno, errors.New("divisions per measure is not an integer")}
+			}
+			barlen >>= t.DenominatorLog2
+			if sn.Info.Tempo == 0 {
+				return nil, &Error{s.lineno, errors.New("missing tempo")}
 			}
 			for _, l := range s.data {
 				return nil, &Error{l.lineno, errors.New("unexpected data in this section type")}
@@ -461,7 +522,7 @@ func Parse(data []byte) (*Song, error) {
 					return nil, &Error{p.lineno, err}
 				}
 			}
-			np := noteParser{division: sn.Info.Division}
+			np := noteParser{barlen: barlen}
 			for _, l := range s.data {
 				if err := np.parseLine(l.data); err != nil {
 					return nil, &Error{l.lineno, err}

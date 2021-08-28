@@ -2,6 +2,7 @@
 name: The Light of Creation
 composer: Dietrich Epp
 tempo: 72
+time: 4/4
 division: 16
 
 @track

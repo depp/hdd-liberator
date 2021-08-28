@@ -1,4 +1,5 @@
 import { COMPO } from './common.js';
+import { Iterate } from './util.js';
 
 /**
  * @typedef {{
@@ -10,6 +11,7 @@ var Track;
 
 /**
  * @typedef {{
+ *   tickDuration: number,
  *   tracks: Array<Track>!,
  * }}
  */
@@ -51,6 +53,7 @@ export function PlaySound() {
   if (!song) {
     return;
   }
+  const ticksize = song.tickDuration;
   const t0 = Ctx.currentTime;
   for (const track of song.tracks) {
     const { values, durations } = track;
@@ -83,7 +86,7 @@ export function PlaySound() {
         osc.stop(t + 1);
       }
 
-      t += duration * 0.2;
+      t += duration * ticksize;
     }
   }
 }
@@ -111,56 +114,49 @@ export function Start() {
  */
 export function LoadMusic(data) {
   const initialValue = 64;
-  let pos = 0;
-  let value = initialValue;
-  /** @type {Array<number>!} */
-  let values = [];
-  /** @type {Array<Track>!} */
-  let tracks = [];
+  let pos = 1;
   /** @type {Array<Song>!} */
   let songs = [];
-  /** @type {Array<Track>!} */
+  /** @type {Array<Track!>!} */
   let allTracks = [];
-  console.log(data);
-  loop: while (1) {
-    if (pos > 10000) {
-      console.error('DONE');
-      return;
+  let nsongs = data[0];
+  while (nsongs--) {
+    if (!COMPO && pos + 4 > data.length) {
+      throw new Error('music parsing failed');
     }
-    if (!COMPO && pos >= data.length) {
-      throw new Error(
-        `audio parsing error: pos=${pos} data.length=${data.length}`,
-      );
-    }
-    const byte = data[pos++];
-    if (byte >> 7) {
-      switch (byte) {
-        case 0x80:
-          // rest
-          values.push(128);
-          break;
-        case 0x81:
-          console.log('TRACK END');
-          // track end
-          const track = /** @type {Track} */ ({ values });
-          tracks.push(track);
-          allTracks.push(track);
-          values = [];
-          value = initialValue;
-          break;
-        case 0x82:
-          console.log('SONG END');
-          // song end
-          songs.push({ tracks });
-          break;
-        case 0x83:
-          console.log('DATA END');
-          // data end
-          break loop;
+    /** @type {Array<Track!>!} */
+    const tracks = Iterate(data[pos], () => /** @type {Track} */ ({}));
+    allTracks.push(...tracks);
+    songs.push({
+      tickDuration: data[pos + 1] / 1000,
+      tracks,
+    });
+    pos += 4;
+  }
+  for (const track of allTracks) {
+    let value = initialValue;
+    /** @type {Array<number>!} */
+    let values = [];
+    track.values = values;
+    loop: while (1) {
+      if (!COMPO && pos >= data.length) {
+        throw new Error('music parsing failed');
       }
-    } else {
-      value = (value + byte) & 127;
-      values.push(value);
+      const byte = data[pos++];
+      if (byte >> 7) {
+        switch (byte) {
+          case 0x80:
+            // rest
+            values.push(128);
+            break;
+          case 0x81:
+            // track end
+            break loop;
+        }
+      } else {
+        value = (value + byte) & 127;
+        values.push(value);
+      }
     }
   }
   for (const track of allTracks) {

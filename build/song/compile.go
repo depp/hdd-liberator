@@ -4,18 +4,22 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
+	"math"
 	"path/filepath"
 )
 
 const (
 	restValue = 0x80
 	trackEnd  = 0x81
-	songEnd   = 0x82
-	dataEnd   = 0x83
 
 	startValue = 0x40
+
+	// Seconds per tick is calculated as tempoExp^tempo / tempoDivisor.
+	tempoExp     = 0.99
+	tempoDivisor = 4.0
 )
 
 type Compiled struct {
@@ -23,9 +27,25 @@ type Compiled struct {
 }
 
 func compile(songs []*Song) (*Compiled, error) {
+	/*
+		Data format:
+		- u8 number of songs
+		- song data
+		- note values, each track ending with 0x81
+		- note durations
+		Song format:
+		- u8 number of tracks
+		- u8 tick duration, in 1/1000 of a second
+		- u16be song duration, in ticks
+	*/
+	var data []uint8
 	var values, durations []uint8
+	data = []uint8{uint8(len(songs))}
 	for _, sn := range songs {
+		// Write track note data, and calculate length of song.
+		var slen int
 		for _, tr := range sn.Tracks {
+			var tlen int
 			var last uint8 = startValue
 			for _, n := range tr.Notes {
 				var value uint8
@@ -40,13 +60,41 @@ func compile(songs []*Song) (*Compiled, error) {
 				}
 				values = append(values, value)
 				durations = append(durations, n.Duration)
+				tlen += int(n.Duration)
 			}
 			values = append(values, trackEnd)
+			if tlen > slen {
+				slen = tlen
+			}
 		}
-		values = append(values, songEnd)
+		if slen > 0xffff {
+			return nil, fmt.Errorf("song too long: %d ticks", slen)
+		}
+		// Write song metadata.
+		tdenom := sn.Info.Tempo * float64(sn.Info.Division)
+		if tdenom == 0 {
+			return nil, errors.New("invalid tempo or division")
+		}
+		ftick := 240e3 / tdenom
+		if !(ftick >= 1) {
+			return nil, fmt.Errorf("tick duration too small: %f ms", ftick)
+		}
+		if !(ftick <= 255) {
+			return nil, fmt.Errorf("tick duration too large: %f ms", ftick)
+		}
+		itick := int(math.RoundToEven(ftick))
+		if itick < 1 {
+			itick = 1
+		} else if itick > 255 {
+			itick = 255
+		}
+		data = append(data,
+			uint8(len(sn.Tracks)),
+			uint8(itick),
+			uint8(slen>>8),
+			uint8(slen))
 	}
-	var data = values
-	data = append(data, dataEnd)
+	data = append(data, values...)
 	data = append(data, durations...)
 	return &Compiled{
 		Data: data,

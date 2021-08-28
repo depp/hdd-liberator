@@ -6,6 +6,8 @@ import (
 	"context"
 	"net/url"
 
+	"golang.org/x/text/encoding/charmap"
+
 	"moria.us/js13k/build/html"
 
 	pb "moria.us/js13k/proto/compiler"
@@ -29,9 +31,10 @@ type CompoData struct {
 // will be inserted. The URL should be nil for the submitted build.
 func (d *CompoData) BuildHTML(sourceMapURL *url.URL) ([]byte, error) {
 	var w html.Writer
+	w.SetCharset(charmap.Windows1252)
 
 	w.OpenTag("meta")
-	w.Attr("charset", "UTF-8")
+	w.Attr("charset", "l1")
 
 	if d.Config.Title != "" {
 		w.OpenTag("title")

@@ -7,6 +7,8 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+
+	"golang.org/x/text/encoding/charmap"
 )
 
 func init() {
@@ -71,6 +73,7 @@ var attrNameValid [128]bool
 //
 // The writer will validate
 type Writer struct {
+	charmap   *charmap.Charmap
 	buf       bytes.Buffer
 	isTagOpen bool
 	isScript  bool
@@ -78,8 +81,29 @@ type Writer struct {
 	err       error
 }
 
-func (w *Writer) writeRune(char rune) {
-	w.buf.WriteRune(char)
+func (w *Writer) SetCharset(c *charmap.Charmap) {
+	w.charmap = c
+}
+
+func (w *Writer) writeString(s string) {
+	if cm := w.charmap; cm != nil {
+		for _, c := range s {
+			if b, ok := cm.EncodeRune(c); ok {
+				w.buf.WriteByte(b)
+			} else {
+				w.buf.WriteByte('&')
+				if e := entities[c]; e != "" {
+					w.buf.WriteString(e)
+				} else {
+					w.buf.WriteByte('#')
+					w.buf.WriteString(strconv.FormatUint(uint64(c), 10))
+				}
+				w.buf.WriteByte(';')
+			}
+		}
+	} else {
+		w.buf.WriteString(s)
+	}
 }
 
 func (w *Writer) writeTagName(name string) error {
@@ -146,25 +170,25 @@ func (w *Writer) writeAttrValue(value string) error {
 		}
 	}
 	if !q {
-		for _, c := range value {
-			w.writeRune(c)
-		}
+		w.writeString(value)
 	} else {
+		var b strings.Builder
 		qc := '\''
 		qe := "&squo;"
 		if dq <= sq {
 			qc = '"'
 			qe = "&dquo;"
 		}
-		w.buf.WriteByte(byte(qc))
+		b.WriteByte(byte(qc))
 		for _, c := range value {
 			if c == qc {
-				w.buf.WriteString(qe)
+				b.WriteString(qe)
 			} else {
-				w.writeRune(c)
+				b.WriteRune(c)
 			}
 		}
-		w.buf.WriteByte(byte(qc))
+		b.WriteByte(byte(qc))
+		w.writeString(b.String())
 	}
 	return nil
 }
@@ -306,20 +330,34 @@ func (w *Writer) Text(text string) {
 	}
 	w.finishTag()
 	if w.isScript {
-		for _, c := range text {
-			w.writeRune(c)
+		if cm := w.charmap; cm != nil {
+			for _, c := range text {
+				if b, ok := cm.EncodeRune(c); ok {
+					w.buf.WriteByte(b)
+				} else if c < (1 << 8) {
+					fmt.Fprintf(&w.buf, "\\x%02x", c)
+				} else if c < (1 << 16) {
+					fmt.Fprintf(&w.buf, "\\u%04x", c)
+				} else {
+					fmt.Fprintf(&w.buf, "\\u{%x}", c)
+				}
+			}
+		} else {
+			w.buf.WriteString(text)
 		}
 	} else {
+		var b strings.Builder
 		for _, c := range text {
 			switch c {
 			case '&':
-				w.buf.WriteString("&amp;")
+				b.WriteString("&amp;")
 			case '<':
-				w.buf.WriteString("&lt;")
+				b.WriteString("&lt;")
 			default:
-				w.writeRune(c)
+				b.WriteRune(c)
 			}
 		}
+		w.writeString(b.String())
 	}
 }
 

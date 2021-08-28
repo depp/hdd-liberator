@@ -2,9 +2,15 @@ load("@io_bazel_rules_go//go:def.bzl", "go_library", "go_test")
 
 go_library(
     name = "html",
-    srcs = ["html.go"],
+    srcs = [
+        "entitylist.go",
+        "html.go",
+    ],
     importpath = "moria.us/js13k/build/html",
     visibility = ["//build:__subpackages__"],
+    deps = [
+        "@org_golang_x_text//encoding/charmap",
+    ],
 )
 
 go_test(

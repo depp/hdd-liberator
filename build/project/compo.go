@@ -6,8 +6,6 @@ import (
 	"context"
 	"net/url"
 
-	"golang.org/x/text/encoding/charmap"
-
 	"moria.us/js13k/build/html"
 
 	pb "moria.us/js13k/proto/compiler"
@@ -20,6 +18,7 @@ const TargetSize = 13 * 1024
 // A CompoData contains the data and compiled JavaScript for a compo build.
 type CompoData struct {
 	Config      Config
+	Data        string
 	SourceMap   []byte
 	Diagnostics []*pb.Diagnostic
 	Code        []byte
@@ -31,10 +30,8 @@ type CompoData struct {
 // will be inserted. The URL should be nil for the submitted build.
 func (d *CompoData) BuildHTML(sourceMapURL *url.URL) ([]byte, error) {
 	var w html.Writer
-	w.SetCharset(charmap.Windows1252)
 
-	w.OpenTag("meta")
-	w.Attr("charset", "l1")
+	w.WriteDocType()
 
 	if d.Config.Title != "" {
 		w.OpenTag("title")
@@ -61,6 +58,12 @@ func (d *CompoData) BuildHTML(sourceMapURL *url.URL) ([]byte, error) {
 		w.Text("//# sourceMappingURL=")
 		w.Text(sourceMapURL.String())
 	}
+	w.CloseTag("script")
+
+	w.OpenTag("script")
+	w.Attr("type", "x")
+	w.Attr("id", "d")
+	w.Text(d.Data)
 	w.CloseTag("script")
 
 	return w.Finish()

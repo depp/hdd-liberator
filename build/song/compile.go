@@ -9,34 +9,46 @@ import (
 	"io/ioutil"
 	"math"
 	"path/filepath"
+
+	"moria.us/js13k/build/embed"
+)
+
+// Special note values.
+const (
+	trackEnd = embed.NumValues - 1 - iota
+	restValue
 )
 
 const (
-	restValue = 0x80
-	trackEnd  = 0x81
+	// Initial value, for calculating deltas
+	startValue = 60
 
-	startValue = 0x40
-
-	// Seconds per tick is calculated as tempoExp^tempo / tempoDivisor.
-	tempoExp     = 0.99
-	tempoDivisor = 4.0
+	// Base length of a tick, in seconds, for encoding tempo. So if the song's
+	// tempo is encoded as N, then the duration of a tick is equal to
+	// N*baseTickLength seconds.
+	baseTickLength = 2e-3
 )
 
-type Compiled struct {
-	Data []byte
-}
-
-func compile(songs []*Song) (*Compiled, error) {
+func compile(songs []*Song) ([]byte, error) {
 	/*
 		Data format:
-		- u8 number of songs
-		- song data
-		- note values, each track ending with 0x81
-		- note durations
-		Song format:
-		- u8 number of tracks
-		- u8 tick duration, in 1/1000 of a second
-		- u16be song duration, in ticks
+		N = embed.NumValues
+
+		byte: number of songs
+		song[]: song data (length = number of songs)
+			byte: number of tracks
+			byte: tick duration, 1 = 2 ms
+			byte[2]: song length in ticks (big endian)
+				value = arr[0]*N + arr[1]
+		byte[]: note values
+			Contains all tracks across all songs, in order, concatenated.
+			Each track ends with N-1.
+			Rests are encoded as N-2.
+			Other notes are delta-encoded, per track, modulo N-2. The first value is delta encoded
+			relative to the starting point, 60.
+		byte[]: duration values
+			Contains all tracks across all songs, in order, concatenated.
+			Each duration value is measured in ticks.
 	*/
 	var data []uint8
 	var values, durations []uint8
@@ -46,19 +58,24 @@ func compile(songs []*Song) (*Compiled, error) {
 		var slen int
 		for _, tr := range sn.Tracks {
 			var tlen int
-			var last uint8 = startValue
+			var last int = startValue
 			for _, n := range tr.Notes {
-				var value uint8
+				var enc uint8
 				if n.IsRest {
-					value = restValue
+					enc = restValue
 				} else {
-					if n.Value >= 0x80 {
+					if n.Value >= restValue {
 						return nil, fmt.Errorf("note value out of range: %d", n.Value)
 					}
-					value = (n.Value - last) & 0x7f
-					last = n.Value
+					n := int(n.Value)
+					delta := n - last
+					if delta < 0 {
+						delta += restValue
+					}
+					enc = byte(delta)
+					last = n
 				}
-				values = append(values, value)
+				values = append(values, enc)
 				durations = append(durations, n.Duration)
 				tlen += int(n.Duration)
 			}
@@ -75,7 +92,7 @@ func compile(songs []*Song) (*Compiled, error) {
 		if tdenom == 0 {
 			return nil, errors.New("invalid tempo or division")
 		}
-		ftick := 240e3 / tdenom
+		ftick := (240 / baseTickLength) / tdenom
 		if !(ftick >= 1) {
 			return nil, fmt.Errorf("tick duration too small: %f ms", ftick)
 		}
@@ -91,21 +108,19 @@ func compile(songs []*Song) (*Compiled, error) {
 		data = append(data,
 			uint8(len(sn.Tracks)),
 			uint8(itick),
-			uint8(slen>>8),
-			uint8(slen))
+			uint8(slen/embed.NumValues),
+			uint8(slen%embed.NumValues))
 	}
 	data = append(data, values...)
 	data = append(data, durations...)
-	return &Compiled{
-		Data: data,
-	}, nil
+	return data, nil
 }
 
 type songs struct {
 	Songs []string `json:"songs"`
 }
 
-func Compile(ctx context.Context, filename string) (*Compiled, error) {
+func Compile(ctx context.Context, filename string) ([]byte, error) {
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, err

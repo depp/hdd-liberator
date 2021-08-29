@@ -15,3 +15,10 @@
  * @define {boolean}
  */
 export const COMPO = goog.define('COMPO', false);
+
+/**
+ * Number of different values that can appear in a byte of the embedded data.
+ * See embed.go.
+ * @const {number}
+ */
+export const NUM_VALUES = 128 - 3;

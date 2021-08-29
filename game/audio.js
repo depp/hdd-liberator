@@ -1,4 +1,4 @@
-import { COMPO } from './common.js';
+import { COMPO, NUM_VALUES } from './common.js';
 import { Iterate } from './util.js';
 
 /**
@@ -113,7 +113,7 @@ export function Start() {
  * @param {Array<number>} data
  */
 export function LoadMusic(data) {
-  const initialValue = 64;
+  const initialValue = 60;
   let pos = 1;
   /** @type {Array<Song>!} */
   let songs = [];
@@ -128,7 +128,7 @@ export function LoadMusic(data) {
     const tracks = Iterate(data[pos], () => /** @type {Track} */ ({}));
     allTracks.push(...tracks);
     songs.push({
-      tickDuration: data[pos + 1] / 1000,
+      tickDuration: data[pos + 1] / 500,
       tracks,
     });
     pos += 4;
@@ -143,19 +143,18 @@ export function LoadMusic(data) {
         throw new Error('music parsing failed');
       }
       const byte = data[pos++];
-      if (byte >> 7) {
-        switch (byte) {
-          case 0x80:
-            // rest
-            values.push(128);
-            break;
-          case 0x81:
-            // track end
-            break loop;
-        }
-      } else {
-        value = (value + byte) & 127;
-        values.push(value);
+      switch (byte) {
+        case NUM_VALUES - 2:
+          // rest
+          values.push(128);
+          break;
+        case NUM_VALUES - 1:
+          // track end
+          break loop;
+        default:
+          value = (value + byte) % (NUM_VALUES - 2);
+          values.push(value);
+          break;
       }
     }
   }

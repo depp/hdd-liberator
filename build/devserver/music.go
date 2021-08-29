@@ -6,7 +6,6 @@ import (
 
 	"github.com/sirupsen/logrus"
 
-	"moria.us/js13k/build/song"
 	"moria.us/js13k/build/watcher"
 )
 
@@ -102,7 +101,7 @@ func (m *music) getMusicImpl(ctx context.Context) *watcher.SongState {
 	}
 }
 
-func (m *music) getMusic(ctx context.Context) (*song.Compiled, error) {
+func (m *music) getMusic(ctx context.Context) ([]byte, error) {
 	d := m.getMusicImpl(ctx)
 	if d == nil {
 		return nil, ctx.Err()

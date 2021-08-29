@@ -13,6 +13,9 @@ import (
 
 	"github.com/sirupsen/logrus"
 
+	"moria.us/js13k/build/embed"
+	"moria.us/js13k/build/song"
+
 	pb "moria.us/js13k/proto/compiler"
 )
 
@@ -92,6 +95,18 @@ func IsSourceName(name string) bool {
 	return sourceName.MatchString(name)
 }
 
+func (p *Project) buildData(ctx context.Context) (string, error) {
+	cd, err := song.Compile(ctx, filepath.Join(p.BaseDir, "music/songs.json"))
+	if err != nil {
+		return "", err
+	}
+	s, err := embed.Encode(cd)
+	if err != nil {
+		return "", fmt.Errorf("encode: %v", err)
+	}
+	return s, nil
+}
+
 // listSources returns a list of all JavaScript source files which might be used
 // to compile the game. This just lists all JavaScript source files in the
 // source directory, the compiler or browser will figure out which ones to
@@ -138,6 +153,10 @@ func (p *Project) CompileOptimized(ctx context.Context, c Compiler) (*OptimizedD
 }
 
 func (p *Project) CompileCompo(ctx context.Context, c Compiler) (*CompoData, error) {
+	dd, err := p.buildData(ctx)
+	if err != nil {
+		return nil, err
+	}
 	srcs, err := p.listSources()
 	if err != nil {
 		return nil, err
@@ -156,6 +175,7 @@ func (p *Project) CompileCompo(ctx context.Context, c Compiler) (*CompoData, err
 	}
 	return &CompoData{
 		Config:      p.Config,
+		Data:        dd,
 		Code:        rsp.GetCode(),
 		SourceMap:   rsp.GetSourceMap(),
 		Diagnostics: rsp.GetDiagnostic(),

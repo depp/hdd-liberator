@@ -231,6 +231,13 @@ func (w *Writer) finishText() bool {
 	return true
 }
 
+func (w *Writer) WriteDocType() {
+	if w.err != nil {
+		return
+	}
+	w.buf.WriteString("<!doctype html>")
+}
+
 // OpenTag writes an opening HTML tag to the document.
 func (w *Writer) OpenTag(name string) {
 	if w.err != nil {

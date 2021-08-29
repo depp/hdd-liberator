@@ -8,4 +8,7 @@ go_library(
     ],
     importpath = "moria.us/js13k/build/song",
     visibility = ["//build:__subpackages__"],
+    deps = [
+        "//build/embed",
+    ],
 )

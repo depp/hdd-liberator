@@ -1,6 +1,7 @@
 import './common.js';
 import { ctx, SetContext } from './render2d.js';
 import * as game from './game.js';
+import * as audio from './audio.js';
 
 /**
  * Callback for requestAnimationFrame.
@@ -10,6 +11,14 @@ function Frame(timestamp) {
   game.Update(timestamp);
   game.Render2D();
   requestAnimationFrame(Frame);
+}
+
+function LoadData() {
+  const text = window.d.text;
+  const data = [...text].map(
+    (x) => x.charCodeAt(0) - 1 - (x > '<') - (x > '\r'),
+  );
+  audio.LoadMusic(data);
 }
 
 /**
@@ -33,4 +42,5 @@ function Start() {
   Frame(0);
 }
 
+LoadData();
 window.b.onclick = Start;

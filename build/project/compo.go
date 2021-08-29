@@ -46,7 +46,7 @@ func (d *CompoData) BuildHTML(sourceMapURL *url.URL) ([]byte, error) {
 
 	w.OpenTag("button")
 	w.Attr("id", "b")
-	w.Attr("style", "font-size:60")
+	w.Attr("style", "font-size:9em")
 	// U+25B6 black right-pointing triangle
 	// U+FE0f variation selector 16 (previous character is emoji)
 	w.Text("\u25b6\ufe0f")

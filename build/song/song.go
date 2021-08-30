@@ -358,7 +358,7 @@ func (p *noteParser) advanceTime(dur int) error {
 	return nil
 }
 
-var baseNote = [7]int{0, 2, 3, 5, 7, 8, 10}
+var baseNote = [7]int{9, 11, 0, 2, 4, 5, 7}
 
 func trimByteFront(text string, b uint8) (int, string) {
 	var pos int

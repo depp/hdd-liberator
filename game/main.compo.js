@@ -16,7 +16,7 @@ function Frame(timestamp) {
 function LoadData() {
   const text = window.d.text;
   const data = [...text].map(
-    (x) => x.charCodeAt(0) - 1 - (x > '<') - (x > '\r'),
+    (/** string */ x) => x.charCodeAt(0) - 1 - (x > '<') - (x > '\r'),
   );
   audio.LoadMusic(data);
 }

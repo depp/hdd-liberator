@@ -79,12 +79,13 @@ function RunProgram(program, out, t0, tgate, note) {
   /**
    * Scale applied to time parameters, in seconds. A time encoded as N is
    * decoded as timeScale * exponent**N. Range: 9.3 ms - 20 s.
+   * @const {number}
    */
   const timeScale = 20;
 
   /**
    * Position in the program.
-   * @type number
+   * @type {number}
    */
   let pos = 0;
 
@@ -133,18 +134,20 @@ function RunProgram(program, out, t0, tgate, note) {
 
   /** @type {!Array<!function(!AudioParam)>} */
   const paramOpcodes = [
-    (_param) => {},
+    (/** !AudioParam */ _param) => {},
     // Constant.
-    ...[1, timeScale, frequencyScale].map((scale) => (param) => {
-      if (!COMPO && pos + 1 > program.length) {
-        throw new Error('program overrun');
-      }
-      param.value = scale * exponent ** program[pos++];
-    }),
+    ...[1, timeScale, frequencyScale].map(
+      (/** number */ scale) => (/** !AudioParam */ param) => {
+        if (!COMPO && pos + 1 > program.length) {
+          throw new Error('program overrun');
+        }
+        param.value = scale * exponent ** program[pos++];
+      },
+    ),
     // Gain ADSR.
-    (param) => ADSR(param, exponent ** (NUM_VALUES - 1), 1),
+    (/** !AudioParam */ param) => ADSR(param, exponent ** (NUM_VALUES - 1), 1),
     // Frequency ADSR.
-    (param) => {
+    (/** !AudioParam */ param) => {
       if (!COMPO && pos + 2 > program.length) {
         throw new Error('program overrun');
       }
@@ -155,7 +158,7 @@ function RunProgram(program, out, t0, tgate, note) {
       );
     },
     // Note value.
-    (param) => {
+    (/** !AudioParam */ param) => {
       param.value = 440 * 2 ** ((note - 69) / 12);
     },
   ];
@@ -188,12 +191,12 @@ function RunProgram(program, out, t0, tgate, note) {
       const node = Ctx.createGain();
       AddNode(node, node.gain);
     },
-    ...['lowpass', 'highpass', 'bandpass'].map((type) => () => {
+    ...['lowpass', 'highpass', 'bandpass'].map((/** string */ type) => () => {
       const node = Ctx.createBiquadFilter();
       node.type = type;
       AddNode(node, node.frequency, node.detune, node.Q);
     }),
-    ...['square', 'sawtooth', 'triangle'].map((type) => () => {
+    ...['square', 'sawtooth', 'triangle'].map((/** string */ type) => () => {
       const node = Ctx.createOscillator();
       node.type = type;
       AddNode(node, node.frequency, node.detune);

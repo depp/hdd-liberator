@@ -15,7 +15,7 @@ export const Action = 'a';
  * These are taken from KeyboardEvent.code, and correspond to physical locations
  * on the keyboard. WASD will be ZQSD on a French layout keyboard, etc.
  *
- * @const {Object<string, string>!}
+ * @const {!Object<string, string>}
  */
 const ButtonBindings = {
   // WASD
@@ -38,7 +38,7 @@ const ButtonBindings = {
 
 /**
  * Map from
- * @const {Object<string, number>!}
+ * @const {!Object<string, number>}
  */
 const ButtonState = {};
 
@@ -53,7 +53,7 @@ function ZeroButtons(record) {
 }
 
 /**
- * @param {Event} evt
+ * @param {KeyboardEvent} evt
  */
 function HandleKeyDown(evt) {
   const binding = ButtonBindings[evt.code];
@@ -64,7 +64,7 @@ function HandleKeyDown(evt) {
 }
 
 /**
- * @param {Event} evt
+ * @param {KeyboardEvent} evt
  */
 function HandleKeyUp(evt) {
   const binding = ButtonBindings[evt.code];
@@ -78,8 +78,14 @@ function HandleKeyUp(evt) {
  * Start listening for player input.
  */
 export function Start() {
-  window.addEventListener('keydown', HandleKeyDown);
-  window.addEventListener('keyup', HandleKeyUp);
+  window.addEventListener(
+    'keydown',
+    /** @type {function(Event)} */ (HandleKeyDown),
+  );
+  window.addEventListener(
+    'keyup',
+    /** @type {function(Event)} */ (HandleKeyUp),
+  );
   ZeroButtons(ButtonState);
 }
 

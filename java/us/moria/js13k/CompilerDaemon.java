@@ -61,6 +61,17 @@ public class CompilerDaemon {
         }
     }
 
+    private static String closureExterns =
+            "/** @const */\n"+
+            "var goog = {};\n"+
+            "/**\n"+
+            " * @param {string} name\n"+
+            " * @param {T} value\n"+
+            " * @return {T}\n"+
+            " * @template T\n"+
+            " */\n"+
+            "goog.define = function(name, value) {};\n";
+
     CompilerDaemon() {
         ioBuffer = ByteBuffer.allocateDirect(8 * 1024);
         in = Channels.newChannel(System.in);
@@ -72,7 +83,7 @@ public class CompilerDaemon {
             System.err.println("Error: Could not load externs: " + e);
             System.exit(1);
         }
-        externs.add(SourceFile.fromCode("ccl.js", "var goog;\n"));
+        externs.add(SourceFile.fromCode("ccl.js", closureExterns));
     }
 
     private void run() {

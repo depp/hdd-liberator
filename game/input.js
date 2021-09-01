@@ -78,14 +78,8 @@ function HandleKeyUp(evt) {
  * Start listening for player input.
  */
 export function Start() {
-  window.addEventListener(
-    'keydown',
-    /** @type {function(Event)} */ (HandleKeyDown),
-  );
-  window.addEventListener(
-    'keyup',
-    /** @type {function(Event)} */ (HandleKeyUp),
-  );
+  document.onkeydown = /** @type {function(Event)} */ (HandleKeyDown);
+  document.onkeyup = /** @type {function(Event)} */ (HandleKeyUp);
   ZeroButtons(ButtonState);
 }
 

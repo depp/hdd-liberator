@@ -2,10 +2,13 @@ package project
 
 import (
 	"bytes"
-	"compress/flate"
 	"context"
 	"encoding/binary"
+	"errors"
 	"hash/crc32"
+	"io/ioutil"
+	"os"
+	"os/exec"
 	"time"
 )
 
@@ -50,20 +53,38 @@ type zipwriter struct {
 	filecount int
 }
 
-func (w *zipwriter) addfile(name string, modtime time.Time, data []byte) error {
-	// Compress file.
+func compress(ctx context.Context, data []byte) ([]byte, error) {
+	fp, err := ioutil.TempFile("", "compress.*")
+	if err != nil {
+		return nil, err
+	}
+	if _, err := fp.Write(data); err != nil {
+		return nil, err
+	}
+	name := fp.Name()
+	defer func() {
+		fp.Close()
+		os.Remove(name)
+	}()
 	var buf bytes.Buffer
-	zw, err := flate.NewWriter(&buf, flate.BestCompression)
+	cmd := exec.CommandContext(ctx, "external/zopfli/zopfli", "--deflate", "-c", name)
+	cmd.Stdout = &buf
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return nil, err
+	}
+	// Zopfli does not use a status code for failure.
+	if buf.Len() == 0 {
+		return nil, errors.New("zopfli failed")
+	}
+	return buf.Bytes(), nil
+}
+
+func (w *zipwriter) addfile(ctx context.Context, name string, modtime time.Time, data []byte) error {
+	cdata, err := compress(ctx, data)
 	if err != nil {
 		return err
 	}
-	if _, err := zw.Write(data); err != nil {
-		return err
-	}
-	if err := zw.Close(); err != nil {
-		return err
-	}
-	cdata := buf.Bytes()
 
 	crc := crc32.ChecksumIEEE(data)
 	md := toDOSDate(modtime)
@@ -145,7 +166,7 @@ func (d *CompoData) BuildZip(ctx context.Context) ([]byte, error) {
 		return nil, err
 	}
 	var w zipwriter
-	if err := w.addfile("index.html", d.Config.Timestamp, h); err != nil {
+	if err := w.addfile(ctx, "index.html", d.Config.Timestamp, h); err != nil {
 		return nil, err
 	}
 	return w.todata(), nil

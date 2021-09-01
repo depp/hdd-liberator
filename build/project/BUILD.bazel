@@ -7,6 +7,9 @@ go_library(
         "project.go",
         "zip.go",
     ],
+    data = [
+        "@zopfli",
+    ],
     importpath = "moria.us/js13k/build/project",
     visibility = ["//build:__subpackages__"],
     deps = [

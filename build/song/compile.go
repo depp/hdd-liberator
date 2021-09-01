@@ -29,17 +29,40 @@ const (
 	baseTickLength = 2e-3
 )
 
-func compile(songs []*Song) ([]byte, error) {
+type compileError struct {
+	songname  string
+	tracknum  int
+	trackname string
+	msg       string
+}
+
+func (e *compileError) Error() string {
+	return fmt.Sprintf("song %q track %d %q: %s", e.songname, e.tracknum+1, e.trackname, e.msg)
+}
+
+func compileErrorf(sn *Song, i int, tr *Track, format string, a ...interface{}) error {
+	return &compileError{sn.Info.Name, i, tr.Name, fmt.Sprintf(format, a...)}
+}
+
+func compile(snd *sounds, songs []*Song) ([]byte, error) {
 	/*
 		Data format:
 		N = embed.NumValues
 
+		byte: number of programs
 		byte: number of songs
+		program[]: program data (length = number of programs)
+			Each program is a unique sound, stored as bytecode, which
+			constructs an audio processing graph.
+			byte: program length
+			byte[]: program bytecode
 		song[]: song data (length = number of songs)
 			byte: number of tracks
 			byte: tick duration, 1 = 2 ms
 			byte[2]: song length in ticks (big endian)
 				value = arr[0]*N + arr[1]
+			track[]: track metadata
+			    byte: instrument, index into program array
 		byte[]: note values
 			Contains all tracks across all songs, in order, concatenated.
 			Each track ends with N-1.
@@ -50,9 +73,9 @@ func compile(songs []*Song) ([]byte, error) {
 			Contains all tracks across all songs, in order, concatenated.
 			Each duration value is measured in ticks.
 	*/
-	var data []uint8
-	var values, durations []uint8
-	data = []uint8{uint8(len(songs))}
+	var songdata, values, durations []uint8
+	var soundDats [][]byte
+	instrIdx := make(map[string]int)
 	for _, sn := range songs {
 		// Write track note data, and calculate length of song.
 		var slen int
@@ -105,12 +128,38 @@ func compile(songs []*Song) ([]byte, error) {
 		} else if itick > 255 {
 			itick = 255
 		}
-		data = append(data,
+		songdata = append(songdata,
 			uint8(len(sn.Tracks)),
 			uint8(itick),
 			uint8(slen/embed.NumValues),
 			uint8(slen%embed.NumValues))
+		for i, tr := range sn.Tracks {
+			if tr.Instrument == "" {
+				return nil, compileErrorf(sn, i, tr, "track has no instrument")
+			}
+			inum, ok := instrIdx[tr.Instrument]
+			if !ok {
+				idata, ok := snd.Instruments[tr.Instrument]
+				if !ok {
+					return nil, compileErrorf(sn, i, tr, "instrument does not exist: %q", tr.Instrument)
+				}
+				inum = len(soundDats)
+				soundDats = append(soundDats, idata)
+				instrIdx[tr.Instrument] = inum
+			}
+			songdata = append(songdata, uint8(inum))
+		}
 	}
+	var data []byte
+	data = []byte{byte(len(soundDats)), byte(len(songs))}
+	for _, s := range soundDats {
+		if len(s) >= embed.NumValues {
+			return nil, errors.New("sound is too long")
+		}
+		data = append(data, uint8(len(s)))
+		data = append(data, s...)
+	}
+	data = append(data, songdata...)
 	data = append(data, values...)
 	data = append(data, durations...)
 	return data, nil
@@ -121,6 +170,10 @@ type songs struct {
 }
 
 func Compile(ctx context.Context, filename string) ([]byte, error) {
+	snd, err := compileSounds(ctx, filepath.Join(filepath.Dir(filename), CodeFile))
+	if err != nil {
+		return nil, err
+	}
 	data, err := ioutil.ReadFile(filename)
 	if err != nil {
 		return nil, err
@@ -147,5 +200,5 @@ func Compile(ctx context.Context, filename string) ([]byte, error) {
 		}
 		sns = append(sns, sn)
 	}
-	return compile(sns)
+	return compile(snd, sns)
 }

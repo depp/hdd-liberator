@@ -383,9 +383,9 @@ var compile = cobra.Command{
 		if err != nil {
 			return err
 		}
-		logrus.Infoln("Data size:", len(cd.Data))
+		logrus.Infoln("Data size:", len(cd))
 		if flagOutput == "" {
-			data := cd.Data
+			data := cd
 			const lineBytes = 32
 			var ldata [lineBytes * 2]byte
 			w := bufio.NewWriter(os.Stdout)
@@ -405,7 +405,7 @@ var compile = cobra.Command{
 			}
 			return w.Flush()
 		}
-		return ioutil.WriteFile(argToFilePath(flagOutput), cd.Data, 0666)
+		return ioutil.WriteFile(argToFilePath(flagOutput), cd, 0666)
 	},
 }
 

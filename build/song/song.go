@@ -45,8 +45,9 @@ type Note struct {
 
 // A Track is an individual instrument track within a song.
 type Track struct {
-	Name  string
-	Notes []Note
+	Name       string
+	Instrument string
+	Notes      []Note
 }
 
 // A Song is a complete piece of music.
@@ -292,6 +293,9 @@ func (tr *Track) setProp(key, value string) error {
 	case "name":
 		tr.Name = value
 		return nil
+	case "instrument":
+		tr.Instrument = value
+		return nil
 	default:
 		return fmt.Errorf("unknown property key: %q", key)
 	}
@@ -532,6 +536,10 @@ func Parse(data []byte) (*Song, error) {
 			}
 			for len(np.notes) != 0 && np.notes[len(np.notes)-1].IsRest {
 				np.notes = np.notes[:len(np.notes)-1]
+			}
+			var dur int
+			for _, n := range np.notes {
+				dur += int(n.Duration)
 			}
 			tr.Notes = np.notes
 			sn.Tracks = append(sn.Tracks, &tr)

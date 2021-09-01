@@ -1,10 +1,14 @@
 import { COMPO, NUM_VALUES } from './common.js';
 import { Iterate } from './util.js';
 
+/** @type {Array<!Array<number>>} */
+let Sounds;
+
 /**
  * @typedef {{
  *   values: Array<number>!,
  *   durations: Array<number>!,
+ *   instrument: number,
  * }}
  */
 var Track;
@@ -227,15 +231,6 @@ export function PlaySound() {
   if (!Songs) {
     return;
   }
-  /** @type {Array<number>!} */
-  const program = [
-    // gain, adsr
-    0, 4, 112, 85, 11, 40,
-    // lowpass, adsr, skip, skip, skip
-    1, 5, 85, 11, 85, 85, 11, 40, 0, 0,
-    // oscillator
-    5, 6, 0,
-  ];
   const song = Songs[0];
   if (!song) {
     return;
@@ -246,14 +241,14 @@ export function PlaySound() {
   gain.gain.value = 0.2;
   gain.connect(Ctx.destination);
   for (const track of song.tracks) {
-    const { values, durations } = track;
+    const { values, durations, instrument } = track;
     let t = t0;
     for (let i = 0; i < values.length; i++) {
       const value = values[i];
       const duration = durations[i];
 
       if (value > 0) {
-        RunProgram(program, gain, t, duration * ticksize, value);
+        RunProgram(Sounds[instrument], gain, t, duration * ticksize, value);
       }
 
       t += duration * ticksize;
@@ -280,28 +275,48 @@ export function Start() {
 
 /**
  * Load music tracks from the given raw binary data.
- * @param {Array<number>} data
+ * @param {!Array<number>} data
  */
 export function LoadMusic(data) {
   const initialValue = 60;
-  let pos = 1;
-  /** @type {Array<Song>!} */
-  let songs = [];
+  /** @type {number} */
+  let pos = 2;
   /** @type {Array<Track!>!} */
   let allTracks = [];
-  let nsongs = data[0];
-  while (nsongs--) {
-    if (!COMPO && pos + 4 > data.length) {
+  let [nsounds, nsongs] = data;
+  Sounds = [];
+  Songs = [];
+  while (nsounds--) {
+    if (!COMPO && pos + 1 > data.length) {
       throw new Error('music parsing failed');
     }
-    /** @type {Array<Track!>!} */
-    const tracks = Iterate(data[pos], () => /** @type {Track} */ ({}));
+    const length = data[pos++];
+    if (!COMPO && pos + length > data.length) {
+      throw new Error('music parsing failed');
+    }
+    Sounds.push(data.slice(pos, (pos += length)));
+  }
+  while (nsongs--) {
+    if (
+      !COMPO &&
+      (pos + 4 > data.length || pos + 4 + data[pos] > data.length)
+    ) {
+      throw new Error('music parsing failed');
+    }
+    /** @type {!Array<!Track>} */
+    const tracks = Iterate(
+      data[pos],
+      (i) =>
+        /** @type {Track} */ ({
+          instrument: data[pos + 4 + i],
+        }),
+    );
     allTracks.push(...tracks);
-    songs.push({
+    Songs.push({
       tickDuration: data[pos + 1] / 500,
       tracks,
     });
-    pos += 4;
+    pos += 4 + data[pos];
   }
   for (const track of allTracks) {
     let value = initialValue;
@@ -331,5 +346,4 @@ export function LoadMusic(data) {
   for (const track of allTracks) {
     track.durations = data.slice(pos, (pos += track.values.length));
   }
-  Songs = songs;
 }

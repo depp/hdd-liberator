@@ -11,6 +11,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"moria.us/js13k/build/project"
+	"moria.us/js13k/build/song"
 )
 
 const loadProjectDelay = 10 * time.Millisecond
@@ -107,7 +108,10 @@ func (w *watcher) watch(ctx context.Context, codesrc chan<- *CodeState, songsrc 
 					codesrc <- s
 				}
 			}
-			if dir == w.songdir && (base == songList || strings.HasSuffix(base, ".txt")) {
+			if dir == w.songdir &&
+				(strings.HasSuffix(base, ".txt") ||
+					base == songList ||
+					base == song.CodeFile) {
 				songsrc <- struct{}{}
 			}
 		case err, ok := <-fw.Errors:

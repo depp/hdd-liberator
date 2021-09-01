@@ -5,6 +5,7 @@ go_library(
     srcs = [
         "compile.go",
         "song.go",
+        "sounds.go",
     ],
     importpath = "moria.us/js13k/build/song",
     visibility = ["//build:__subpackages__"],

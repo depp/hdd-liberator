@@ -384,14 +384,16 @@ func (p *noteParser) parseToken(text string) error {
 		// Coalesce with previous rest.
 		if len(p.notes) != 0 {
 			if n := p.notes[len(p.notes)-1]; n.IsRest {
+				var ndur uint8
 				lim := int(^n.Duration)
 				if dur <= lim {
-					n.Duration += uint8(dur)
+					ndur = n.Duration + uint8(dur)
 					dur = 0
 				} else {
-					n.Duration = ^uint8(0)
+					ndur = ^uint8(0)
 					dur -= lim
 				}
+				p.notes[len(p.notes)-1].Duration = ndur
 			}
 		}
 		if dur > 0 {

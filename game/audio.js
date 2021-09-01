@@ -119,7 +119,7 @@ function RunProgram(program, out, t0, tgate, note) {
       // Gate is released after envelope attack, so the delay stage will
       // happen.
       let tk = timeScale * exponent ** d;
-      let xs = (x1 / x0) ** (s / (NUM_VALUES - 1));
+      let xs = x1 * (x0 / x1) ** (s / (NUM_VALUES - 1));
       param.setTargetAtTime(xs, t0 + ta, tk);
       param.setValueAtTime(xs + (x1 - xs) / Math.exp(tdgate / tk), t0 + tgate);
       param.exponentialRampToValueAtTime(x0, t0 + tgate + tr);

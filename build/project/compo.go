@@ -1,9 +1,6 @@
 package project
 
 import (
-	"archive/zip"
-	"bytes"
-	"context"
 	"net/url"
 
 	"moria.us/js13k/build/html"
@@ -67,28 +64,4 @@ func (d *CompoData) BuildHTML(sourceMapURL *url.URL) ([]byte, error) {
 	w.CloseTag("script")
 
 	return w.Finish()
-}
-
-// BuildZip creates a zip file containing the final product.
-func (d *CompoData) BuildZip(ctx context.Context) ([]byte, error) {
-	h, err := d.BuildHTML(nil)
-	if err != nil {
-		return nil, err
-	}
-	var buf bytes.Buffer
-	z := zip.NewWriter(&buf)
-	f, err := z.CreateHeader(&zip.FileHeader{
-		Name:     "index.html",
-		Modified: d.Config.Timestamp,
-	})
-	if err != nil {
-		return nil, err
-	}
-	if _, err := f.Write(h); err != nil {
-		return nil, err
-	}
-	if err := z.Close(); err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
 }

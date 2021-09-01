@@ -5,6 +5,7 @@ go_library(
     srcs = [
         "compo.go",
         "project.go",
+        "zip.go",
     ],
     importpath = "moria.us/js13k/build/project",
     visibility = ["//build:__subpackages__"],

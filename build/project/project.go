@@ -31,6 +31,11 @@ func defineBoolean(name string, value bool) *pb.Define {
 	}
 }
 
+// A Terser contains the configuration for running Terser.
+type Terser struct {
+	Compress string `json:"compress"`
+}
+
 // A Config contains the project configuration.
 type Config struct {
 	Title        string    `json:"title"`
@@ -39,6 +44,7 @@ type Config struct {
 	MainStandard string    `json:"main.standard"`
 	SourceDir    string    `json:"srcDir"`
 	Timestamp    time.Time `json:"timestamp"`
+	Terser       *Terser   `json:"terser"`
 }
 
 // A Project is a JS13K project which can be built.
@@ -146,9 +152,11 @@ func (p *Project) CompileOptimized(ctx context.Context, c Compiler) (*OptimizedD
 	}
 	return &OptimizedData{
 		Config:      p.Config,
-		Code:        rsp.GetCode(),
-		SourceMap:   rsp.GetSourceMap(),
 		Diagnostics: rsp.GetDiagnostic(),
+		Script: ScriptData{
+			Code:      rsp.GetCode(),
+			SourceMap: rsp.GetSourceMap(),
+		},
 	}, nil
 }
 
@@ -173,20 +181,36 @@ func (p *Project) CompileCompo(ctx context.Context, c Compiler) (*CompoData, err
 	if err != nil {
 		return nil, err
 	}
-	return &CompoData{
+	cd := CompoData{
 		Config:      p.Config,
 		Data:        dd,
-		Code:        rsp.GetCode(),
-		SourceMap:   rsp.GetSourceMap(),
 		Diagnostics: rsp.GetDiagnostic(),
-	}, nil
+	}
+	scr := ScriptData{
+		Code:      rsp.GetCode(),
+		SourceMap: rsp.GetSourceMap(),
+	}
+	if len(scr.Code) != 0 {
+		mscr, err := p.terser(ctx, scr)
+		if err != nil {
+			return nil, err
+		}
+		cd.CompiledScript = scr
+		cd.MinifiedScript = mscr
+	}
+	return &cd, nil
+}
+
+// A ScriptData contains JavaScript source file and its source map.
+type ScriptData struct {
+	Code      []byte
+	SourceMap []byte
 }
 
 // An OptimizedData contains the data and compiled JavaScript for an optimized
 // (but non-competition) build.
 type OptimizedData struct {
 	Config      Config
-	Code        []byte
-	SourceMap   []byte
 	Diagnostics []*pb.Diagnostic
+	Script      ScriptData
 }

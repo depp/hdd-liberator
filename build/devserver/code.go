@@ -42,7 +42,7 @@ func newBuildState(s *watcher.CodeState) *buildState {
 	}
 	if c := s.Compo; c != nil {
 		d.diagnostic = c.Diagnostics
-		if len(s.Compo.Code) == 0 {
+		if len(s.Compo.CompiledScript.Code) == 0 {
 			d.err = errBuildFailed
 			logrus.Errorln("Build:", d.err)
 			return &d
@@ -54,7 +54,7 @@ func newBuildState(s *watcher.CodeState) *buildState {
 			return &d
 		}
 		d.html = hd
-		d.sourcemap = s.Compo.SourceMap
+		d.sourcemap = s.Compo.MinifiedScript.Code
 		logrus.Infoln("Done building.")
 	} else {
 		logrus.Infoln("Loaded project.")

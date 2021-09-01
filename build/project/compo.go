@@ -14,11 +14,11 @@ const TargetSize = 13 * 1024
 
 // A CompoData contains the data and compiled JavaScript for a compo build.
 type CompoData struct {
-	Config      Config
-	Data        string
-	SourceMap   []byte
-	Diagnostics []*pb.Diagnostic
-	Code        []byte
+	Config         Config
+	Data           string
+	Diagnostics    []*pb.Diagnostic
+	CompiledScript ScriptData
+	MinifiedScript ScriptData
 }
 
 // BuildHTML returns the HTML page.
@@ -50,7 +50,7 @@ func (d *CompoData) BuildHTML(sourceMapURL *url.URL) ([]byte, error) {
 
 	w.OpenTag("script")
 	w.Attr("type", "module")
-	w.Text(string(d.Code))
+	w.Text(string(d.MinifiedScript.Code))
 	if sourceMapURL != nil {
 		w.Text("//# sourceMappingURL=")
 		w.Text(sourceMapURL.String())

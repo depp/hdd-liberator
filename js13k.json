@@ -4,5 +4,8 @@
   "main.compo": "main.compo.js",
   "main.standard": "main.standard.js",
   "srcDir": "game",
-  "timestamp": "2021-09-13T11:00:00Z"
+  "timestamp": "2021-09-13T11:00:00Z",
+  "terser": {
+    "compress": "defaults=true,booleans_as_integers=true,keep_fargs=false,unsafe_arrows=true"
+  }
 }

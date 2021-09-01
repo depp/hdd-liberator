@@ -5,6 +5,7 @@ go_library(
     srcs = [
         "compo.go",
         "project.go",
+        "terser.go",
         "zip.go",
     ],
     data = [

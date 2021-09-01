@@ -74,6 +74,7 @@ function Frame(timestamp) {
 function HandleClickStart(evt) {
   /** @type {HTMLElement} */ (evt.target).remove();
   game.Start();
+  Frame(0);
 }
 
 /**
@@ -103,7 +104,6 @@ function Start() {
 
   render2D.SetContext(ctx);
   overlay.addEventListener('click', HandleClickStart);
-  Frame(0);
 }
 
 Start();

@@ -7,6 +7,8 @@ import (
 
 	"github.com/gorilla/websocket"
 	"github.com/sirupsen/logrus"
+
+	"moria.us/js13k/build/watcher"
 )
 
 const (
@@ -52,24 +54,45 @@ func (h *wshandler) read(endch chan struct{}) {
 	}
 }
 
+var msgMusic []byte
+
 func (h *wshandler) write(endch chan struct{}) {
+	const chansize = 4
 	defer h.conn.Close()
-	ch := make(chan *buildState, 10)
-	d := h.handler.code.addListener(ch)
-	defer h.handler.code.removeListener(ch)
-	if err := h.send(d); err != nil {
+
+	bch := make(chan *buildState, chansize)
+	bd := h.handler.code.addListener(bch)
+	defer h.handler.code.removeListener(bch)
+
+	mch := make(chan *watcher.SongState, chansize)
+	md := h.handler.music.addListener(mch)
+	defer h.handler.music.removeListener(mch)
+
+	if err := h.send(&devserverMessage{
+		Build: makeBuildMessage(bd),
+		Music: makeMusicMessage(md),
+	}); err != nil {
 		logrus.Error("Websocket send:", err)
 		return
 	}
+
 	t := time.NewTicker(pingInterval)
 	defer t.Stop()
 	for {
 		select {
-		case d, ok := <-ch:
+		case bd, ok := <-bch:
 			if !ok {
 				return
 			}
-			if err := h.send(d); err != nil {
+			if err := h.send(&devserverMessage{Build: makeBuildMessage(bd)}); err != nil {
+				logrus.Error("Websocket send:", err)
+				return
+			}
+		case md, ok := <-mch:
+			if !ok {
+				return
+			}
+			if err := h.send(&devserverMessage{Music: makeMusicMessage(md)}); err != nil {
 				logrus.Error("Websocket send:", err)
 				return
 			}
@@ -90,7 +113,7 @@ type buildMessage struct {
 	Error string `json:"error,omitempty"`
 }
 
-func (h *wshandler) send(d *buildState) error {
+func makeBuildMessage(d *buildState) *buildMessage {
 	var m buildMessage
 	if d.err == nil {
 		if len(d.html) > 0 {
@@ -102,7 +125,31 @@ func (h *wshandler) send(d *buildState) error {
 		m.State = "fail"
 		m.Error = d.err.Error()
 	}
-	md, err := json.Marshal(&m)
+	return &m
+}
+
+type musicMessage struct {
+	Data  []byte `json:"data,omitempty"`
+	Error string `json:"error,omitempty"`
+}
+
+func makeMusicMessage(d *watcher.SongState) *musicMessage {
+	var m musicMessage
+	if d.Err != nil {
+		m.Error = d.Err.Error()
+	} else {
+		m.Data = d.Compiled
+	}
+	return &m
+}
+
+type devserverMessage struct {
+	Build *buildMessage `json:"build,omitempty"`
+	Music *musicMessage `json:"music,omitempty"`
+}
+
+func (h *wshandler) send(m *devserverMessage) error {
+	md, err := json.Marshal(m)
 	if err != nil {
 		return err
 	}

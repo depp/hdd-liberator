@@ -79,22 +79,48 @@ function HandleClickStart(evt) {
   Frame(0);
 }
 
-/**
- * Load the audio on the devserver.
- */
-async function DevserverLoadAudio() {
-  try {
-    const resp = await fetch('/music');
-    if (!resp.ok) {
-      console.error('LoadAudio failed');
-      return;
-    }
-    const buf = await resp.arrayBuffer();
-    console.log('Loaded audio');
-    audio.LoadMusic(new Uint8Array(buf));
-  } catch (e) {
-    console.error(e);
+function DevStart() {
+  if (!('JS13K' in window)) {
+    throw new Error('no JS13K object');
   }
+
+  /**
+   * @param {JS13K.MusicStatus} music
+   */
+  function HandleMusicEvent(music) {
+    if (typeof music != 'object' || Array.isArray(music)) {
+      throw new Error('invalid music event');
+    }
+    const { data } = music;
+    if (data != null) {
+      if (typeof data != 'string') {
+        throw new Error('invalid music data');
+      }
+      const str = atob(data);
+      const arr = new Uint8Array(str.length);
+      for (let i = 0; i < str.length; i++) {
+        arr[i] = str.charCodeAt(i);
+      }
+      console.log('Received music data');
+      audio.LoadMusic(arr);
+    }
+  }
+
+  /**
+   * @param {JS13K.DevEvent} event
+   */
+  function HandleBuildEvent(event) {
+    const { music } = event;
+    if (music != null) {
+      try {
+        HandleMusicEvent(music);
+      } catch (e) {
+        console.error(e);
+      }
+    }
+  }
+
+  JS13K.AddDevListener(HandleBuildEvent);
 }
 
 /**
@@ -102,7 +128,7 @@ async function DevserverLoadAudio() {
  */
 function Start() {
   if (!RELEASE) {
-    DevserverLoadAudio();
+    DevStart();
   }
 
   Canvas = document.createElement('canvas');
@@ -130,4 +156,13 @@ function Start() {
   overlay.addEventListener('click', HandleClickStart);
 }
 
-Start();
+function StartCheck() {
+  try {
+    Start();
+  } catch (e) {
+    console.error(e);
+    PutErrorMessage('' + e);
+  }
+}
+
+StartCheck();

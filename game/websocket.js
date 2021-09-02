@@ -8,11 +8,6 @@ let StatusIcon;
  */
 let StatusText;
 
-/**
- * @type {WebSocket}
- */
-let Socket;
-
 const IconBuilding = '\u22ef';
 const IconOK = '\u2705';
 const IconError = '\u26d4';
@@ -56,6 +51,56 @@ const States = new Map([
 ]);
 
 /**
+ * Handle a new build state in response to websocket events.
+ * @param {JS13K.DevEvent} event
+ */
+function UpdateState(event) {
+  const { build } = event;
+  if (build == null) {
+    return;
+  }
+  const { state } = build;
+  if (state == null) {
+    return;
+  }
+  if (typeof state != 'string') {
+    throw new Error('invalid state');
+  }
+  const info = States.get(state);
+  if (info == null) {
+    throw new Error(`unknown state: ${JSON.stringify(state)}`);
+  }
+  const { icon, text } = info;
+  SetState(icon, text);
+}
+
+// =============================================================================
+
+/**
+ * @type {!Array<Function(JS13K.DevEvent)>}
+ */
+const DevListeners = [UpdateState];
+
+/**
+ * @type {!JS13K.DevEvent}
+ */
+let CurrentData = {};
+
+/**
+ * Add a listener for devserver events.
+ * @param {function(JS13K.DevEvent)} callback
+ */
+function AddDevListener(callback) {
+  callback(CurrentData);
+  DevListeners.push(callback);
+}
+
+/**
+ * @type {WebSocket}
+ */
+let Socket;
+
+/**
  * Handle a websocket error.
  * @param {Event} ev
  */
@@ -82,46 +127,27 @@ function HandleClose() {
 }
 
 /**
- * Handle a new build state.
- * @param {string} state
- */
-function HandleState(state) {
-  const info = States.get(state);
-  if (info == null) {
-    throw new Error(`unknown state: ${JSON.stringify(state)}`);
-  }
-  const { icon, text } = info;
-  SetState(icon, text);
-}
-
-/**
- * Handle the data in a websocket message.
- * @param {*} data
- */
-function HandleMessageData(data) {
-  if (typeof data != 'string') {
-    throw new Error('data is not a string');
-  }
-  const obj = JSON.parse(data);
-  if (typeof obj != 'object' || Array.isArray(obj)) {
-    throw new Error('invalid JSON');
-  }
-  const { state } = obj;
-  if (state != null) {
-    if (typeof state != 'string') {
-      throw new Error('invalid state');
-    }
-    HandleState(state);
-  }
-}
-
-/**
  * Handle a message from the websacket.
  * @param {MessageEvent} evt
  */
 function HandleMessage(evt) {
   try {
-    HandleMessageData(evt.data);
+    const { data } = evt;
+    if (typeof data != 'string') {
+      throw new Error('data is not a string');
+    }
+    const obj = JSON.parse(data);
+    if (typeof obj != 'object' || Array.isArray(obj)) {
+      throw new Error('invalid JSON');
+    }
+    Object.assign(CurrentData, obj);
+    for (const listener of DevListeners) {
+      try {
+        listener(obj);
+      } catch (e) {
+        console.error(e);
+      }
+    }
   } catch (e) {
     console.error(e);
   }
@@ -176,4 +202,5 @@ function Start() {
   }
 }
 
+window.JS13K = { AddDevListener };
 Start();

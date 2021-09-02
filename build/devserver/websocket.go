@@ -33,29 +33,32 @@ func serveSocket(w http.ResponseWriter, r *http.Request) {
 		handler: h,
 		conn:    c,
 	}
-	go wh.read()
-	go wh.write()
+	endch := make(chan struct{})
+	go wh.read(endch)
+	go wh.write(endch)
 }
 
-func (h *wshandler) read() {
-	defer h.conn.Close()
+func (h *wshandler) read(endch chan struct{}) {
+	defer close(endch)
 	for {
 		mt, _, err := h.conn.ReadMessage()
 		if err != nil {
-			logrus.Errorln("websocket.ReadMessage:", err)
+			if !websocket.IsCloseError(err, websocket.CloseNormalClosure, websocket.CloseGoingAway) {
+				logrus.Errorln("Websocket read:", err)
+			}
 			break
 		}
-		logrus.Infoln("Message:", mt)
+		logrus.Infoln("Websocket message:", mt)
 	}
 }
 
-func (h *wshandler) write() {
+func (h *wshandler) write(endch chan struct{}) {
 	defer h.conn.Close()
 	ch := make(chan *buildState, 10)
 	d := h.handler.code.addListener(ch)
 	defer h.handler.code.removeListener(ch)
 	if err := h.send(d); err != nil {
-		logrus.Error("send:", err)
+		logrus.Error("Websocket send:", err)
 		return
 	}
 	t := time.NewTicker(pingInterval)
@@ -67,15 +70,17 @@ func (h *wshandler) write() {
 				return
 			}
 			if err := h.send(d); err != nil {
-				logrus.Error("send:", err)
+				logrus.Error("Websocket send:", err)
 				return
 			}
 		case <-t.C:
 			h.conn.SetWriteDeadline(time.Now().Add(writeTimeout))
 			if err := h.conn.WriteMessage(websocket.PingMessage, nil); err != nil {
-				logrus.Error("ping:", err)
+				logrus.Error("Websocket ping:", err)
 				return
 			}
+		case <-endch:
+			return
 		}
 	}
 }

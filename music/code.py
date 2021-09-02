@@ -322,6 +322,12 @@ def node_gain(w: Writer, *, gain: Parameter = Default) -> None:
         raise TypeError('gain is not Parameter')
     gain.write(w)
 
+@node('pan')
+def node_pan(w: Writer, *, pan: Parameter = Default) -> None:
+    if not isinstance(pan, Parameter):
+        raise TypeError('pan is not a parameter')
+    pan.write(w)
+
 @node('lowpass', 'highpass', 'bandpass')
 def node_filter(
         w: Writer, *,
@@ -394,6 +400,9 @@ def soft_lead(c: ProgramContext) -> None:
             q=DBConst(-6.0),
         )
     with c.repeat(5):
+        c.pan(
+            pan=RandomBipolar(0.5),
+        )
         c.sawtooth(
             frequency=Note,
             detune=RandomBipolar(10.0),

@@ -234,6 +234,11 @@ function RunProgram(program, out, t0, tgate, note) {
       const node = Ctx.createGain();
       AddNode(node, node.gain);
     },
+    // Create stereo panner node.
+    () => {
+      const node = Ctx.createStereoPanner();
+      AddNode(node, node.pan);
+    },
     // Create filter node.
     ...['lowpass', 'highpass', 'bandpass'].map((/** string */ type) => () => {
       const node = Ctx.createBiquadFilter();

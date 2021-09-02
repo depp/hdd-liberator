@@ -1,5 +1,3 @@
-import * as audio from './audio.js';
-
 /**
  * @type {HTMLElement}
  */
@@ -168,26 +166,10 @@ function Connect() {
   );
 }
 
-async function LoadAudio() {
-  try {
-    const resp = await fetch('/music');
-    if (!resp.ok) {
-      console.error('LoadAudio failed');
-      return;
-    }
-    const buf = await resp.arrayBuffer();
-    console.log('Loaded audio');
-    audio.LoadMusic(new Uint8Array(buf));
-  } catch (e) {
-    console.error(e);
-  }
-}
-
 function Start() {
   try {
     Init();
     Connect();
-    LoadAudio();
   } catch (e) {
     console.error(e);
     SetState(IconError, '' + e);

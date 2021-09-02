@@ -17,6 +17,13 @@
 export const COMPO = goog.define('COMPO', false);
 
 /**
+ * True if this is a relase build--designed to run outside of the devserver.
+ * This should be true if COMPO is true.
+ * @define {boolean}
+ */
+export const RELEASE = goog.define('RELEASE', false);
+
+/**
  * Number of different values that can appear in a byte of the embedded data.
  * See embed.go.
  * @const {number}

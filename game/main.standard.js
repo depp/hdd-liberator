@@ -1,3 +1,5 @@
+import { RELEASE } from './common.js';
+import * as audio from './audio.js';
 import * as render2D from './render2d.js';
 import * as game from './game.js';
 
@@ -78,9 +80,31 @@ function HandleClickStart(evt) {
 }
 
 /**
+ * Load the audio on the devserver.
+ */
+async function DevserverLoadAudio() {
+  try {
+    const resp = await fetch('/music');
+    if (!resp.ok) {
+      console.error('LoadAudio failed');
+      return;
+    }
+    const buf = await resp.arrayBuffer();
+    console.log('Loaded audio');
+    audio.LoadMusic(new Uint8Array(buf));
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+/**
  * Start the game. Called once, when the script is run.
  */
 function Start() {
+  if (!RELEASE) {
+    DevserverLoadAudio();
+  }
+
   Canvas = document.createElement('canvas');
   const ctx = Canvas.getContext('2d', {
     alpha: false,

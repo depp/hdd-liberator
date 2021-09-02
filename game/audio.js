@@ -165,6 +165,10 @@ function RunProgram(program, out, t0, tgate, note) {
     (/** !AudioParam */ param) => {
       param.value = 440 * 2 ** ((note - 69) / 12);
     },
+    // Random bipolar value.
+    (/** !AudioParam */ param) => {
+      param.value = (Math.random() - 0.5) * 99 * exponent ** program[pos++];
+    },
   ];
 
   /**
@@ -189,17 +193,50 @@ function RunProgram(program, out, t0, tgate, note) {
     out = node;
   }
 
+  // Variables saved from the beginning of a loop.
+
+  /** @type {?number} */
+  let repeatCount;
+  /** @type {?number} */
+  let repeatPos;
+  /** @type {AudioNode} */
+  let repeatOut;
+
   /** @type {Array<function()!>} */
   const opcodes = [
+    // Repeat.
+    () => {
+      repeatCount = program[pos++];
+      repeatPos = pos;
+      repeatOut = out;
+    },
+    // End repeat.
+    () => {
+      if (!COMPO) {
+        if (repeatCount == null || repeatPos == null || repeatOut == null) {
+          throw new Error('unexpected end repeat');
+        }
+        if (repeatCount < 0) {
+          throw new Error('negative repeat count');
+        }
+      }
+      if (repeatCount--) {
+        pos = /** @type {number} */ (repeatPos);
+        out = /** @type {!AudioNode} */ (repeatOut);
+      }
+    },
+    // Create gain node.
     () => {
       const node = Ctx.createGain();
       AddNode(node, node.gain);
     },
+    // Create filter node.
     ...['lowpass', 'highpass', 'bandpass'].map((/** string */ type) => () => {
       const node = Ctx.createBiquadFilter();
       node.type = type;
       AddNode(node, node.frequency, node.detune, node.Q);
     }),
+    // Create oscillator node.
     ...['square', 'sawtooth', 'triangle'].map((/** string */ type) => () => {
       const node = Ctx.createOscillator();
       node.type = type;

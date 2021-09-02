@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import abc
 import array
 import base64
@@ -7,7 +9,11 @@ import json
 import math
 import sys
 
-from typing import Any, Callable, Dict, Iterable, List, MutableSequence, Tuple, Union
+from typing import (
+    Any, Callable, Dict, Iterable, List, MutableSequence, Optional, Tuple,
+    Type, Union
+)
+from types import TracebackType
 
 NUM_VALUES = 128 - 3
 
@@ -117,10 +123,6 @@ class ExpScale(ValueEncoding):
                 file=sys.stderr)
         return enc
 
-GainValue = ExpScale('gain', 1.0)
-TimeValue = ExpScale('time', 20.0)
-FrequencyValue = ExpScale('frequency', 20e3)
-
 PARAMETER_ENCODING = 0
 
 @dataclasses.dataclass(init=False)
@@ -176,23 +178,49 @@ class Parameter:
 
 Opcode = Callable[[Writer], None]
 
+OPCODE_ENCODING = 2
+
 OPCODES: Dict[str, Tuple[int, Opcode]]
 OPCODES = {}
+
+OPCODE_REPEAT = 0
+OPCODE_ENDREPEAT = 1
 
 def node(*names: str) -> Callable[[Opcode], Opcode]:
     def wrapped(arg: Opcode) -> Opcode:
         for name in names:
+            global OPCODE_ENCODING
             if name in OPCODES:
                 raise Exception('duplicate opcode: {!r}'.format(name))
-            OPCODES[name] = (len(OPCODES), arg)
+            OPCODES[name] = (OPCODE_ENCODING, arg)
+            OPCODE_ENCODING += 1
         return arg
     return wrapped
 
+class RepeatContext:
+    """Context manager for managing a repeat block."""
+    context: ProgramContext
+
+    def __init__(self, context: ProgramContext) -> None:
+        self.context = context
+
+    def __enter__(self) -> None:
+        pass
+
+    def __exit__(self, exc_type: Optional[Type[BaseException]],
+                 exc_val: Optional[BaseException],
+                 exc_tb: TracebackType) -> None:
+        if exc_type is None:
+            self.context.in_repeat = False
+            self.context.writer.write((OPCODE_ENDREPEAT,))
+
 class ProgramContext:
     writer: Writer
+    in_repeat: bool
 
     def __init__(self) -> None:
         self.writer = Writer()
+        self.in_repeat = False
 
     def __getattr__(self, name: str) -> Callable[..., Any]:
         try:
@@ -204,9 +232,25 @@ class ProgramContext:
             opcode(self.writer, **kwargs) # type: ignore
         return f
 
+    def repeat(self, count: int) -> RepeatContext:
+        if self.in_repeat:
+            raise Exception('cannot nest repeats')
+        if not isinstance(count, int):
+            raise TypeError('repeat is not an int')
+        if not (2 <= count <= NUM_VALUES):
+            raise ValueError('invalid repeat count')
+        self.in_repeat = True
+        self.writer.write((OPCODE_REPEAT, count - 1))
+        return RepeatContext(self)
+
 ################################################################################
 # Definitions
 ################################################################################
+
+GainValue = ExpScale('gain', 1.0)
+TimeValue = ExpScale('time', 20.0)
+FrequencyValue = ExpScale('frequency', 20e3)
+DetuneValue = ExpScale('detune', 99.0/2.0)
 
 Default = ParameterType('Default')()
 GConst = ParameterType('GConst', GainValue)
@@ -217,6 +261,7 @@ FADSR = ParameterType(
     'FADSR', FrequencyValue, FrequencyValue,
     TimeValue, TimeValue, GainValue, TimeValue)
 Note = ParameterType('Note')()
+RandomBipolar = ParameterType('RandomBipolar', DetuneValue)
 
 @node('gain')
 def node_gain(w: Writer, *, gain: Parameter = Default) -> None:
@@ -295,9 +340,11 @@ def soft_lead(c: ProgramContext) -> None:
             frequency=FADSR(600, 6000, 0.17, 0.4, 0.3, 1.0),
             q=TConst(1.0),
         )
-    c.sawtooth(
-        frequency=Note,
-    )
+    with c.repeat(5):
+        c.sawtooth(
+            frequency=Note,
+            detune=RandomBipolar(10.0),
+        )
 
 @instrument('Pluck')
 def pluck(c: ProgramContext) -> None:
@@ -316,6 +363,8 @@ def pluck(c: ProgramContext) -> None:
 def compile(func: Callable[[ProgramContext], None]) -> bytes:
     c = ProgramContext()
     func(c)
+    if c.in_repeat:
+        raise Exception('unterminated repeat')
     return bytes(c.writer.data)
 
 def main() -> None:

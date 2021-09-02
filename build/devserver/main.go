@@ -188,12 +188,15 @@ func serveIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	type idata struct {
-		Title string
-		Main  string
+		Title   string
+		Scripts []string
 	}
 	h.serveTemplate(w, r, h.gameTemplate, &idata{
 		Title: p.Config.Title,
-		Main:  path.Join("/", p.Config.SourceDir, p.Config.MainStandard),
+		Scripts: []string{
+			path.Join("/", p.Config.SourceDir, "websocket.js"),
+			path.Join("/", p.Config.SourceDir, p.Config.MainStandard),
+		},
 	})
 }
 

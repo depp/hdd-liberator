@@ -5,8 +5,9 @@
     <title>{{.Title}}</title>
     <link rel="stylesheet" href="/static/style.css">
     <script>var goog = { define(name, value) { return value; } };</script>
-    <script type="module" src="/game/websocket.js"></script>
-    <script type="module" src="{{.Main}}"></script>
+    {{range .Scripts}}
+      <script type="module" src="{{.}}"></script>
+    {{end}}
   </head>
   <body>
     <nav>

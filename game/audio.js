@@ -148,6 +148,10 @@ function RunProgram(program, out, t0, tgate, note) {
         param.value = scale * exponent ** program[pos++];
       },
     ),
+    // Constant integer.
+    (/** !AudioParam */ param) => {
+      param.value = program[pos++] - ((NUM_VALUES - 1) >> 1);
+    },
     // Gain ADSR.
     (/** !AudioParam */ param) => ADSR(param, exponent ** (NUM_VALUES - 1), 1),
     // Frequency ADSR.

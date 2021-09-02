@@ -53,6 +53,12 @@ MAX = Raw(0)
 
 class ValueEncoding(metaclass=abc.ABCMeta):
     """Base class for ways to encode values."""
+    name: str
+
+    def __init__(self, name: str) -> None:
+        if not isinstance(name, str):
+            raise TypeError('name is not string')
+        self.name = name
 
     @abc.abstractmethod
     def decode(self, value: int) -> float:
@@ -77,11 +83,67 @@ class ValueEncoding(metaclass=abc.ABCMeta):
             return self.encode_float(float(value))
         raise TypeError('invalid value type')
 
-@dataclasses.dataclass(frozen=True)
+    def clamp(self, value: float, enc: int) -> int:
+        """Clamp an encoded value to the range of this encoding."""
+        if not isinstance(enc, int):
+            raise TypeError('enc is not int')
+        clamped: int
+        if enc >= NUM_VALUES:
+            clamped = NUM_VALUES - 1
+        elif enc < 0:
+            clamped = 0
+        else:
+            return enc
+        print('Warning: {}({}) clamped to {}'
+            .format(self.name, value, self.decode_rounded(clamped)),
+            file=sys.stderr)
+        return clamped
+
+class LinScale(ValueEncoding):
+    """Linear scale for parameters."""
+    scale: float
+    bipolar: bool
+
+    def __init__(self, name: str, scale: float, bipolar: bool) -> None:
+        super(LinScale, self).__init__(name)
+        if not isinstance(scale, float):
+            raise TypeError('scale is not float')
+        if not isinstance(bipolar, bool):
+            raise TypeError('bipolar is not bool')
+        self.scale = scale
+        self.bipolar = bipolar
+
+    def zero(self) -> int:
+        """Return the encoding for zero."""
+        if self.bipolar:
+            return (NUM_VALUES - 1) // 2
+        return 0
+
+    def decode(self, value: int) -> float:
+        if not isinstance(value, int):
+            raise TypeError('value is not int')
+        return self.scale * (value - self.zero())
+
+    def decode_rounded(self, value: int) -> decimal.Decimal:
+        prec = math.ceil(-math.log10(self.scale))
+        v = decimal.Decimal(self.scale * (value - self.zero()))
+        v = round(v, 2)
+        return v
+
+    def encode_float(self, value: float) -> int:
+        if not isinstance(value, float):
+            raise TypeError('value is not float')
+        return self.clamp(value, round(value / self.scale) + self.zero())
+
 class ExpScale(ValueEncoding):
     """Exponential scale for parameters."""
-    name: str
     scale: float
+
+    def __init__(self, name: str, scale: float) -> None:
+        super(ExpScale, self).__init__(name)
+        if not isinstance(scale, float):
+            raise TypeError('scale is not float')
+        self.scale = scale
 
     def decode(self, value: int) -> float:
         if not isinstance(value, int):
@@ -110,18 +172,7 @@ class ExpScale(ValueEncoding):
         """Encode a floating-point number as a byte."""
         if not isinstance(value, float):
             raise TypeError('not a float')
-        enc = round(math.log(value / self.scale, EXPONENT))
-        if enc >= NUM_VALUES:
-            enc = NUM_VALUES - 1
-            print('Warning: {}({}) clamped to {}'
-                .format(self.name, value, self.decode(enc)),
-                file=sys.stderr)
-        elif enc < 0:
-            enc = 0
-            print('Warning: {}({}) clamped to {}'
-                .format(self.name, value, self.decode(enc)),
-                file=sys.stderr)
-        return enc
+        return self.clamp(value, round(math.log(value / self.scale, EXPONENT)))
 
 PARAMETER_ENCODING = 0
 
@@ -251,11 +302,13 @@ GainValue = ExpScale('gain', 1.0)
 TimeValue = ExpScale('time', 20.0)
 FrequencyValue = ExpScale('frequency', 20e3)
 DetuneValue = ExpScale('detune', 99.0/2.0)
+IntValue = LinScale('int', 1.0, True)
 
 Default = ParameterType('Default')()
 GConst = ParameterType('GConst', GainValue)
 TConst = ParameterType('TConst', TimeValue)
 FConst = ParameterType('FConst', FrequencyValue)
+DBConst = ParameterType('DBConst', IntValue)
 GADSR = ParameterType('GADSR', TimeValue, TimeValue, GainValue, TimeValue)
 FADSR = ParameterType(
     'FADSR', FrequencyValue, FrequencyValue,
@@ -324,7 +377,7 @@ def bass(c: ProgramContext) -> None:
     for _ in range(2):
         c.lowpass(
             frequency=FADSR(400, 1200, 0.050, 0.5, MIN, 0.05),
-            q=TConst(2.0),
+            q=DBConst(4.0),
         )
     c.sawtooth(
         frequency=Note,
@@ -338,7 +391,7 @@ def soft_lead(c: ProgramContext) -> None:
     for _ in range(2):
         c.lowpass(
             frequency=FADSR(600, 6000, 0.17, 0.4, 0.3, 1.0),
-            q=TConst(1.0),
+            q=DBConst(-6.0),
         )
     with c.repeat(5):
         c.sawtooth(

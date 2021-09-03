@@ -1,5 +1,5 @@
 import { RELEASE } from './common.js';
-import * as audio from './audio.js';
+import * as audiodata from './audio.data.js';
 import * as render2D from './render2d.js';
 import * as game from './game.js';
 
@@ -102,7 +102,7 @@ function DevStart() {
         arr[i] = str.charCodeAt(i);
       }
       console.log('Received music data');
-      audio.LoadMusic(arr);
+      audiodata.Load(arr);
     }
   }
 

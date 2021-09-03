@@ -1,4 +1,4 @@
-import * as audio from './audio.js';
+import * as audio from './audio.game.js';
 import * as input from './input.js';
 import * as player from './player.js';
 import * as time from './time.js';

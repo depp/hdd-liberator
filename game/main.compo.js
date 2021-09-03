@@ -1,7 +1,7 @@
 import './common.js';
 import { ctx, SetContext } from './render2d.js';
 import * as game from './game.js';
-import * as audio from './audio.js';
+import * as audioData from './audio.data.js';
 
 /**
  * Callback for requestAnimationFrame.
@@ -18,7 +18,7 @@ function LoadData() {
   const data = [...text].map(
     (/** string */ x) => x.charCodeAt(0) - 1 - (x > '<') - (x > '\r'),
   );
-  audio.LoadMusic(data);
+  audioData.Load(data);
 }
 
 /**

@@ -1,58 +1,15 @@
 import { COMPO, NUM_VALUES } from './common.js';
-import { Iterate } from './util.js';
-
-/** @type {Array<!Array<number>>} */
-let Sounds;
 
 /**
- * @typedef {{
- *   values: Array<number>!,
- *   durations: Array<number>!,
- *   instrument: number,
- * }}
- */
-var Track;
-
-/**
- * @typedef {{
- *   tickDuration: number,
- *   tracks: Array<Track>!,
- * }}
- */
-var Song;
-
-/**
- * @type {Array<Song>}
- */
-let Songs;
-
-/**
- * @type {AudioContext?}
- */
-let Ctx;
-
-/**
- * Play a sound with the given buffer.
- * @param {AudioBuffer} buffer
- */
-function PlayBuffer(buffer) {
-  if (!COMPO && !Ctx) {
-    throw new Error('Ctx is null');
-  }
-  const source = Ctx.createBufferSource();
-  source.buffer = buffer;
-  source.connect(Ctx.destination);
-  source.start();
-}
-
-/**
- * @param {!Array<number>} program
- * @param {!AudioNode} out
+ * Play a synthesized note.
+ * @param {!Array<number>} program Synthesizer bytecode
+ * @param {!BaseAudioContext} ctx Audio context
+ * @param {!AudioNode} out Destination audio node
  * @param {number} t0 The program start time, seconds since start
  * @param {number} tgate The length of the note, in seconds
  * @param {number} note The MIDI note value to play
  */
-function RunProgram(program, out, t0, tgate, note) {
+export function PlaySynth(program, ctx, out, t0, tgate, note) {
   /**
    * Duration of the sound, in seconds.
    * @type {number}
@@ -231,23 +188,23 @@ function RunProgram(program, out, t0, tgate, note) {
     },
     // Create gain node.
     () => {
-      const node = Ctx.createGain();
+      const node = ctx.createGain();
       AddNode(node, node.gain);
     },
     // Create stereo panner node.
     () => {
-      const node = Ctx.createStereoPanner();
+      const node = ctx.createStereoPanner();
       AddNode(node, node.pan);
     },
     // Create filter node.
     ...['lowpass', 'highpass', 'bandpass'].map((/** string */ type) => () => {
-      const node = Ctx.createBiquadFilter();
+      const node = ctx.createBiquadFilter();
       node.type = type;
       AddNode(node, node.frequency, node.detune, node.Q);
     }),
     // Create oscillator node.
     ...['square', 'sawtooth', 'triangle'].map((/** string */ type) => () => {
-      const node = Ctx.createOscillator();
+      const node = ctx.createOscillator();
       node.type = type;
       AddNode(node, node.frequency, node.detune);
       sources.push(node);
@@ -266,130 +223,5 @@ function RunProgram(program, out, t0, tgate, note) {
   for (const source of sources) {
     source.start(t0);
     source.stop(t0 + duration);
-  }
-}
-
-export function PlaySound() {
-  if (!COMPO && !Ctx) {
-    throw new Error('Ctx is null');
-  }
-
-  if (!Songs) {
-    return;
-  }
-  const song = Songs[0];
-  if (!song) {
-    return;
-  }
-  const ticksize = song.tickDuration;
-  const t0 = Ctx.currentTime;
-  const gain = Ctx.createGain();
-  gain.gain.value = 0.2;
-  gain.connect(Ctx.destination);
-  for (const track of song.tracks) {
-    const { values, durations, instrument } = track;
-    let t = t0;
-    for (let i = 0; i < values.length; i++) {
-      const value = values[i];
-      const duration = durations[i];
-
-      if (value > 0) {
-        RunProgram(Sounds[instrument], gain, t, duration * ticksize, value);
-      }
-
-      t += duration * ticksize;
-    }
-  }
-}
-
-/**
- * Start the audio system. This must be called while handling a UI event.
- */
-export function Start() {
-  const constructor = window.AudioContext ?? window.webkitAudioContext;
-  if (!constructor) {
-    if (!COMPO) {
-      console.error('No audio context constructor');
-    }
-    return;
-  }
-  Ctx = new constructor();
-  const silence = Ctx.createBuffer(1, 1000, Ctx.sampleRate);
-  PlayBuffer(silence);
-  PlaySound();
-}
-
-/**
- * Load music tracks from the given raw binary data.
- * @param {!Array<number>} data
- */
-export function LoadMusic(data) {
-  const initialValue = 60;
-  /** @type {number} */
-  let pos = 2;
-  /** @type {Array<Track!>!} */
-  let allTracks = [];
-  let [nsounds, nsongs] = data;
-  Sounds = [];
-  Songs = [];
-  while (nsounds--) {
-    if (!COMPO && pos + 1 > data.length) {
-      throw new Error('music parsing failed');
-    }
-    const length = data[pos++];
-    if (!COMPO && pos + length > data.length) {
-      throw new Error('music parsing failed');
-    }
-    Sounds.push(data.slice(pos, (pos += length)));
-  }
-  while (nsongs--) {
-    if (
-      !COMPO &&
-      (pos + 4 > data.length || pos + 4 + data[pos] > data.length)
-    ) {
-      throw new Error('music parsing failed');
-    }
-    /** @type {!Array<!Track>} */
-    const tracks = Iterate(
-      data[pos],
-      (i) =>
-        /** @type {Track} */ ({
-          instrument: data[pos + 4 + i],
-        }),
-    );
-    allTracks.push(...tracks);
-    Songs.push({
-      tickDuration: data[pos + 1] / 500,
-      tracks,
-    });
-    pos += 4 + data[pos];
-  }
-  for (const track of allTracks) {
-    let value = initialValue;
-    /** @type {Array<number>!} */
-    let values = [];
-    track.values = values;
-    loop: while (1) {
-      if (!COMPO && pos >= data.length) {
-        throw new Error('music parsing failed');
-      }
-      const byte = data[pos++];
-      switch (byte) {
-        case NUM_VALUES - 2:
-          // rest
-          values.push(-1);
-          break;
-        case NUM_VALUES - 1:
-          // track end
-          break loop;
-        default:
-          value = (value + byte) % (NUM_VALUES - 2);
-          values.push(value);
-          break;
-      }
-    }
-  }
-  for (const track of allTracks) {
-    track.durations = data.slice(pos, (pos += track.values.length));
   }
 }

@@ -106,7 +106,7 @@ func (p *Project) buildData(ctx context.Context) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	s, err := embed.Encode(cd)
+	s, err := embed.Encode(cd.Data)
 	if err != nil {
 		return "", fmt.Errorf("encode: %v", err)
 	}

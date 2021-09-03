@@ -14,7 +14,7 @@ const songList = "songs.json"
 
 type SongState struct {
 	Err      error
-	Compiled []byte
+	Compiled *song.Compiled
 }
 
 func buildsong(ctx context.Context, songDir string, songout chan<- *SongState, songsrc <-chan struct{}) error {

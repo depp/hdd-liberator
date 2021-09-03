@@ -13,6 +13,7 @@ go_binary(
     deps = [
         "//build/compiler",
         "//build/project",
+        "//build/song",
         "//build/watcher",
         "//proto/compiler:compiler_go_proto",
         "@com_github_go_chi_chi_v5//:chi",

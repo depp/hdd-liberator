@@ -44,7 +44,14 @@ func compileErrorf(sn *Song, i int, tr *Track, format string, a ...interface{}) 
 	return &compileError{sn.Info.Name, i, tr.Name, fmt.Sprintf(format, a...)}
 }
 
-func compile(snd *sounds, songs []*Song) ([]byte, error) {
+// A Compiled contains the results of compiling sounds and songs.
+type Compiled struct {
+	Data       []byte   `json:"data"`
+	SoundNames []string `json:"soundNames"`
+	SongNames  []string `json:"songNames"`
+}
+
+func compile(snd *sounds, songs []*Song) (*Compiled, error) {
 	/*
 		Data format:
 		N = embed.NumValues
@@ -73,10 +80,12 @@ func compile(snd *sounds, songs []*Song) ([]byte, error) {
 			Contains all tracks across all songs, in order, concatenated.
 			Each duration value is measured in ticks.
 	*/
+	var soundnames, songnames []string
 	var songdata, values, durations []uint8
 	var soundDats [][]byte
 	instrIdx := make(map[string]int)
 	for _, sn := range songs {
+		songnames = append(songnames, sn.Info.Name)
 		// Write track note data, and calculate length of song.
 		var slen int
 		for _, tr := range sn.Tracks {
@@ -146,6 +155,7 @@ func compile(snd *sounds, songs []*Song) ([]byte, error) {
 				inum = len(soundDats)
 				soundDats = append(soundDats, idata)
 				instrIdx[tr.Instrument] = inum
+				soundnames = append(soundnames, tr.Instrument)
 			}
 			songdata = append(songdata, uint8(inum))
 		}
@@ -162,14 +172,18 @@ func compile(snd *sounds, songs []*Song) ([]byte, error) {
 	data = append(data, songdata...)
 	data = append(data, values...)
 	data = append(data, durations...)
-	return data, nil
+	return &Compiled{
+		Data:       data,
+		SoundNames: soundnames,
+		SongNames:  songnames,
+	}, nil
 }
 
 type songs struct {
 	Songs []string `json:"songs"`
 }
 
-func Compile(ctx context.Context, filename string) ([]byte, error) {
+func Compile(ctx context.Context, filename string) (*Compiled, error) {
 	snd, err := compileSounds(ctx, filepath.Join(filepath.Dir(filename), CodeFile))
 	if err != nil {
 		return nil, err

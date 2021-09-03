@@ -379,10 +379,11 @@ var compile = cobra.Command{
 	Args: cobra.ExactArgs(1),
 	RunE: func(_ *cobra.Command, args []string) error {
 		ctx := context.Background()
-		cd, err := song.Compile(ctx, argToFilePath(args[0]))
+		c, err := song.Compile(ctx, argToFilePath(args[0]))
 		if err != nil {
 			return err
 		}
+		cd := c.Data
 		logrus.Infoln("Data size:", len(cd))
 		if flagOutput == "" {
 			data := cd

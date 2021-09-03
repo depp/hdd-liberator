@@ -63,3 +63,51 @@ nav h1 {
   font-size: 64px;
   padding: 0;
 }
+.error {
+  border: 2px solid #666;
+  margin: 8px;
+}
+.error > h2 {
+  margin: 0;
+  background: #900;
+  color: #fff;
+  padding: 0 16px;
+}
+.error > * {
+  margin: 16px;
+}
+.song {
+  margin: 16px;
+  border: 2px solid #666;
+  max-width: 500px;
+}
+.song > h2 {
+  margin: 0;
+  background: #006;
+  color: #fff;
+  padding: 0 16px;
+}
+.song .song-controls {
+  display: flex;
+  align-items: center;
+}
+.song progress {
+  flex-grow: 1;
+}
+.song button {
+  width: 32px;
+  height: 32px;
+  outline: none;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.song button:active {
+  background: #66f;
+}
+.song button:active svg * {
+  fill: #fff;
+}

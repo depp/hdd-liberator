@@ -1,4 +1,5 @@
 import { RELEASE } from './common.js';
+import { PutMain, PutErrorMessage } from './ui.standard.js';
 import * as audiodata from './audio.data.js';
 import * as render2D from './render2d.js';
 import * as game from './game.js';
@@ -41,22 +42,6 @@ function HandleResize() {
   CanvasContainer.style.height = `${ch}px`;
   Canvas.width = cw;
   Canvas.height = ch;
-}
-
-/**
- * Show an error message.
- *
- * @param {string} msg
- */
-function PutErrorMessage(msg) {
-  const div = document.createElement('div');
-  const h = document.createElement('h2');
-  div.appendChild(h);
-  h.appendChild(document.createTextNode('Error'));
-  const p = document.createElement('p');
-  div.appendChild(p);
-  p.appendChild(document.createTextNode(msg));
-  document.body.appendChild(div);
 }
 
 /**
@@ -150,7 +135,7 @@ function Start() {
   window.addEventListener('resize', HandleResize);
   CanvasContainer = par;
   HandleResize();
-  document.body.appendChild(par);
+  PutMain(par);
 
   render2D.SetContext(ctx);
   overlay.addEventListener('click', HandleClickStart);

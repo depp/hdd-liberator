@@ -100,14 +100,3 @@ func (m *music) getMusicImpl(ctx context.Context) *watcher.SongState {
 		}
 	}
 }
-
-func (m *music) getMusic(ctx context.Context) ([]byte, error) {
-	d := m.getMusicImpl(ctx)
-	if d == nil {
-		return nil, ctx.Err()
-	}
-	if d.Err != nil {
-		return nil, d.Err
-	}
-	return d.Compiled, nil
-}

@@ -179,7 +179,12 @@ func redirectAddSlash(w http.ResponseWriter, r *http.Request) {
 	h.serveRedirect(w, r, &u)
 }
 
-func serveIndex(w http.ResponseWriter, r *http.Request) {
+const (
+	websocketJs = "websocket.js"
+	mainJs      = "$entry"
+)
+
+func servePage(w http.ResponseWriter, r *http.Request, name string, scripts ...string) {
 	ctx := r.Context()
 	h := getHandler(ctx)
 	p, err := h.code.getProject(ctx)
@@ -191,13 +196,25 @@ func serveIndex(w http.ResponseWriter, r *http.Request) {
 		Title   string
 		Scripts []string
 	}
-	h.serveTemplate(w, r, h.gameTemplate, &idata{
-		Title: p.Config.Title,
-		Scripts: []string{
-			path.Join("/", p.Config.SourceDir, "websocket.js"),
-			path.Join("/", p.Config.SourceDir, p.Config.MainStandard),
-		},
-	})
+	d := idata{
+		Title:   fmt.Sprintf("%s (%s)", p.Config.Title, name),
+		Scripts: make([]string, len(scripts)),
+	}
+	for i, s := range scripts {
+		if s == mainJs {
+			s = p.Config.MainStandard
+		}
+		d.Scripts[i] = path.Join("/", p.Config.SourceDir, s)
+	}
+	h.serveTemplate(w, r, h.gameTemplate, &d)
+}
+
+func serveIndex(w http.ResponseWriter, r *http.Request) {
+	servePage(w, r, "Dev", websocketJs, mainJs)
+}
+
+func serveSongs(w http.ResponseWriter, r *http.Request) {
+	servePage(w, r, "Songs", websocketJs, "songs.js")
 }
 
 func serveFavicon(w http.ResponseWriter, r *http.Request) {
@@ -317,25 +334,6 @@ func serveStatic(w http.ResponseWriter, r *http.Request) {
 	serveFile(w, r, "", r.URL.Path[1:], "")
 }
 
-func serveMusic(w http.ResponseWriter, r *http.Request) {
-	ctx := r.Context()
-	h := getHandler(ctx)
-	cd, err := h.music.getMusic(ctx)
-	if err != nil {
-		if err == context.Canceled {
-			return
-		}
-		h.serveError(w, r, err)
-		return
-	}
-	logResponse(r, http.StatusOK, "")
-	hdr := w.Header()
-	hdr.Set("Cache-Control", "no-cache")
-	hdr.Set("Content-Type", "application/octet-stream")
-	hdr.Set("Content-Length", strconv.Itoa(len(cd)))
-	w.Write(cd)
-}
-
 func mainE() error {
 	fHost := pflag.String("host", "localhost", "host to serve from, or * to bind to all local addresses")
 	fPort := pflag.Int("port", 9013, "port to serve from")
@@ -371,13 +369,13 @@ func mainE() error {
 	ctx = context.WithValue(ctx, contextKey{}, h)
 	mx := chi.NewMux()
 	mx.Get("/", serveIndex)
+	mx.Get("/songs", serveSongs)
 	mx.Get("/favicon.ico", serveFavicon)
 	mx.Get("/release", redirectAddSlash)
 	mx.Get("/release/", serveRelease)
 	mx.Get("/release/main.map", serveReleaseMap)
 	mx.Get("/static/*", serveStatic)
 	mx.Get("/game/*", serveStatic)
-	mx.Get("/music", serveMusic)
 	mx.Get("/socket", serveSocket)
 	mx.NotFound(serveNotFound)
 	s := http.Server{

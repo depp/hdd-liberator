@@ -8,6 +8,7 @@ import (
 	"github.com/gorilla/websocket"
 	"github.com/sirupsen/logrus"
 
+	"moria.us/js13k/build/song"
 	"moria.us/js13k/build/watcher"
 )
 
@@ -129,7 +130,7 @@ func makeBuildMessage(d *buildState) *buildMessage {
 }
 
 type musicMessage struct {
-	Data  []byte `json:"data,omitempty"`
+	*song.Compiled
 	Error string `json:"error,omitempty"`
 }
 
@@ -138,7 +139,7 @@ func makeMusicMessage(d *watcher.SongState) *musicMessage {
 	if d.Err != nil {
 		m.Error = d.Err.Error()
 	} else {
-		m.Data = d.Compiled
+		m.Compiled = d.Compiled
 	}
 	return &m
 }

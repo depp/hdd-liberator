@@ -16,6 +16,7 @@ export var Track;
 /**
  * @typedef {{
  *   tickDuration: number,
+ *   duration: number,
  *   tracks: Array<Track>!,
  * }}
  */
@@ -67,6 +68,7 @@ export function Load(data) {
     allTracks.push(...tracks);
     Songs.push({
       tickDuration: data[pos + 1] / 500,
+      duration: NUM_VALUES * data[pos + 2] + data[pos + 3],
       tracks,
     });
     pos += 4 + data[pos];

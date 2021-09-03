@@ -2,28 +2,57 @@ import { Sounds, Song } from './audio.data.js';
 import { PlaySynth } from './audio.synth.js';
 
 /**
- * Play a song.
- * @param {!Song} song The song to play.
- * @param {!BaseAudioContext} ctx The audio context to play to.
- * @param {number} t0 The starting timestamp for playing the song.
+ * The audio tail for songs, in seconds.
+ * @const {number}
  */
-export function PlaySong(song, ctx, t0) {
-  const ticksize = song.tickDuration;
+const SongTail = 2.0;
+
+/**
+ * @typedef {{
+ *   buffer: !AudioBuffer,
+ *   duration: number,
+ * }}
+ */
+export var RenderedSong;
+
+/**
+ * Render a song to an audio buffer.
+ * @param {!Song} song The song to render.
+ * @param {number} sampleRate The sample rate.
+ * @returns {Promise<RenderedSong>}
+ */
+export function RenderSong(song, sampleRate) {
+  const { tickDuration, duration, tracks } = song;
+  const ctx = new OfflineAudioContext(
+    2,
+    sampleRate * (tickDuration * duration + SongTail),
+    sampleRate,
+  );
   const gain = ctx.createGain();
   gain.gain.value = 0.2;
   gain.connect(ctx.destination);
-  for (const track of song.tracks) {
+  for (const track of tracks) {
     const { values, durations, instrument } = track;
-    let t = t0;
+    let t = 0;
     for (let i = 0; i < values.length; i++) {
-      const value = values[i];
-      const duration = durations[i];
+      const noteValue = values[i];
+      const noteDuration = durations[i];
 
-      if (value > 0) {
-        PlaySynth(Sounds[instrument], ctx, gain, t, duration * ticksize, value);
+      if (noteValue > 0) {
+        PlaySynth(
+          Sounds[instrument],
+          ctx,
+          gain,
+          t,
+          noteDuration * tickDuration,
+          noteValue,
+        );
       }
 
-      t += duration * ticksize;
+      t += noteDuration * tickDuration;
     }
   }
+  return ctx
+    .startRendering()
+    .then((buffer) => ({ buffer, duration: tickDuration * duration }));
 }

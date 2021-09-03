@@ -1,6 +1,6 @@
 import { COMPO } from './common.js';
 import { Songs } from './audio.data.js';
-import { PlaySong } from './audio.music.js';
+import { RenderSong } from './audio.music.js';
 
 /**
  * @type {AudioContext?}
@@ -32,7 +32,7 @@ function PlaySound() {
   if (song == null) {
     return;
   }
-  PlaySong(song, Ctx, Ctx.currentTime);
+  RenderSong(song, Ctx.sampleRate).then(({ buffer }) => PlayBuffer(buffer));
 }
 
 /**

@@ -1,5 +1,6 @@
 import { Sounds, Song } from './audio.data.js';
 import { PlaySynth } from './audio.synth.js';
+import { COMPO } from './common.js';
 
 /**
  * The audio tail for songs, in seconds.
@@ -23,7 +24,12 @@ export var RenderedSong;
  */
 export function RenderSong(song, sampleRate) {
   const { tickDuration, duration, tracks } = song;
-  const ctx = new OfflineAudioContext(
+  const constructor =
+    window.OfflineAudioContext ?? window.webkitOfflineAudioContext;
+  if (!COMPO && !constructor) {
+    throw new Error('no offline audio constructor');
+  }
+  const ctx = new constructor(
     2,
     sampleRate * (tickDuration * duration + SongTail),
     sampleRate,

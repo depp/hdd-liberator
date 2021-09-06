@@ -3,6 +3,12 @@ import * as input from './input.js';
 import * as player from './player.js';
 import * as time from './time.js';
 import { ctx } from './render2d.js';
+import { Grid, NewGrid } from './grid.js';
+
+/**
+ * @type {Grid}
+ */
+let LevelGrid;
 
 /**
  * Initialize the game.
@@ -10,6 +16,12 @@ import { ctx } from './render2d.js';
 export function Start() {
   input.Start();
   audio.Start();
+  LevelGrid = NewGrid(12, 8);
+  for (let i = 0; i < 10; i++) {
+    let x = (Math.random() * LevelGrid.width) | 0;
+    let y = (Math.random() * LevelGrid.height) | 0;
+    LevelGrid.Set(x, y, 1);
+  }
 }
 
 /**
@@ -25,23 +37,28 @@ export function Update(timestamp) {
  * Render the game to a 2D canvas.
  */
 export function Render2D() {
-  const w = ctx.canvas.clientWidth;
-  const h = ctx.canvas.clientHeight;
+  let x, y;
+  const gs = 32;
+  const { width, height } = LevelGrid;
 
   ctx.save();
-  ctx.fillStyle = '#ccc';
-  ctx.fillRect(0, 0, w, h);
-  const gs = 32;
+  for (x = 0; x < width; x++) {
+    for (y = 0; y < height; y++) {
+      const value = LevelGrid.Get(x, y);
+      ctx.fillStyle = value ? '#c00' : '#ccc';
+      ctx.fillRect(x * gs, y * gs, gs, gs);
+    }
+  }
   let pos;
   ctx.lineWidth = 2;
   ctx.beginPath();
-  for (pos = 0; pos <= w; pos += gs) {
-    ctx.moveTo(pos, 0);
-    ctx.lineTo(pos, h);
+  for (pos = 0; pos <= width; pos++) {
+    ctx.moveTo(pos * gs, 0);
+    ctx.lineTo(pos * gs, height * gs);
   }
-  for (pos = 0; pos <= h; pos += gs) {
-    ctx.moveTo(0, pos);
-    ctx.lineTo(w, pos);
+  for (pos = 0; pos <= height; pos++) {
+    ctx.moveTo(0, pos * gs);
+    ctx.lineTo(width * gs, pos * gs);
   }
   ctx.stroke();
   ctx.restore();

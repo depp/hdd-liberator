@@ -18,8 +18,8 @@ export function Start() {
   audio.Start();
   LevelGrid = NewGrid(12, 8);
   for (let i = 0; i < 10; i++) {
-    let x = (Math.random() * LevelGrid.width) | 0;
-    let y = (Math.random() * LevelGrid.height) | 0;
+    let x = (Math.random() * LevelGrid.Width) | 0;
+    let y = (Math.random() * LevelGrid.Height) | 0;
     LevelGrid.Set(x, y, 1);
   }
 }
@@ -39,11 +39,11 @@ export function Update(timestamp) {
 export function Render2D() {
   let x, y;
   const gs = 32;
-  const { width, height } = LevelGrid;
+  const { Width, Height } = LevelGrid;
 
   ctx.save();
-  for (x = 0; x < width; x++) {
-    for (y = 0; y < height; y++) {
+  for (x = 0; x < Width; x++) {
+    for (y = 0; y < Height; y++) {
       const value = LevelGrid.Get(x, y);
       ctx.fillStyle = value ? '#c00' : '#ccc';
       ctx.fillRect(x * gs, y * gs, gs, gs);
@@ -52,13 +52,13 @@ export function Render2D() {
   let pos;
   ctx.lineWidth = 2;
   ctx.beginPath();
-  for (pos = 0; pos <= width; pos++) {
+  for (pos = 0; pos <= Width; pos++) {
     ctx.moveTo(pos * gs, 0);
-    ctx.lineTo(pos * gs, height * gs);
+    ctx.lineTo(pos * gs, Height * gs);
   }
-  for (pos = 0; pos <= height; pos++) {
+  for (pos = 0; pos <= Height; pos++) {
     ctx.moveTo(0, pos * gs);
-    ctx.lineTo(width * gs, pos * gs);
+    ctx.lineTo(Width * gs, pos * gs);
   }
   ctx.stroke();
   ctx.restore();

@@ -2,8 +2,8 @@ import { COMPO } from './common.js';
 
 /**
  * @typedef {{
- *   width: number,
- *   height: number,
+ *   Width: number,
+ *   Height: number,
  *   Get: function(number, number): number,
  *   Set: function(number, number, number),
  * }}
@@ -12,27 +12,27 @@ export var Grid;
 
 /**
  * Create a new grid.
- * @param {number} width Grid width, in cells.
- * @param {number} height Grid height, in cells.
+ * @param {number} Width Grid width, in cells.
+ * @param {number} Height Grid height, in cells.
  * @returns {Grid}
  */
-export function NewGrid(width, height) {
+export function NewGrid(Width, Height) {
   if (!COMPO) {
     if (
-      typeof width != 'number' ||
-      width < 1 ||
-      (width | 0) != width ||
-      typeof height != 'number' ||
-      height < 1 ||
-      (height | 0) != height
+      typeof Width != 'number' ||
+      Width < 1 ||
+      (Width | 0) != Width ||
+      typeof Height != 'number' ||
+      Height < 1 ||
+      (Height | 0) != Height
     ) {
-      throw new Error(`invalid size: (${width}, ${height})`);
+      throw new Error(`invalid size: (${Width}, ${Height})`);
     }
   }
-  const cells = new Uint8Array(width * height);
+  const cells = new Uint8Array(Width * Height);
   return {
-    width,
-    height,
+    Width,
+    Height,
     Get(/** number */ x, /** number */ y) {
       if (!COMPO) {
         if (
@@ -44,10 +44,10 @@ export function NewGrid(width, height) {
           throw new Error(`invalid position: (${x}, ${y})`);
         }
       }
-      if (x < 0 || width <= x || y < 0 || height <= y) {
+      if (x < 0 || Width <= x || y < 0 || Height <= y) {
         return -1;
       }
-      return cells[y * width + x];
+      return cells[y * Width + x];
     },
     Set(/** number */ x, /** number */ y, /** number */ value) {
       if (!COMPO) {
@@ -60,10 +60,10 @@ export function NewGrid(width, height) {
           throw new Error(`invalid position: (${x}, ${y})`);
         }
       }
-      if (x < 0 || width <= x || y < 0 || height <= y) {
+      if (x < 0 || Width <= x || y < 0 || Height <= y) {
         return;
       }
-      cells[y * width + x] = value;
+      cells[y * Width + x] = value;
     },
   };
 }

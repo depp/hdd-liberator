@@ -15,8 +15,11 @@ export function Start() {
   audio.Start();
   grid.Reset(12, 8);
   for (let i = 0; i < 10; i++) {
-    let x = r.NextInt(grid.Width);
-    let y = r.NextInt(grid.Height);
+    let x, y;
+    do {
+      x = r.NextInt(grid.Width);
+      y = r.NextInt(grid.Height);
+    } while ((!x && !y) || grid.Get(x, y));
     grid.Set(x, y, 1);
   }
 }

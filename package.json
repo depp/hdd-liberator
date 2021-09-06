@@ -10,5 +10,15 @@
   },
   "scripts": {
     "test": "node --experimental-vm-modules node_modules/.bin/jest"
+  },
+  "jest": {
+    "transform": {
+      "\\/game\\/common\\.js": [
+        "<rootDir>/scripts/test.transform.js",
+        {
+          "supportsStaticESM": true
+        }
+      ]
+    }
   }
 }

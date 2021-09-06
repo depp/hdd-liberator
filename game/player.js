@@ -1,8 +1,9 @@
 import { Left, Right, Backward, Forward, ButtonAxis } from './input.js';
 import { ctx } from './render2d.js';
 import * as time from './time.js';
+import * as mover from './mover.js';
 
-const Size = 24;
+const Radius = 0.375;
 
 /**
  * @type {{
@@ -12,29 +13,36 @@ const Size = 24;
  *  Y: number,
  * }}
  */
-const Player = { X0: 16, Y0: 16, X: 16, Y: 16 };
+const Player = { X0: 0.5, Y0: 0.5, X: 0.5, Y: 0.5 };
 
 /** @const {number} */
-const Speed = 100 / time.TickRate;
+const Speed = 3 / time.TickRate;
 
 /**
  * Update the player state.
  */
 export function Update() {
-  Player.X0 = Player.X;
-  Player.Y0 = Player.Y;
-  const x = ButtonAxis(Left, Right);
-  const y = ButtonAxis(Forward, Backward);
-  Player.X += Speed * x;
-  Player.Y += Speed * y;
+  let mx = ButtonAxis(Left, Right);
+  let my = ButtonAxis(Forward, Backward);
+  let mr = Math.hypot(mx, my);
+  if (mr > 1) {
+    mx /= mr;
+    my /= mr;
+  }
+  mover.Move(Player, Radius, mx * Speed, my * Speed);
 }
 
 /**
  * Render the player.
  */
 export function Render2D() {
-  const x = Player.X0 + (Player.X - Player.X0) * time.Fraction;
-  const y = Player.Y0 + (Player.Y - Player.Y0) * time.Fraction;
+  const x = 32 * (Player.X0 + (Player.X - Player.X0) * time.Fraction);
+  const y = 32 * (Player.Y0 + (Player.Y - Player.Y0) * time.Fraction);
   ctx.fillStyle = '#00c';
-  ctx.fillRect(x - Size / 2, y - Size / 2, Size, Size);
+  ctx.fillRect(
+    x - 32 * Radius,
+    y - 32 * Radius,
+    32 * 2 * Radius,
+    32 * 2 * Radius,
+  );
 }

@@ -9,6 +9,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"strings"
 	"time"
 
 	"github.com/sirupsen/logrus"
@@ -98,7 +99,7 @@ var (
 
 // IsSourceName returns true if the filename is the name of a source file.
 func IsSourceName(name string) bool {
-	return sourceName.MatchString(name)
+	return sourceName.MatchString(name) && !strings.HasSuffix(name, ".test.js")
 }
 
 func (p *Project) buildData(ctx context.Context) (string, error) {
@@ -125,7 +126,7 @@ func (p *Project) listSources() ([]string, error) {
 	var srcs []string
 	for _, f := range fs {
 		if f.Mode().IsRegular() {
-			if name := f.Name(); sourceName.MatchString(name) {
+			if name := f.Name(); IsSourceName(name) {
 				srcs = append(srcs, path.Join(p.Config.SourceDir, name))
 			}
 		}

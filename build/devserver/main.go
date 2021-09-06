@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"regexp"
@@ -288,6 +289,45 @@ func serveReleaseMap(w http.ResponseWriter, r *http.Request) {
 	w.Write(data)
 }
 
+func (h *handler) prettyPrintJS(ctx context.Context, data []byte) ([]byte, error) {
+	cmd := exec.CommandContext(ctx, "prettier",
+		"--config="+filepath.Join(h.baseDir, ".prettierrc.js"),
+		"--parser=babel")
+	var out bytes.Buffer
+	cmd.Stdin = bytes.NewReader(data)
+	cmd.Stdout = &out
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return nil, err
+	}
+	return out.Bytes(), nil
+}
+
+func serveReleaseSource(w http.ResponseWriter, r *http.Request) {
+	ctx := r.Context()
+	h := getHandler(ctx)
+	d, err := h.code.getBuild(ctx)
+	if err != nil {
+		// ctx canceled.
+		return
+	}
+	data := d.code
+	q := r.URL.Query()
+	if _, ok := q["pretty"]; ok {
+		data, err = h.prettyPrintJS(ctx, data)
+		if err != nil {
+			h.serveError(w, r, err)
+			return
+		}
+	}
+	logResponse(r, http.StatusOK, "")
+	hdr := w.Header()
+	hdr.Set("Content-Type", "application/javascript")
+	hdr.Set("Content-Length", strconv.Itoa(len(data)))
+	hdr.Set("Cache-Control", "no-cache")
+	w.Write(data)
+}
+
 func (h *handler) serveNotFound(w http.ResponseWriter, r *http.Request) {
 	logResponse(r, http.StatusNotFound, "")
 	h.serveStatus(w, r, http.StatusNotFound, fmt.Sprintf("Page not found: %q", r.URL))
@@ -373,6 +413,7 @@ func mainE() error {
 	mx.Get("/favicon.ico", serveFavicon)
 	mx.Get("/release", redirectAddSlash)
 	mx.Get("/release/", serveRelease)
+	mx.Get("/release/main.js", serveReleaseSource)
 	mx.Get("/release/main.map", serveReleaseMap)
 	mx.Get("/static/*", serveStatic)
 	mx.Get("/game/*", serveStatic)

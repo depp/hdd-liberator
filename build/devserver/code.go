@@ -20,6 +20,7 @@ type buildState struct {
 	err        error
 	project    *project.Project
 	diagnostic []*pb.Diagnostic
+	code       []byte
 	html       []byte
 	sourcemap  []byte
 }
@@ -47,6 +48,7 @@ func newBuildState(s *watcher.CodeState) *buildState {
 			logrus.Errorln("Build:", d.err)
 			return &d
 		}
+		d.code = s.Compo.CompiledScript.Code
 		hd, err := s.Compo.BuildHTML(&releaseMapURL)
 		if err != nil {
 			d.err = err

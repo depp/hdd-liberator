@@ -4,7 +4,7 @@ import * as player from './player.js';
 import * as time from './time.js';
 import * as grid from './grid.js';
 import { ctx } from './render2d.js';
-import { Random, NewRandom } from './random.js';
+import { NewRandom } from './random.js';
 
 /**
  * Initialize the game.

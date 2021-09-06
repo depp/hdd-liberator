@@ -17,14 +17,14 @@ export let Cells;
 export function Reset(width, height) {
   if (!COMPO) {
     if (
-      typeof Width != 'number' ||
-      Width < 1 ||
-      (Width | 0) != Width ||
-      typeof Height != 'number' ||
-      Height < 1 ||
-      (Height | 0) != Height
+      typeof width != 'number' ||
+      width < 1 ||
+      (width | 0) != width ||
+      typeof height != 'number' ||
+      height < 1 ||
+      (height | 0) != height
     ) {
-      throw new Error(`invalid size: (${Width}, ${Height})`);
+      throw new Error(`invalid size: (${width}, ${height})`);
     }
   }
   Width = width;

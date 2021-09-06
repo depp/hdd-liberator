@@ -4,17 +4,19 @@ import * as player from './player.js';
 import * as time from './time.js';
 import * as grid from './grid.js';
 import { ctx } from './render2d.js';
+import { Random, NewRandom } from './random.js';
 
 /**
  * Initialize the game.
  */
 export function Start() {
+  let r = NewRandom(1);
   input.Start();
   audio.Start();
   grid.Reset(12, 8);
   for (let i = 0; i < 10; i++) {
-    let x = (Math.random() * grid.Width) | 0;
-    let y = (Math.random() * grid.Height) | 0;
+    let x = r.NextInt(grid.Width);
+    let y = r.NextInt(grid.Height);
     grid.Set(x, y, 1);
   }
 }

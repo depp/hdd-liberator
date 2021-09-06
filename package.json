@@ -1,9 +1,14 @@
 {
   "private": true,
+  "type": "module",
   "dependencies": {
     "google-closure-compiler-java": "^20210601.0.0"
   },
   "devDependencies": {
+    "jest": "^27.1.0",
     "terser": "^5.7.2"
+  },
+  "scripts": {
+    "test": "node --experimental-vm-modules node_modules/.bin/jest"
   }
 }

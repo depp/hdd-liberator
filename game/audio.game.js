@@ -49,5 +49,4 @@ export function Start() {
   Ctx = new constructor();
   const silence = Ctx.createBuffer(1, 1000, Ctx.sampleRate);
   PlayBuffer(silence);
-  PlaySound();
 }

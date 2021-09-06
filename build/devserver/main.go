@@ -291,7 +291,7 @@ func serveReleaseMap(w http.ResponseWriter, r *http.Request) {
 
 func (h *handler) prettyPrintJS(ctx context.Context, data []byte) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, "prettier",
-		"--config="+filepath.Join(h.baseDir, ".prettierrc.js"),
+		"--config="+filepath.Join(h.baseDir, ".prettierrc.json"),
 		"--parser=babel")
 	var out bytes.Buffer
 	cmd.Stdin = bytes.NewReader(data)

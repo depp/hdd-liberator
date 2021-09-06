@@ -7,8 +7,8 @@ const griddata = `
 .X..XXX.
 .....X..
 .XX.....
-.XX.....
-........
+.XX..X.X
+......X.
 `;
 
 beforeAll(() => {
@@ -41,7 +41,7 @@ function RunCase(c, name) {
   if (result[0] != obj.X || result[1] != obj.Y) {
     console.log('Case failed:', name, c, [obj.X, obj.Y]);
     throw new Error(
-      `case ${i}: ` +
+      `case ${name}: ` +
         `got (${obj.X}, ${obj.Y}), expect (${result[0]}, ${result[1]})`,
     );
   }
@@ -142,4 +142,25 @@ test('corner inside', () => {
       `${i}.Y`,
     );
   }
+});
+
+// Move away from inside corner.
+test('corner away', () => {
+  [
+    { origin: [5.75, 6.25], delta: [0.25, -0.25] },
+    { origin: [6.25, 5.75], delta: [-0.25, 0.25] },
+    { origin: [6.75, 5.75], delta: [0.25, 0.25] },
+    { origin: [7.25, 6.25], delta: [-0.25, -0.25] },
+  ].forEach(({ origin, delta: [dx, dy] }, i) => {
+    const [ox, oy] = origin;
+    [
+      { origin, delta: [dx, dy], result: origin },
+      { origin, delta: [-dx, dy], result: [ox - dx, oy] },
+      { origin, delta: [dx, -dy], result: [ox, oy - dy] },
+      { origin, delta: [-dx, -dy], result: [ox - dx, oy - dy] },
+      //
+    ].forEach((c, j) => {
+      RunCase(c, `${i}.${j}`);
+    });
+  });
 });

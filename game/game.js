@@ -21,6 +21,8 @@ export function Start() {
       y = r.NextInt(grid.Height);
     } while ((!x && !y) || grid.Get(x, y));
     grid.Set(x, y, 1);
+    grid.Set(10, 3, 1);
+    grid.Set(9, 4, 1);
   }
 }
 

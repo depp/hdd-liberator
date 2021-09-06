@@ -69,11 +69,17 @@ export function Move(obj, radius, deltax, deltay) {
     //
     // Object is moving towards an inside corner, and can be blocked in both X
     // and Y directions.
-    if (pushx > 0) {
-      newx = limitx;
-    }
-    if (pushy > 0) {
-      newy = limity;
+    if (
+      tilexy ||
+      (dirx * (x - tx - 0.5) < 0.5 && diry * (y - ty - 0.5) < 0.5)
+    ) {
+      // We are not already through, on the other side.
+      if (pushx > 0) {
+        newx = limitx;
+      }
+      if (pushy > 0) {
+        newy = limity;
+      }
     }
   } else if (tilexy) {
     if (tilex) {

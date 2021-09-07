@@ -75,12 +75,82 @@ function HandleKeyUp(evt) {
 }
 
 /**
+ * @type {!Array<number>}
+ */
+const Gamepads = [];
+
+/**
+ * First initialization, before the game starts.
+ */
+export function Init() {
+  window.addEventListener('gamepadconnected', ({ /** !Gamepad */ gamepad }) => {
+    if (gamepad.mapping == 'standard') {
+      Gamepads.push(gamepad.index);
+    }
+  });
+  window.addEventListener(
+    'gamepaddisconnected',
+    ({ /** !Gamepad */ gamepad }) => {
+      const index = Gamepads.indexOf(gamepad.index);
+      if (index >= 0) {
+        Gamepads.slice(index, 1);
+      }
+    },
+  );
+}
+
+/**
  * Start listening for player input.
  */
 export function Start() {
   document.onkeydown = /** @type {function(Event)} */ (HandleKeyDown);
   document.onkeyup = /** @type {function(Event)} */ (HandleKeyUp);
   ZeroButtons(ButtonState);
+}
+
+/** @type {number} */
+export let MoveX;
+
+/** @type {number} */
+export let MoveY;
+
+/**
+ * The range of joysticks. Joysticx values are scaled so that input values with
+ * this magnitude get magnitude 1.0.
+ * @const
+ */
+const JoystickRange = 0.8;
+
+/**
+ * The size of the joystick dead zone. Joystick values with magnitude smaller
+ * than this are flushed to zero.
+ * @const
+ */
+const JoystickDeadZone = 0.2;
+
+/**
+ * Process the beginning of a frame.
+ */
+export function BeginFrame() {
+  MoveX = ButtonAxis(Left, Right);
+  MoveY = ButtonAxis(Forward, Backward);
+  if (Gamepads.length) {
+    const data = navigator.getGamepads();
+    for (const index of Gamepads) {
+      const gamepad = data[index];
+      MoveX += gamepad.axes[0] / JoystickRange;
+      MoveY += gamepad.axes[1] / JoystickRange;
+    }
+  }
+  const magnitude = Math.hypot(MoveX, MoveY);
+  const scale =
+    magnitude > 1
+      ? 1 / magnitude
+      : magnitude > JoystickDeadZone
+      ? magnitude
+      : 0;
+  MoveX *= scale;
+  MoveY *= scale;
 }
 
 /**

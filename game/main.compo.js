@@ -13,12 +13,14 @@ function Frame(timestamp) {
   requestAnimationFrame(Frame);
 }
 
-function LoadData() {
-  const text = window.d.text;
-  const data = [...text].map(
-    (/** string */ x) => x.charCodeAt(0) - 1 - (x > '<') - (x > '\r'),
+function Init() {
+  audioData.Load(
+    [...window.d.text].map(
+      (/** string */ x) => x.charCodeAt(0) - 1 - (x > '<') - (x > '\r'),
+    ),
   );
-  audioData.Load(data);
+  game.Init();
+  window.b.onclick = Start;
 }
 
 /**
@@ -42,5 +44,4 @@ function Start() {
   Frame(0);
 }
 
-LoadData();
-window.b.onclick = Start;
+Init();

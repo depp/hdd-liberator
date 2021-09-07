@@ -1,4 +1,4 @@
-import { Left, Right, Backward, Forward, ButtonAxis } from './input.js';
+import * as input from './input.js';
 import { ctx } from './render2d.js';
 import * as time from './time.js';
 import * as mover from './mover.js';
@@ -22,14 +22,7 @@ const Speed = 3 / time.TickRate;
  * Update the player state.
  */
 export function Update() {
-  let mx = ButtonAxis(Left, Right);
-  let my = ButtonAxis(Forward, Backward);
-  let mr = Math.hypot(mx, my);
-  if (mr > 1) {
-    mx /= mr;
-    my /= mr;
-  }
-  mover.Move(Player, Radius, mx * Speed, my * Speed);
+  mover.Move(Player, Radius, input.MoveX * Speed, input.MoveY * Speed);
 }
 
 /**

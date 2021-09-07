@@ -7,6 +7,13 @@ import { ctx } from './render2d.js';
 import { NewRandom } from './random.js';
 
 /**
+ * First initialization, before the game starts.
+ */
+export function Init() {
+  input.Init();
+}
+
+/**
  * Initialize the game.
  */
 export function Start() {
@@ -31,6 +38,7 @@ export function Start() {
  * @param {number} timestamp Current timestamp, in milliseconds.
  */
 export function Update(timestamp) {
+  input.BeginFrame();
   for (let ticks = time.UpdateForTimestamp(timestamp); ticks--; ) {
     time.Advance();
     player.Update();

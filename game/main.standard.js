@@ -116,6 +116,7 @@ function Start() {
     DevStart();
   }
 
+  game.Init();
   Canvas = document.createElement('canvas');
   const ctx = Canvas.getContext('2d', {
     alpha: false,

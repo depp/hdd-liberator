@@ -93,7 +93,7 @@ export function Init() {
     ({ /** !Gamepad */ gamepad }) => {
       const index = Gamepads.indexOf(gamepad.index);
       if (index >= 0) {
-        Gamepads.slice(index, 1);
+        Gamepads.splice(index, 1);
       }
     },
   );

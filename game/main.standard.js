@@ -49,6 +49,7 @@ function HandleResize() {
  * @param {number} timestamp Timestamp, in milliseconds.
  */
 function Frame(timestamp) {
+  render2D.ctx.fillRect(0, 0, Canvas.width, Canvas.height);
   game.Update(timestamp);
   game.Render2D();
   RAFHandle = requestAnimationFrame(Frame);

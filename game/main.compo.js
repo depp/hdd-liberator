@@ -10,12 +10,16 @@ import * as audioData from './audio.data.js';
 function Frame(timestamp) {
   /** @type {HTMLCanvasElement} */
   const c = ctx.canvas;
-  c.width = c.clientWidth;
-  c.height = c.clientHeight;
   ctx.fillRect(0, 0, c.width, c.height);
   game.Update(timestamp);
   game.Render2D();
   requestAnimationFrame(Frame);
+}
+
+function HandleResize() {
+  const c = window.g;
+  c.width = c.clientWidth;
+  c.height = c.clientHeight;
 }
 
 function Init() {
@@ -26,6 +30,7 @@ function Init() {
   );
   game.Init();
   window.b.onclick = Start;
+  window.onresize = HandleResize;
 }
 
 /**
@@ -45,6 +50,7 @@ function Start() {
     return;
   }
   window.g.style.display = '';
+  HandleResize();
   game.Start();
   Frame(0);
 }

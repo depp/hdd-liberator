@@ -86,9 +86,9 @@ export function Init() {
   window.addEventListener(
     'gamepadconnected',
     /** @type{function(Event)} */ (
-      (/** !GamepadEvent */ { gamepad }) => {
-        if (gamepad.mapping == 'standard') {
-          Gamepads.push(gamepad.index);
+      (/** !GamepadEvent */ event) => {
+        if (event.gamepad.mapping == 'standard') {
+          Gamepads.push(event.gamepad.index);
         }
       }
     ),
@@ -96,8 +96,8 @@ export function Init() {
   window.addEventListener(
     'gamepaddisconnected',
     /** @type{function(Event)} */ (
-      (/** !GamepadEvent */ { gamepad }) => {
-        const index = Gamepads.indexOf(gamepad.index);
+      (/** !GamepadEvent */ event) => {
+        const index = Gamepads.indexOf(event.gamepad.index);
         if (index >= 0) {
           Gamepads.splice(index, 1);
         }

@@ -144,8 +144,8 @@ export function Move(obj, radius, deltax, deltay) {
 
     // How much the object will be pushed, in the dirx and diry directions, to
     // avoid overlap with the tile.
-    pushx = Math.max(0, dirx * (limitx - newx));
-    pushy = Math.max(0, diry * (limity - newy));
+    pushx = dirx * (limitx - newx);
+    pushy = diry * (limity - newy);
 
     if (pushx < pushy) {
       if (pushx > 0) {

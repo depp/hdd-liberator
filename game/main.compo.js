@@ -8,6 +8,10 @@ import * as audioData from './audio.data.js';
  * @param {number} timestamp
  */
 function Frame(timestamp) {
+  /** @type {HTMLCanvasElement} */
+  const c = ctx.canvas;
+  c.width = c.clientWidth;
+  c.height = c.clientHeight;
   game.Update(timestamp);
   game.Render2D();
   requestAnimationFrame(Frame);

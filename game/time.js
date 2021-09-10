@@ -2,7 +2,7 @@
  * Number of update ticks per second.
  * @const {number}
  */
-export const TickRate = 10;
+export const TickRate = 50;
 
 /**
  * Time between update ticks, in milliseconds.

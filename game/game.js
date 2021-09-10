@@ -3,6 +3,7 @@ import * as input from './input.js';
 import * as player from './player.js';
 import * as time from './time.js';
 import * as grid from './grid.js';
+import * as entityBox from './entity.box.js';
 import { ctx } from './render2d.js';
 import { NewRandom } from './random.js';
 
@@ -21,16 +22,9 @@ export function Start() {
   input.Start();
   audio.Start();
   grid.Reset(12, 8);
-  for (let i = 0; i < 10; i++) {
-    let x, y;
-    do {
-      x = r.NextInt(grid.Width);
-      y = r.NextInt(grid.Height);
-    } while ((!x && !y) || grid.Get(x, y));
-    grid.Set(x, y, 1);
-    grid.Set(10, 3, 1);
-    grid.Set(9, 4, 1);
-  }
+  grid.Set(0, 0, 1);
+  entityBox.Spawn(r);
+  grid.Set(0, 0, 0);
 }
 
 /**

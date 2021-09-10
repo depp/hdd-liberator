@@ -86,3 +86,83 @@ export function Set(x, y, value) {
   }
   Cells[y * Width + x] = value;
 }
+
+/**
+ * Return true if the given rectangle is clear (all cells are zero). Returns
+ * false if any part of the rectangle extends outside the grid.
+ *
+ * @param {number} x The minimum X coordinate
+ * @param {number} y The minimum Y coordinate
+ * @param {number} w Width of the rectangle, in cells
+ * @param {number} h Height of the rectangle, in cells
+ * @return {boolean}
+ */
+export function IsRectClear(x, y, w, h) {
+  if (!COMPO) {
+    if (
+      typeof x != 'number' ||
+      (x | 0) != x ||
+      typeof y != 'number' ||
+      (y | 0) != y
+    ) {
+      throw new Error(`invalid position: (${x}, ${y})`);
+    }
+    if (
+      typeof w != 'number' ||
+      (w | 0) != w ||
+      typeof h != 'number' ||
+      (h | 0) != h
+    ) {
+      throw new Error(`invalid size: (${w}, ${h})`);
+    }
+  }
+  if (x < 0 || y < 0 || w > Width - x || h > Height - x) {
+    return false;
+  }
+  for (let yy = y; yy < y + h; yy++) {
+    for (let xx = x; xx < x + w; xx++) {
+      if (Cells[yy * Width + xx]) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+/**
+ * Set all cells in a rectangle to the given value.
+ *
+ * @param {number} x The minimum X coordinate
+ * @param {number} y The minimum Y coordinate
+ * @param {number} w Width of the rectangle, in cells
+ * @param {number} h Height of the rectangle, in cells
+ * @param {number} value
+ */
+export function SetRect(x, y, w, h, value) {
+  if (!COMPO) {
+    if (
+      typeof x != 'number' ||
+      (x | 0) != x ||
+      typeof y != 'number' ||
+      (y | 0) != y
+    ) {
+      throw new Error(`invalid position: (${x}, ${y})`);
+    }
+    if (
+      typeof w != 'number' ||
+      (w | 0) != w ||
+      typeof h != 'number' ||
+      (h | 0) != h
+    ) {
+      throw new Error(`invalid size: (${w}, ${h})`);
+    }
+    if (x < 0 || y < 0 || w > Width - x || h > Height - y) {
+      throw new Error(`rectangle outside grid: (${x}, ${y}, ${w}, ${h})`);
+    }
+  }
+  for (let yy = y; yy < y + h; yy++) {
+    for (let xx = x; xx < x + w; xx++) {
+      Cells[yy * Width + xx] = value;
+    }
+  }
+}

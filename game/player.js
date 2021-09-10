@@ -6,6 +6,8 @@ import * as entityBox from './entity.box.js';
 
 const Radius = 0.375;
 
+const PushMargin = Radius - 0.25;
+
 /**
  * @type {{
  *  X0: number,
@@ -22,7 +24,7 @@ const Speed = 3 / time.TickRate;
 /** @type {entityBox.Box|null} */
 let CollideBox;
 
-let debugCollide;
+let CanPush;
 
 /**
  * Update the player state.
@@ -46,23 +48,31 @@ export function Update() {
   let ty = Player.Y | 0;
   let dx = 0;
   let dy = 0;
-  debugCollide = '(none)';
   if (flags & mover.FlagCollideX && absx > 2 * absy && absx > pushThreshold) {
     dx = input.MoveX > 0 ? 1 : -1;
-    debugCollide = `Collide ${input.MoveX > 0 ? '+' : '-'}X`;
   } else if (
     flags & mover.FlagCollideY &&
     absy > 2 * absx &&
     absy > pushThreshold
   ) {
     dy = input.MoveY > 0 ? 1 : -1;
-    debugCollide = `Collide ${input.MoveY > 0 ? '+' : '-'}Y`;
   }
   tx += dx;
   ty += dy;
   CollideBox = null;
   if (dx + dy) {
     CollideBox = entityBox.Get(tx, ty);
+    if (CollideBox) {
+      if (dy) {
+        CanPush =
+          Player.X > CollideBox.X + PushMargin &&
+          Player.X < CollideBox.X + CollideBox.W - PushMargin;
+      } else {
+        CanPush =
+          Player.Y > CollideBox.Y + PushMargin &&
+          Player.Y < CollideBox.Y + CollideBox.H - PushMargin;
+      }
+    }
   }
 }
 
@@ -80,7 +90,7 @@ export function Render2D() {
     32 * 2 * Radius,
   );
   if (CollideBox) {
-    ctx.fillStyle = '#cc3';
+    ctx.fillStyle = CanPush ? '#cc3' : '#333';
     ctx.fillRect(
       CollideBox.X * 32 + 6,
       CollideBox.Y * 32 + 6,
@@ -88,7 +98,4 @@ export function Render2D() {
       CollideBox.H * 32 - 12,
     );
   }
-  ctx.font = '16px monospace';
-  ctx.fillStyle = '#000';
-  ctx.fillText(debugCollide, -20, -20);
 }

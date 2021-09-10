@@ -55,9 +55,9 @@ export function Move(obj, radius, deltax, deltay) {
   let dirx = deltax > 0 ? 1 : -1;
   let diry = deltay > 0 ? 1 : -1;
 
-  // Tile position of corner of mover in the opposite direction of movement.
-  let tx = Math.floor(x - dirx * radius);
-  let ty = Math.floor(y - diry * radius);
+  // Tile position of the mover.
+  let tx = x | 0;
+  let ty = y | 0;
 
   // Adjacent tiles in the direction of movement.
   let tilex = grid.Get(tx + dirx, ty);
@@ -79,22 +79,13 @@ export function Move(obj, radius, deltax, deltay) {
     // @|X
     // -+-
     // X|?
-    //
-    // Object is moving towards an inside corner, and can be blocked in both X
-    // and Y directions.
-    if (
-      tilexy ||
-      (dirx * (x - tx - 0.5) < 0.5 && diry * (y - ty - 0.5) < 0.5)
-    ) {
-      // We are not already through, on the other side.
-      if (pushx > 0) {
-        newx = limitx;
-        flags = FlagCollideX;
-      }
-      if (pushy > 0) {
-        newy = limity;
-        flags |= FlagCollideY;
-      }
+    if (pushx > 0) {
+      newx = limitx;
+      flags = FlagCollideX;
+    }
+    if (pushy > 0) {
+      newy = limity;
+      flags |= FlagCollideY;
     }
   } else if (tilexy) {
     if (tilex) {

@@ -1,5 +1,17 @@
 import { COMPO } from './common.js';
 
+/**
+ * Tile value for boundary tiles (tiles outside the level).
+ * @const
+ */
+export const TileBoundary = -1;
+
+/**
+ * Tile value for box tiles.
+ * @const
+ */
+export const TileBox = 1;
+
 /** @type {number} */
 export let Width;
 
@@ -51,7 +63,7 @@ export function Get(x, y) {
     }
   }
   if (x < 0 || Width <= x || y < 0 || Height <= y) {
-    return -1;
+    return TileBoundary;
   }
   return Cells[y * Width + x];
 }

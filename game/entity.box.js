@@ -26,7 +26,7 @@ export function Spawn(rand) {
       x = rand.NextInt(grid.Width - 1);
       y = rand.NextInt(grid.Height - 1);
     } while (!grid.IsRectClear(x, y, 2, 2));
-    grid.SetRect(x, y, 2, 2, 2);
+    grid.SetRect(x, y, 2, 2, grid.TileBox);
     Boxes.push({ X: x, Y: y, W: 2, H: 2 });
   }
 }

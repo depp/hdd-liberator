@@ -1,3 +1,4 @@
+import { COMPO } from './common.js';
 import * as grid from './grid.js';
 import { Random } from './random.js';
 
@@ -9,7 +10,7 @@ import { Random } from './random.js';
  *   H: number,
  * }}
  */
-var Box;
+export var Box;
 
 /**
  * @type {!Array<!Box>}
@@ -29,4 +30,37 @@ export function Spawn(rand) {
     grid.SetRect(x, y, 2, 2, grid.TileBox);
     Boxes.push({ X: x, Y: y, W: 2, H: 2 });
   }
+}
+
+/**
+ * Get the box at the given tile coordinates, or return null if no box exists at
+ * those coordinates.
+ * @param {number} tx
+ * @param {number} ty
+ * @returns {Box|null}
+ */
+export function Get(tx, ty) {
+  if (!COMPO) {
+    if (
+      typeof tx != 'number' ||
+      (tx | 0) != tx ||
+      typeof ty != 'number' ||
+      (ty | 0) != ty
+    ) {
+      throw new Error(`invalid location: (${tx}, ${ty})`);
+    }
+  }
+  if (grid.Get(tx, ty) == grid.TileBox) {
+    for (const box of Boxes) {
+      if (
+        tx >= box.X &&
+        tx < box.X + box.W &&
+        ty >= box.Y &&
+        ty < box.Y + box.H
+      ) {
+        return box;
+      }
+    }
+  }
+  return null;
 }

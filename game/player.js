@@ -1,8 +1,8 @@
 import * as input from './input.js';
 import { ctx } from './render2d.js';
-import * as grid from './grid.js';
 import * as time from './time.js';
 import * as mover from './mover.js';
+import * as entityBox from './entity.box.js';
 
 const Radius = 0.375;
 
@@ -19,10 +19,8 @@ const Player = { X0: 0.5, Y0: 0.5, X: 0.5, Y: 0.5 };
 /** @const {number} */
 const Speed = 3 / time.TickRate;
 
-/** @type {number} */
-let CollideX;
-/** @type {number} */
-let CollideY;
+/** @type {entityBox.Box|null} */
+let CollideBox;
 
 let debugCollide;
 
@@ -62,10 +60,9 @@ export function Update() {
   }
   tx += dx;
   ty += dy;
-  CollideX = CollideY = -1;
-  if (dx + dy && grid.Get(tx, ty) == grid.TileBox) {
-    CollideX = tx;
-    CollideY = ty;
+  CollideBox = null;
+  if (dx + dy) {
+    CollideBox = entityBox.Get(tx, ty);
   }
 }
 
@@ -82,9 +79,14 @@ export function Render2D() {
     32 * 2 * Radius,
     32 * 2 * Radius,
   );
-  if (CollideX >= 0) {
+  if (CollideBox) {
     ctx.fillStyle = '#cc3';
-    ctx.fillRect(CollideX * 32 + 6, CollideY * 32 + 6, 20, 20);
+    ctx.fillRect(
+      CollideBox.X * 32 + 6,
+      CollideBox.Y * 32 + 6,
+      CollideBox.W * 32 - 12,
+      CollideBox.H * 32 - 12,
+    );
   }
   ctx.fillStyle = '#000';
   ctx.fillText(debugCollide, -20, -20);

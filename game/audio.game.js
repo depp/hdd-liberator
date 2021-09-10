@@ -32,7 +32,7 @@ function PlaySound() {
   if (song == null) {
     return;
   }
-  RenderSong(song, Ctx.sampleRate).then(({ buffer }) => PlayBuffer(buffer));
+  RenderSong(song, Ctx.sampleRate).then(({ Buffer }) => PlayBuffer(Buffer));
 }
 
 /**

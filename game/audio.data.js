@@ -6,18 +6,18 @@ export let Sounds;
 
 /**
  * @typedef {{
- *   values: Array<number>!,
- *   durations: Array<number>!,
- *   instrument: number,
+ *   Values: Array<number>!,
+ *   Durations: Array<number>!,
+ *   Instrument: number,
  * }}
  */
 export var Track;
 
 /**
  * @typedef {{
- *   tickDuration: number,
- *   duration: number,
- *   tracks: Array<Track>!,
+ *   TickDuration: number,
+ *   Duration: number,
+ *   Tracks: Array<Track>!,
  * }}
  */
 export var Song;
@@ -58,18 +58,18 @@ export function Load(data) {
       throw new Error('music parsing failed');
     }
     /** @type {!Array<!Track>} */
-    const tracks = Iterate(
+    const Tracks = Iterate(
       data[pos],
       (i) =>
         /** @type {Track} */ ({
-          instrument: data[pos + 4 + i],
+          Instrument: data[pos + 4 + i],
         }),
     );
-    allTracks.push(...tracks);
+    allTracks.push(...Tracks);
     Songs.push({
-      tickDuration: data[pos + 1] / 500,
-      duration: NUM_VALUES * data[pos + 2] + data[pos + 3],
-      tracks,
+      TickDuration: data[pos + 1] / 500,
+      Duration: NUM_VALUES * data[pos + 2] + data[pos + 3],
+      Tracks,
     });
     pos += 4 + data[pos];
   }
@@ -77,7 +77,7 @@ export function Load(data) {
     let value = initialValue;
     /** @type {Array<number>!} */
     let values = [];
-    track.values = values;
+    track.Values = values;
     loop: while (1) {
       if (!COMPO && pos >= data.length) {
         throw new Error('music parsing failed');
@@ -99,6 +99,6 @@ export function Load(data) {
     }
   }
   for (const track of allTracks) {
-    track.durations = data.slice(pos, (pos += track.values.length));
+    track.Durations = data.slice(pos, (pos += track.Values.length));
   }
 }

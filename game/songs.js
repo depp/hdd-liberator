@@ -201,9 +201,9 @@ class Song {
    */
   startPlayback(when, offset) {
     try {
-      const { buffer, duration } = this.rendered;
+      const { Buffer } = this.rendered;
       const source = Ctx.createBufferSource();
-      source.buffer = buffer;
+      source.buffer = Buffer;
       source.connect(Ctx.destination);
       source.start(when, offset);
       this.node = source;

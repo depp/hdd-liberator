@@ -10,8 +10,8 @@ const SongTail = 2.0;
 
 /**
  * @typedef {{
- *   buffer: !AudioBuffer,
- *   duration: number,
+ *   Buffer: !AudioBuffer,
+ *   Duration: number,
  * }}
  */
 export var RenderedSong;
@@ -23,7 +23,7 @@ export var RenderedSong;
  * @returns {Promise<RenderedSong>}
  */
 export function RenderSong(song, sampleRate) {
-  const { tickDuration, duration, tracks } = song;
+  const { TickDuration, Duration, Tracks } = song;
   const constructor =
     window.OfflineAudioContext ?? window.webkitOfflineAudioContext;
   if (!COMPO && !constructor) {
@@ -31,34 +31,34 @@ export function RenderSong(song, sampleRate) {
   }
   const ctx = new constructor(
     2,
-    sampleRate * (tickDuration * duration + SongTail),
+    sampleRate * (TickDuration * Duration + SongTail),
     sampleRate,
   );
   const gain = ctx.createGain();
   gain.gain.value = 0.2;
   gain.connect(ctx.destination);
-  for (const track of tracks) {
-    const { values, durations, instrument } = track;
+  for (const track of Tracks) {
+    const { Values, Durations, Instrument } = track;
     let t = 0;
-    for (let i = 0; i < values.length; i++) {
-      const noteValue = values[i];
-      const noteDuration = durations[i];
+    for (let i = 0; i < Values.length; i++) {
+      const noteValue = Values[i];
+      const noteDuration = Durations[i];
 
       if (noteValue > 0) {
         PlaySynth(
-          Sounds[instrument],
+          Sounds[Instrument],
           ctx,
           gain,
           t,
-          noteDuration * tickDuration,
+          noteDuration * TickDuration,
           noteValue,
         );
       }
 
-      t += noteDuration * tickDuration;
+      t += noteDuration * TickDuration;
     }
   }
   return ctx
     .startRendering()
-    .then((buffer) => ({ buffer, duration: tickDuration * duration }));
+    .then((Buffer) => ({ Buffer, Duration: TickDuration * Duration }));
 }

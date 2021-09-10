@@ -59,13 +59,13 @@ describe('free', () => {
 
 function directionName(dx, dy) {
   if (dx && dy) {
-    return `${dx > 0 ? '+' : '-'}X${dy > 0 ? '+' : '-'}Y`;
+    return `${dx > 0 ? 'P' : 'M'}X${dy > 0 ? 'P' : 'M'}Y`;
   }
   if (dx) {
-    return dx > 0 ? '+X' : '-X';
+    return dx > 0 ? 'PX' : 'MX';
   }
   if (dy) {
-    return dy > 0 ? '+Y' : '-Y';
+    return dy > 0 ? 'PY' : 'MY';
   }
   return '0';
 }
@@ -83,7 +83,7 @@ describe('corner outside', () => {
       const d = 0.125 + 0.75 * j;
       // Slide in Y direction:
       const y = cy - dy * d;
-      test(`${basename}.Y[${j}]`, () =>
+      test(`${basename}_Y${j}`, () =>
         RunCase({
           origin: [cx - dx, y],
           delta,
@@ -91,7 +91,7 @@ describe('corner outside', () => {
         }));
       // Slide in X direction:
       const x = cx - dx * d;
-      test(`${basename}.X[${j}]`, () =>
+      test(`${basename}_X${j}`, () =>
         RunCase({
           origin: [x, cy - dy],
           delta,
@@ -99,23 +99,23 @@ describe('corner outside', () => {
         }));
     }
     let cases = [
-      { lateral: 6 / 16, move: 0.25, name: 'ClipInside' },
-      { lateral: 9 / 16, move: 0.25, name: 'ClipOutside' },
-      { lateral: 12 / 16, move: 0.5, name: 'NoTouch' },
+      { lateral: 6 / 16, move: 8 / 32, name: 'ClipInside' },
+      { lateral: 9 / 16, move: 8 / 32, name: 'ClipOutside' },
+      { lateral: 12 / 16, move: 9 / 32, name: 'NoTouch' },
     ];
     for (const { lateral, move, name } of cases) {
       // Move in Y direction.
-      test(`${basename}.${name}.Y`, () =>
+      test(`${basename}_${name}_Y`, () =>
         RunCase({
           origin: [cx - lateral * dx, cy - dy],
-          delta: [0, dy * 0.5],
+          delta: [0, (dy * 9) / 32],
           result: [cx - lateral * dx, cy - (1 - move) * dy],
         }));
       // Move in X direction.
-      test(`${basename}.${name}.X`, () =>
+      test(`${basename}_${name}_X`, () =>
         RunCase({
           origin: [cx - dx, cy - lateral * dy],
-          delta: [dx * 0.5, 0],
+          delta: [(dx * 9) / 32, 0],
           result: [cx - (1 - move) * dx, cy - lateral * dy],
         }));
     }
@@ -137,7 +137,7 @@ describe('wall', () => {
     // Move -X
     { origin: [3.5, 4.5], delta: [-0.5, 0.5], result: [3.25, 5] },
     { origin: [3.5, 5.5], delta: [-0.5, -0.5], result: [3.25, 5] },
-  ].forEach((c, i) => test(`[${i}]`, () => RunCase(c)));
+  ].forEach((c, i) => test(`${i}`, () => RunCase(c)));
 });
 
 // Moving towards an inside corner.
@@ -149,19 +149,19 @@ describe('corner inside', () => {
     const dx = i & 1 ? -1 : 1;
     const dy = i & 2 ? -1 : 1;
     const name = directionName(dx, dy);
-    test(`${name} / XY`, () =>
+    test(`${name}_XY`, () =>
       RunCase({
         origin: [cx - dx * 0.875, cy - dy * 0.875],
         delta: [dx * 0.5, dy * 0.5],
         result: [cx - dx * 0.75, cy - dy * 0.75],
       }));
-    test(`${name} / X`, () =>
+    test(`${name}_X`, () =>
       RunCase({
         origin: [cx - dx, cy - dy * 0.875],
         delta: [dx * 0.125, dy * 0.5],
         result: [cx - dx * 0.875, cy - dy * 0.75],
       }));
-    test(`${name} / Y`, () =>
+    test(`${name}_Y`, () =>
       RunCase({
         origin: [cx - dx * 0.875, cy - dy],
         delta: [dx * 0.5, dy * 0.125],
@@ -184,9 +184,6 @@ describe('corner away', () => {
       { origin, delta: [-dx, dy], result: [ox - dx, oy] },
       { origin, delta: [dx, -dy], result: [ox, oy - dy] },
       { origin, delta: [-dx, -dy], result: [ox - dx, oy - dy] },
-      //
-    ].forEach((c, j) =>
-      test(`${i} ${directionName(dx, dy)}`, () => RunCase(c)),
-    );
+    ].forEach((c) => test(`${i}_${directionName(dx, dy)}`, () => RunCase(c)));
   });
 });

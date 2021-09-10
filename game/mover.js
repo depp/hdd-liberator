@@ -50,14 +50,36 @@ export function Move(obj, radius, deltax, deltay) {
   let newx = x + deltax;
   let newy = y + deltay;
 
-  // Check collisions with surrounding tiles.
-  // Sign of movement, in X and Y direction. Nonzero.
-  let dirx = deltax > 0 ? 1 : -1;
-  let diry = deltay > 0 ? 1 : -1;
-
   // Tile position of the mover.
   let tx = x | 0;
   let ty = y | 0;
+
+  // Sign of movement, in X and Y directions. Nonzero. The tile position is
+  // adjusted so that the player is entirely contained within the 2x2 square
+  // (tx,ty), plus the additional tiles in the direction of movement.
+  let dirx, diry;
+  if (deltax > 0) {
+    dirx = 1;
+    if (x - radius < tx) {
+      tx--;
+    }
+  } else {
+    dirx = -1;
+    if (x + radius > tx + 1) {
+      tx++;
+    }
+  }
+  if (deltay > 0) {
+    diry = 1;
+    if (y - radius < ty) {
+      ty--;
+    }
+  } else {
+    diry = -1;
+    if (y + radius > ty + 1) {
+      ty++;
+    }
+  }
 
   // Adjacent tiles in the direction of movement.
   let tilex = grid.Get(tx + dirx, ty);

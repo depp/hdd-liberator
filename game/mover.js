@@ -2,6 +2,13 @@ import { COMPO } from './common.js';
 import * as grid from './grid.js';
 
 /**
+ * The amount of chamfering for outside corners. This allows objects to slide
+ * past an outside corner, ever if they are not exactly lined up with where they
+ * are going.
+ */
+const Chamfer = 0.25;
+
+/**
  * @typedef {{
  *   X0: number,
  *   Y0: number,
@@ -28,7 +35,8 @@ export const FlagCollideY = 2;
  * @param {number} radius Radius of collision box (square, not circle).
  * @param {number} deltax Delta X movement.
  * @param {number} deltay Delta Y movement.
- * @return {number} Flags: FlagCollideX and FlagCollideY.
+ * @return {number} Flags: FlagCollideX and FlagCollideY. Result is 0 if the
+ * collision is diagonal.
  */
 export function Move(obj, radius, deltax, deltay) {
   if (!COMPO) {
@@ -94,6 +102,7 @@ export function Move(obj, radius, deltax, deltay) {
   // contact with walls.
   let pushx = dirx * (newx - limitx);
   let pushy = diry * (newy - limity);
+  let pushxy;
 
   // If true, check for collision with the single tile at (tx, ty).
   let doCheckSingleTile = false;
@@ -168,6 +177,27 @@ export function Move(obj, radius, deltax, deltay) {
     // avoid overlap with the tile.
     pushx = dirx * (limitx - newx);
     pushy = diry * (limity - newy);
+
+    if (pushx > 0 && pushy > 0) {
+      // Chamfering: Moving by (dirx * pushx, diry * pushy) will leave the
+      // object exactly touching the corner of the tile. The total amount of
+      // |deltax| + |deltay| movement is reduced by the chamfering amount. Since
+      // the movement is normal to the chamfering plane, the total movement is
+      // equal to:
+      //
+      //     |deltaxy| = (|deltax| + |deltay| - chamfer) / sqrt(2)
+      const sqrt2 = 2 ** 0.5;
+      pushxy = (pushx + pushy - Chamfer) / 2;
+      if (sqrt2 * pushxy < Math.min(pushx, pushy)) {
+        if (pushxy > 0) {
+          newx += dirx * pushxy;
+          newy += diry * pushxy;
+        }
+        pushx = pushy = 0;
+        // Flags are 0 for diagonal collisions (because there's nothing that
+        // needs to know).
+      }
+    }
 
     if (pushx < pushy) {
       if (pushx > 0) {

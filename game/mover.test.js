@@ -54,7 +54,9 @@ describe('free', () => {
     { origin: [1.5, 0.5], delta: [-0.5, 0.5], result: [1.0, 1.0] },
     { origin: [0.5, 1.5], delta: [0.5, -0.5], result: [1.0, 1.0] },
     { origin: [1.5, 1.5], delta: [-0.5, -0.5], result: [1.0, 1.0] },
-  ].forEach((c, i) => test(`[${i}]`, () => RunCase(c)));
+  ].forEach((c) =>
+    test(directionName(c.delta[0], c.delta[1]), () => RunCase(c)),
+  );
 });
 
 function directionName(dx, dy) {
@@ -100,7 +102,7 @@ describe('corner outside', () => {
     }
     let cases = [
       { lateral: 6 / 16, move: 8 / 32, name: 'ClipInside' },
-      { lateral: 9 / 16, move: 8 / 32, name: 'ClipOutside' },
+      { lateral: 9 / 16, move: 9 / 32, name: 'ClipOutside' },
       { lateral: 12 / 16, move: 9 / 32, name: 'NoTouch' },
     ];
     for (const { lateral, move, name } of cases) {
@@ -137,7 +139,9 @@ describe('wall', () => {
     // Move -X
     { origin: [3.5, 4.5], delta: [-0.5, 0.5], result: [3.25, 5] },
     { origin: [3.5, 5.5], delta: [-0.5, -0.5], result: [3.25, 5] },
-  ].forEach((c, i) => test(`${i}`, () => RunCase(c)));
+  ].forEach((c, i) =>
+    test(`${directionName(c.delta[0], c.delta[1])}_${i}`, () => RunCase(c)),
+  );
 });
 
 // Moving towards an inside corner.
@@ -184,6 +188,11 @@ describe('corner away', () => {
       { origin, delta: [-dx, dy], result: [ox - dx, oy] },
       { origin, delta: [dx, -dy], result: [ox, oy - dy] },
       { origin, delta: [-dx, -dy], result: [ox - dx, oy - dy] },
-    ].forEach((c) => test(`${i}_${directionName(dx, dy)}`, () => RunCase(c)));
+    ].forEach((c) =>
+      test(
+        directionName(dx, dy) + '_' + directionName(c.delta[0], c.delta[1]),
+        () => RunCase(c),
+      ),
+    );
   });
 });

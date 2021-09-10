@@ -14,9 +14,10 @@ const PushMargin = Radius - 0.25;
  *  Y0: number,
  *  X: number,
  *  Y: number,
+ *  Angle: number,
  * }}
  */
-const Player = { X0: 0.5, Y0: 0.5, X: 0.5, Y: 0.5 };
+const Player = { X0: 0.5, Y0: 0.5, X: 0.5, Y: 0.5, Angle: 0 };
 
 /** @const {number} */
 const Speed = 3 / time.TickRate;
@@ -30,6 +31,9 @@ let CanPush;
  * Update the player state.
  */
 export function Update() {
+  if (input.MoveX || input.MoveY) {
+    Player.Angle = Math.atan2(input.MoveY, input.MoveX);
+  }
   const flags = mover.Move(
     Player,
     Radius,
@@ -80,15 +84,26 @@ export function Update() {
  * Render the player.
  */
 export function Render2D() {
-  const x = 32 * (Player.X0 + (Player.X - Player.X0) * time.Fraction);
-  const y = 32 * (Player.Y0 + (Player.Y - Player.Y0) * time.Fraction);
-  ctx.fillStyle = '#00c';
-  ctx.fillRect(
-    x - 32 * Radius,
-    y - 32 * Radius,
-    32 * 2 * Radius,
-    32 * 2 * Radius,
+  ctx.save();
+  ctx.translate(
+    32 * (Player.X0 + (Player.X - Player.X0) * time.Fraction),
+    32 * (Player.Y0 + (Player.Y - Player.Y0) * time.Fraction),
   );
+  ctx.fillStyle = '#00c';
+  ctx.fillRect(-32 * Radius, -32 * Radius, 32 * 2 * Radius, 32 * 2 * Radius);
+  ctx.strokeStyle = '#000;';
+  ctx.fillStyle = '#fff';
+  ctx.rotate(Player.Angle);
+  ctx.beginPath();
+  ctx.moveTo(15, 0);
+  ctx.lineTo(-15, 7);
+  ctx.lineTo(-15, -7);
+  ctx.closePath();
+  ctx.lineWidth = 2;
+  ctx.fill();
+  ctx.stroke();
+  ctx.restore();
+
   if (CollideBox) {
     ctx.fillStyle = CanPush ? '#cc3' : '#333';
     ctx.fillRect(

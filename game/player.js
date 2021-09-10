@@ -88,6 +88,7 @@ export function Render2D() {
       CollideBox.H * 32 - 12,
     );
   }
+  ctx.font = '16px monospace';
   ctx.fillStyle = '#000';
   ctx.fillText(debugCollide, -20, -20);
 }

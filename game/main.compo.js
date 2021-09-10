@@ -12,6 +12,7 @@ function Frame(timestamp) {
   const c = ctx.canvas;
   c.width = c.clientWidth;
   c.height = c.clientHeight;
+  ctx.fillRect(0, 0, c.width, c.height);
   game.Update(timestamp);
   game.Render2D();
   requestAnimationFrame(Frame);

@@ -57,6 +57,19 @@ test('free', () => {
   ].forEach(RunCase);
 });
 
+function directionName(dx, dy) {
+  if (dx && dy) {
+    return `${dx > 0 ? '+' : '-'}X${dy > 0 ? '+' : '-'}Y`;
+  }
+  if (dx) {
+    return dx > 0 ? '+X' : '-X';
+  }
+  if (dy) {
+    return dy > 0 ? '+Y' : '-Y';
+  }
+  return '0';
+}
+
 // Moving against an outside corner.
 test('corner outside', () => {
   const cx = 1.5;
@@ -64,6 +77,7 @@ test('corner outside', () => {
   for (let i = 0; i < 4; i++) {
     const dx = i & 1 ? -1 : 1;
     const dy = i & 2 ? -1 : 1;
+    const basename = directionName(dx, dy);
     const delta = [dx * 0.5, dy * 0.5];
     for (let j = 0; j < 2; j++) {
       const d = 0.125 + 0.75 * j;
@@ -85,7 +99,32 @@ test('corner outside', () => {
           delta,
           result: [x + 0.5 * dx, cy - dy * 0.75],
         },
-        `${i}.X.${j}`,
+        `${basename}.X.${j}`,
+      );
+    }
+    let cases = [
+      { lateral: 6 / 16, move: 0.25, name: 'ClipInside' },
+      { lateral: 9 / 16, move: 0.25, name: 'ClipOutside' },
+      { lateral: 12 / 16, move: 0.5, name: 'NoTouch' },
+    ];
+    for (const { lateral, move, name } of cases) {
+      // Move in Y direction.
+      RunCase(
+        {
+          origin: [cx - lateral * dx, cy - dy],
+          delta: [0, dy * 0.5],
+          result: [cx - lateral * dx, cy - (1 - move) * dy],
+        },
+        `${basename}.${name}.Y`,
+      );
+      // Move in X direction.
+      RunCase(
+        {
+          origin: [cx - dx, cy - lateral * dy],
+          delta: [dx * 0.5, 0],
+          result: [cx - (1 - move) * dx, cy - lateral * dy],
+        },
+        `${basename}.${name}.X`,
       );
     }
   }

@@ -2,6 +2,21 @@
  * @externs
  */
 
+// Missing externs: GamepadEvent.
+
+/**
+ * @constructor
+ * @extends {Event}
+ * @param {string} type
+ * @param {{gamepad: Gamepad}} options
+ */
+function GamepadEvent(type, options) {}
+
+/**
+ * @type {Gamepad}
+ */
+GamepadEvent.prototype.gamepad;
+
 // These externs are for websocket.js. The websocket and other modules are very
 // lightly coupled, since either the websocket module or other modules should be
 // usable without loading the other modules. For example, the main module will

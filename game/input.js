@@ -83,19 +83,26 @@ const Gamepads = [];
  * First initialization, before the game starts.
  */
 export function Init() {
-  window.addEventListener('gamepadconnected', ({ /** !Gamepad */ gamepad }) => {
-    if (gamepad.mapping == 'standard') {
-      Gamepads.push(gamepad.index);
-    }
-  });
+  window.addEventListener(
+    'gamepadconnected',
+    /** @type{function(Event)} */ (
+      (/** !GamepadEvent */ { gamepad }) => {
+        if (gamepad.mapping == 'standard') {
+          Gamepads.push(gamepad.index);
+        }
+      }
+    ),
+  );
   window.addEventListener(
     'gamepaddisconnected',
-    ({ /** !Gamepad */ gamepad }) => {
-      const index = Gamepads.indexOf(gamepad.index);
-      if (index >= 0) {
-        Gamepads.splice(index, 1);
+    /** @type{function(Event)} */ (
+      (/** !GamepadEvent */ { gamepad }) => {
+        const index = Gamepads.indexOf(gamepad.index);
+        if (index >= 0) {
+          Gamepads.splice(index, 1);
+        }
       }
-    },
+    ),
   );
 }
 

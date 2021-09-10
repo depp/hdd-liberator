@@ -1,5 +1,6 @@
 import * as input from './input.js';
 import { ctx } from './render2d.js';
+import * as grid from './grid.js';
 import * as time from './time.js';
 import * as mover from './mover.js';
 
@@ -18,17 +19,17 @@ const Player = { X0: 0.5, Y0: 0.5, X: 0.5, Y: 0.5 };
 /** @const {number} */
 const Speed = 3 / time.TickRate;
 
-/**
- * Array of collision locations. X values interleaved with Y.
- * @type {!Array<number>}
- */
-const Collisions = [];
+/** @type {number} */
+let CollideX;
+/** @type {number} */
+let CollideY;
+
+let debugCollide;
 
 /**
  * Update the player state.
  */
 export function Update() {
-  Collisions.length = 0;
   const flags = mover.Move(
     Player,
     Radius,
@@ -36,11 +37,35 @@ export function Update() {
     input.MoveY * Speed,
   );
 
-  if (flags & mover.FlagCollideX) {
-    Collisions.push((Player.X | 0) + (input.MoveX > 0 ? 1.5 : -0.5), Player.Y);
+  // Check to see if the player is pushing anything. The player can only push in
+  // cardinal directions, so we check that the movement vector points in a
+  // cardinal direction, and not diagonally. There's also a minimum movement
+  // threshold for moving.
+  const pushThreshold = 0.5;
+  let absx = Math.abs(input.MoveX);
+  let absy = Math.abs(input.MoveY);
+  let tx = Player.X | 0;
+  let ty = Player.Y | 0;
+  let dx = 0;
+  let dy = 0;
+  debugCollide = '(none)';
+  if (flags & mover.FlagCollideX && absx > 2 * absy && absx > pushThreshold) {
+    dx = input.MoveX > 0 ? 1 : -1;
+    debugCollide = `Collide ${input.MoveX > 0 ? '+' : '-'}X`;
+  } else if (
+    flags & mover.FlagCollideY &&
+    absy > 2 * absx &&
+    absy > pushThreshold
+  ) {
+    dy = input.MoveY > 0 ? 1 : -1;
+    debugCollide = `Collide ${input.MoveY > 0 ? '+' : '-'}Y`;
   }
-  if (flags & mover.FlagCollideY) {
-    Collisions.push(Player.X, (Player.Y | 0) + (input.MoveY > 0 ? 1.5 : -0.5));
+  tx += dx;
+  ty += dy;
+  CollideX = CollideY = -1;
+  if (dx + dy && grid.Get(tx, ty) == grid.TileBox) {
+    CollideX = tx;
+    CollideY = ty;
   }
 }
 
@@ -57,10 +82,10 @@ export function Render2D() {
     32 * 2 * Radius,
     32 * 2 * Radius,
   );
-  for (let i = 0; i < Collisions.length; ) {
-    let cx = Collisions[i++];
-    let cy = Collisions[i++];
+  if (CollideX >= 0) {
     ctx.fillStyle = '#cc3';
-    ctx.fillRect(cx * 32 - 10, cy * 32 - 10, 20, 20);
+    ctx.fillRect(CollideX * 32 + 6, CollideY * 32 + 6, 20, 20);
   }
+  ctx.fillStyle = '#000';
+  ctx.fillText(debugCollide, -20, -20);
 }

@@ -34,27 +34,27 @@ beforeAll(() => {
   }
 });
 
-function RunCase(c, name) {
+function RunCase(c) {
   const { origin, delta, result } = c;
   const obj = { X0: -100, Y0: -100, X: origin[0], Y: origin[1] };
   mover.Move(obj, 0.25, delta[0], delta[1]);
   if (result[0] != obj.X || result[1] != obj.Y) {
-    console.log('Case failed:', name, c, [obj.X, obj.Y]);
     throw new Error(
-      `case ${name}: ` +
-        `got (${obj.X}, ${obj.Y}), expect (${result[0]}, ${result[1]})`,
+      `origin: (${origin})\n` +
+        `delta: (${delta})\n` +
+        `output: (${obj.X}, ${obj.Y}); expect: (${result})`,
     );
   }
 }
 
 // Free movement - no obstacles.
-test('free', () => {
+describe('free', () => {
   [
     { origin: [0.5, 0.5], delta: [0.5, 0.5], result: [1.0, 1.0] },
     { origin: [1.5, 0.5], delta: [-0.5, 0.5], result: [1.0, 1.0] },
     { origin: [0.5, 1.5], delta: [0.5, -0.5], result: [1.0, 1.0] },
     { origin: [1.5, 1.5], delta: [-0.5, -0.5], result: [1.0, 1.0] },
-  ].forEach(RunCase);
+  ].forEach((c, i) => test(`[${i}]`, () => RunCase(c)));
 });
 
 function directionName(dx, dy) {
@@ -71,7 +71,7 @@ function directionName(dx, dy) {
 }
 
 // Moving against an outside corner.
-test('corner outside', () => {
+describe('corner outside', () => {
   const cx = 1.5;
   const cy = 2.5;
   for (let i = 0; i < 4; i++) {
@@ -83,24 +83,20 @@ test('corner outside', () => {
       const d = 0.125 + 0.75 * j;
       // Slide in Y direction:
       const y = cy - dy * d;
-      RunCase(
-        {
+      test(`${basename}.Y[${j}]`, () =>
+        RunCase({
           origin: [cx - dx, y],
           delta,
           result: [cx - dx * 0.75, y + 0.5 * dy],
-        },
-        `${i}.Y.${j}`,
-      );
+        }));
       // Slide in X direction:
       const x = cx - dx * d;
-      RunCase(
-        {
+      test(`${basename}.X[${j}]`, () =>
+        RunCase({
           origin: [x, cy - dy],
           delta,
           result: [x + 0.5 * dx, cy - dy * 0.75],
-        },
-        `${basename}.X.${j}`,
-      );
+        }));
     }
     let cases = [
       { lateral: 6 / 16, move: 0.25, name: 'ClipInside' },
@@ -109,29 +105,25 @@ test('corner outside', () => {
     ];
     for (const { lateral, move, name } of cases) {
       // Move in Y direction.
-      RunCase(
-        {
+      test(`${basename}.${name}.Y`, () =>
+        RunCase({
           origin: [cx - lateral * dx, cy - dy],
           delta: [0, dy * 0.5],
           result: [cx - lateral * dx, cy - (1 - move) * dy],
-        },
-        `${basename}.${name}.Y`,
-      );
+        }));
       // Move in X direction.
-      RunCase(
-        {
+      test(`${basename}.${name}.X`, () =>
+        RunCase({
           origin: [cx - dx, cy - lateral * dy],
           delta: [dx * 0.5, 0],
           result: [cx - (1 - move) * dx, cy - lateral * dy],
-        },
-        `${basename}.${name}.X`,
-      );
+        }));
     }
   }
 });
 
 // Moving towards a wall.
-test('wall', () => {
+describe('wall', () => {
   [
     // Move +Y
     { origin: [1.5, 3.5], delta: [0.5, 0.5], result: [2, 3.75] },
@@ -145,46 +137,41 @@ test('wall', () => {
     // Move -X
     { origin: [3.5, 4.5], delta: [-0.5, 0.5], result: [3.25, 5] },
     { origin: [3.5, 5.5], delta: [-0.5, -0.5], result: [3.25, 5] },
-  ].forEach(RunCase);
+  ].forEach((c, i) => test(`[${i}]`, () => RunCase(c)));
 });
 
 // Moving towards an inside corner.
 // Free movement - no obstacles.
-test('corner inside', () => {
+describe('corner inside', () => {
   const cx = 5.5;
   const cy = 2.5;
   for (let i = 0; i < 4; i++) {
     const dx = i & 1 ? -1 : 1;
     const dy = i & 2 ? -1 : 1;
-    RunCase(
-      {
+    const name = directionName(dx, dy);
+    test(`${name} / XY`, () =>
+      RunCase({
         origin: [cx - dx * 0.875, cy - dy * 0.875],
         delta: [dx * 0.5, dy * 0.5],
         result: [cx - dx * 0.75, cy - dy * 0.75],
-      },
-      `${i}.XY`,
-    );
-    RunCase(
-      {
+      }));
+    test(`${name} / X`, () =>
+      RunCase({
         origin: [cx - dx, cy - dy * 0.875],
         delta: [dx * 0.125, dy * 0.5],
         result: [cx - dx * 0.875, cy - dy * 0.75],
-      },
-      `${i}.X`,
-    );
-    RunCase(
-      {
+      }));
+    test(`${name} / Y`, () =>
+      RunCase({
         origin: [cx - dx * 0.875, cy - dy],
         delta: [dx * 0.5, dy * 0.125],
         result: [cx - dx * 0.75, cy - dy * 0.875],
-      },
-      `${i}.Y`,
-    );
+      }));
   }
 });
 
 // Move away from inside corner.
-test('corner away', () => {
+describe('corner away', () => {
   [
     { origin: [5.75, 6.25], delta: [0.25, -0.25] },
     { origin: [6.25, 5.75], delta: [-0.25, 0.25] },
@@ -198,8 +185,8 @@ test('corner away', () => {
       { origin, delta: [dx, -dy], result: [ox, oy - dy] },
       { origin, delta: [-dx, -dy], result: [ox - dx, oy - dy] },
       //
-    ].forEach((c, j) => {
-      RunCase(c, `${i}.${j}`);
-    });
+    ].forEach((c, j) =>
+      test(`${i} ${directionName(dx, dy)}`, () => RunCase(c)),
+    );
   });
 });

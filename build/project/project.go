@@ -127,7 +127,7 @@ func (p *Project) listSources() ([]string, error) {
 	for _, f := range fs {
 		if f.Mode().IsRegular() {
 			if name := f.Name(); IsSourceName(name) {
-				srcs = append(srcs, path.Join(p.Config.SourceDir, name))
+				srcs = append(srcs, filepath.Join(p.Config.SourceDir, name))
 			}
 		}
 	}
@@ -182,10 +182,15 @@ func (p *Project) CompileCompo(ctx context.Context, c Compiler) (*CompoData, err
 	if err != nil {
 		return nil, err
 	}
+	hdata, err := ioutil.ReadFile(filepath.Join(p.BaseDir, p.Config.SourceDir, "index.compo.html"))
+	if err != nil {
+		return nil, err
+	}
 	cd := CompoData{
-		Config:      p.Config,
-		Data:        dd,
-		Diagnostics: rsp.GetDiagnostic(),
+		Config:       p.Config,
+		Data:         dd,
+		Diagnostics:  rsp.GetDiagnostic(),
+		HTMLTemplate: hdata,
 	}
 	scr := ScriptData{
 		Code:      rsp.GetCode(),

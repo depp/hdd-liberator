@@ -28,9 +28,9 @@ rules_proto_toolchains()
 
 http_archive(
     name = "zopfli",
+    build_file = "@//bazel:zopfli.bazel",
     sha256 = "e955a7739f71af37ef3349c4fa141c648e8775bceb2195be07e86f8e638814bd",
     strip_prefix = "zopfli-zopfli-1.0.3",
-    build_file = "@//bazel:zopfli.bazel",
     urls = [
         "https://github.com/google/zopfli/archive/refs/tags/zopfli-1.0.3.tar.gz",
     ],

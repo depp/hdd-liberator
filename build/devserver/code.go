@@ -56,7 +56,7 @@ func newBuildState(s *watcher.CodeState) *buildState {
 			return &d
 		}
 		d.html = hd
-		d.sourcemap = s.Compo.MinifiedScript.Code
+		d.sourcemap = s.Compo.MinifiedScript.SourceMap
 		logrus.Infoln("Done building.")
 	} else {
 		logrus.Infoln("Loaded project.")

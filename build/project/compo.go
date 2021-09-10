@@ -1,9 +1,18 @@
 package project
 
 import (
+	"bytes"
+	"errors"
+	"fmt"
+	"io"
 	"net/url"
+	"strconv"
+	"strings"
+	"unicode/utf8"
 
-	"moria.us/js13k/build/html"
+	"golang.org/x/net/html"
+
+	html2 "moria.us/js13k/build/html"
 
 	pb "moria.us/js13k/proto/compiler"
 )
@@ -19,6 +28,75 @@ type CompoData struct {
 	Diagnostics    []*pb.Diagnostic
 	CompiledScript ScriptData
 	MinifiedScript ScriptData
+	HTMLTemplate   []byte
+}
+
+func isAlnum(c byte) bool {
+	return 'a' <= c && c <= 'z' ||
+		'A' <= c && c <= 'Z' ||
+		'0' <= c && c <= '9' ||
+		c == '_'
+}
+
+func readVariable(t string) (n, rem string) {
+	var i int
+	for i < len(t) && isAlnum(t[i]) {
+		i++
+	}
+	return t[:i], t[i:]
+}
+
+func (d *CompoData) expandText(t string, sourceMapURL *url.URL) (string, error) {
+	var b strings.Builder
+	for len(t) > 0 {
+		switch c := t[0]; c {
+		case ' ', '\t', '\n', '\r':
+			t = t[1:]
+		case '"':
+			t = t[1:]
+			for {
+				if len(t) == 0 {
+					return "", errors.New("missing <\">")
+				}
+				c := t[0]
+				if c == '$' {
+					var name string
+					name, t = readVariable(t[1:])
+					switch name {
+					case "":
+						return "", errors.New("missing variable name after $")
+					case "title":
+						b.WriteString(d.Config.Title)
+					case "code":
+						b.Write(d.MinifiedScript.Code)
+						if sourceMapURL != nil {
+							b.WriteString("//# sourceMappingURL=")
+							b.WriteString(sourceMapURL.String())
+						}
+					case "data":
+						b.WriteString(d.Data)
+					default:
+						return "", fmt.Errorf("unknown variable: %s", name)
+					}
+					continue
+				}
+				if c == '"' {
+					t = t[1:]
+					break
+				}
+				// Note: No way to escape $ at the moment.
+				v, _, tail, err := strconv.UnquoteChar(t, '"')
+				if err != nil {
+					return "", err
+				}
+				t = tail
+				b.WriteRune(v)
+			}
+		default:
+			return "", fmt.Errorf("unexpected character in HTML body: %q", c)
+		}
+	}
+	return b.String(), nil
 }
 
 // BuildHTML returns the HTML page.
@@ -26,42 +104,43 @@ type CompoData struct {
 // If sourceMapURL is non-nil, a link to the source map for the JavaScript code
 // will be inserted. The URL should be nil for the submitted build.
 func (d *CompoData) BuildHTML(sourceMapURL *url.URL) ([]byte, error) {
-	var w html.Writer
-
-	w.WriteDocType()
-
-	if d.Config.Title != "" {
-		w.OpenTag("title")
-		w.Text(d.Config.Title)
-		w.CloseTag("title")
+	if !utf8.Valid(d.HTMLTemplate) {
+		return nil, errors.New("HTML template is not UTF-8")
 	}
-
-	w.OpenTag("canvas")
-	w.Attr("id", "g")
-	w.Attr("style", "display:none")
-	w.CloseTag("canvas")
-
-	w.OpenTag("button")
-	w.Attr("id", "b")
-	w.Attr("style", "font-size:9em")
-	// U+25B6 black right-pointing triangle
-	// U+FE0f variation selector 16 (previous character is emoji)
-	w.Text("\u25b6\ufe0f")
-
-	w.OpenTag("script")
-	w.Attr("type", "module")
-	w.Text(string(d.MinifiedScript.Code))
-	if sourceMapURL != nil {
-		w.Text("//# sourceMappingURL=")
-		w.Text(sourceMapURL.String())
+	var w html2.Writer
+	t := html.NewTokenizer(bytes.NewReader(d.HTMLTemplate))
+	for {
+		switch tt := t.Next(); tt {
+		case html.ErrorToken:
+			if err := t.Err(); err != io.EOF {
+				return nil, fmt.Errorf("bad HTML template: %v", t.Err())
+			}
+			return w.Finish()
+		case html.TextToken:
+			s, err := d.expandText(string(t.Text()), sourceMapURL)
+			if err != nil {
+				return nil, err
+			}
+			w.Text(s)
+		case html.StartTagToken:
+			name, hasattr := t.TagName()
+			w.OpenTag(string(name))
+			for hasattr {
+				var key, val []byte
+				key, val, hasattr = t.TagAttr()
+				w.Attr(string(key), string(val))
+			}
+		case html.EndTagToken:
+			name, _ := t.TagName()
+			w.CloseTag(string(name))
+		case html.SelfClosingTagToken:
+			name, _ := t.TagName()
+			return nil, fmt.Errorf("cannot use self-closing tag: <%s/>", string(name))
+		case html.CommentToken:
+		case html.DoctypeToken:
+			w.WriteDocType()
+		default:
+			return nil, fmt.Errorf("unknown HTML token type: %d", tt)
+		}
 	}
-	w.CloseTag("script")
-
-	w.OpenTag("script")
-	w.Attr("type", "x")
-	w.Attr("id", "d")
-	w.Text(d.Data)
-	w.CloseTag("script")
-
-	return w.Finish()
 }

@@ -46,6 +46,11 @@ export function Render2D() {
   let x, y;
   const gs = 32;
 
+  /** @type {HTMLCanvasElement} */
+  const c = ctx.canvas;
+  ctx.fillStyle = '#666';
+  ctx.fillRect(0, 0, c.width, c.height);
+
   ctx.save();
   for (x = 0; x < grid.Width; x++) {
     for (y = 0; y < grid.Height; y++) {

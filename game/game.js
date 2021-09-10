@@ -75,4 +75,19 @@ export function Render2D() {
   ctx.restore();
 
   player.Render2D();
+
+  // Draw an emoji, centered on a grid square. To center it vertically,
+  // textBaseline does not appear to be sufficient... it was observed to be
+  // off-center on different systems by different amounts. Instead, we pick an
+  // emoji with a very circular shape (U+1F600 grinning face) and measure the
+  // actual center of the glyph.
+  ctx.save();
+  ctx.font = '32px serif';
+  const m = ctx.measureText('\u{1F600}');
+  const off = (m.actualBoundingBoxAscent - m.actualBoundingBoxDescent) >> 1;
+  ctx.textAlign = 'center';
+  const str = '\u{1F923}';
+  ctx.fillText(str, gs * 2.5, gs * 0.5 + off);
+  ctx.fillRect(gs * 2.5 - 1, gs * 0.5 - 1, 2, 2);
+  ctx.restore();
 }

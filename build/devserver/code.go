@@ -43,12 +43,12 @@ func newBuildState(s *watcher.CodeState) *buildState {
 	}
 	if c := s.Compo; c != nil {
 		d.diagnostic = c.Diagnostics
-		if len(s.Compo.CompiledScript.Code) == 0 {
+		if len(s.Compo.MinifiedScript.Code) == 0 {
 			d.err = errBuildFailed
 			logrus.Errorln("Build:", d.err)
 			return &d
 		}
-		d.code = s.Compo.CompiledScript.Code
+		d.code = s.Compo.MinifiedScript.Code
 		hd, err := s.Compo.BuildHTML(&releaseMapURL)
 		if err != nil {
 			d.err = err

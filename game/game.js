@@ -46,10 +46,17 @@ export function Render2D() {
   let x, y;
   const gs = 32;
 
+  ctx.save();
+
   /** @type {HTMLCanvasElement} */
   const c = ctx.canvas;
   ctx.fillStyle = '#666';
   ctx.fillRect(0, 0, c.width, c.height);
+
+  ctx.translate(
+    (c.width - gs * grid.Width) >> 1,
+    (c.height - gs * grid.Height) >> 1,
+  );
 
   ctx.save();
   for (x = 0; x < grid.Width; x++) {
@@ -88,5 +95,7 @@ export function Render2D() {
   const str = '\u{1F923}';
   ctx.fillText(str, gs * 2.5, gs * 0.5 + off);
   ctx.fillRect(gs * 2.5 - 1, gs * 0.5 - 1, 2, 2);
+  ctx.restore();
+
   ctx.restore();
 }

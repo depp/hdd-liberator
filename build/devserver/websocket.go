@@ -117,7 +117,7 @@ type buildMessage struct {
 func makeBuildMessage(d *buildState) *buildMessage {
 	var m buildMessage
 	if d.err == nil {
-		if len(d.html) > 0 {
+		if len(d.data.MinifiedScript.Code) > 0 {
 			m.State = "ok"
 		} else {
 			m.State = "building"

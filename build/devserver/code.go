@@ -20,9 +20,7 @@ type buildState struct {
 	err        error
 	project    *project.Project
 	diagnostic []*pb.Diagnostic
-	code       []byte
-	html       []byte
-	sourcemap  []byte
+	data       *project.CompoData
 }
 
 func newBuildState(s *watcher.CodeState) *buildState {
@@ -48,15 +46,7 @@ func newBuildState(s *watcher.CodeState) *buildState {
 			logrus.Errorln("Build:", d.err)
 			return &d
 		}
-		d.code = s.Compo.MinifiedScript.Code
-		hd, err := s.Compo.BuildHTML(&releaseMapURL)
-		if err != nil {
-			d.err = err
-			logrus.Errorln("BuildHTML:", err)
-			return &d
-		}
-		d.html = hd
-		d.sourcemap = s.Compo.MinifiedScript.SourceMap
+		d.data = s.Compo
 		logrus.Infoln("Done building.")
 	} else {
 		logrus.Infoln("Loaded project.")
@@ -175,7 +165,7 @@ func (c *code) getProject(ctx context.Context) (*project.Project, error) {
 
 func (c *code) getBuild(ctx context.Context) (*buildState, error) {
 	d := c.getBuildState(ctx, func(d *buildState) bool {
-		return d != nil && (d.err != nil || d.html != nil)
+		return d != nil && (d.err != nil || d.data != nil)
 	})
 	if d == nil {
 		return nil, ctx.Err()

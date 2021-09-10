@@ -182,15 +182,11 @@ func (p *Project) CompileCompo(ctx context.Context, c Compiler) (*CompoData, err
 	if err != nil {
 		return nil, err
 	}
-	hdata, err := ioutil.ReadFile(filepath.Join(p.BaseDir, p.Config.SourceDir, "index.compo.html"))
-	if err != nil {
-		return nil, err
-	}
 	cd := CompoData{
 		Config:       p.Config,
 		Data:         dd,
 		Diagnostics:  rsp.GetDiagnostic(),
-		HTMLTemplate: hdata,
+		TemplatePath: filepath.Join(p.BaseDir, p.Config.SourceDir, "index.compo.html"),
 	}
 	scr := ScriptData{
 		Code:      rsp.GetCode(),

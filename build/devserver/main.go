@@ -259,13 +259,17 @@ func serveRelease(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	data := d.html
+	hd, err := d.data.BuildHTML(&releaseMapURL)
+	if err != nil {
+		h.serveErrorf(w, r, "Could not build HTML: %v", err)
+		return
+	}
 	logResponse(r, http.StatusOK, "")
 	hdr := w.Header()
 	hdr.Set("Content-Type", htmlType)
-	hdr.Set("Content-Length", strconv.Itoa(len(data)))
+	hdr.Set("Content-Length", strconv.Itoa(len(hd)))
 	hdr.Set("Cache-Control", "no-cache")
-	w.Write(data)
+	w.Write(hd)
 }
 
 func serveReleaseMap(w http.ResponseWriter, r *http.Request) {
@@ -276,7 +280,7 @@ func serveReleaseMap(w http.ResponseWriter, r *http.Request) {
 		// ctx canceled.
 		return
 	}
-	data := d.sourcemap
+	data := d.data.MinifiedScript.SourceMap
 	if len(data) == 0 {
 		h.serveNotFound(w, r)
 		return
@@ -311,7 +315,7 @@ func serveReleaseSource(w http.ResponseWriter, r *http.Request) {
 		// ctx canceled.
 		return
 	}
-	data := d.code
+	data := d.data.MinifiedScript.Code
 	q := r.URL.Query()
 	if _, ok := q["pretty"]; ok {
 		data, err = h.prettyPrintJS(ctx, data)

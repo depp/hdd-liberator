@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"net/url"
 	"strconv"
 	"strings"
@@ -28,7 +29,7 @@ type CompoData struct {
 	Diagnostics    []*pb.Diagnostic
 	CompiledScript ScriptData
 	MinifiedScript ScriptData
-	HTMLTemplate   []byte
+	TemplatePath   string
 }
 
 func isAlnum(c byte) bool {
@@ -104,11 +105,15 @@ func (d *CompoData) expandText(t string, sourceMapURL *url.URL) (string, error) 
 // If sourceMapURL is non-nil, a link to the source map for the JavaScript code
 // will be inserted. The URL should be nil for the submitted build.
 func (d *CompoData) BuildHTML(sourceMapURL *url.URL) ([]byte, error) {
-	if !utf8.Valid(d.HTMLTemplate) {
+	hd, err := ioutil.ReadFile(d.TemplatePath)
+	if err != nil {
+		return nil, err
+	}
+	if !utf8.Valid(hd) {
 		return nil, errors.New("HTML template is not UTF-8")
 	}
 	var w html2.Writer
-	t := html.NewTokenizer(bytes.NewReader(d.HTMLTemplate))
+	t := html.NewTokenizer(bytes.NewReader(hd))
 	for {
 		switch tt := t.Next(); tt {
 		case html.ErrorToken:

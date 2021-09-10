@@ -10,8 +10,6 @@ const Chamfer = 0.25;
 
 /**
  * @typedef {{
- *   X0: number,
- *   Y0: number,
  *   X: number,
  *   Y: number,
  * }}
@@ -53,8 +51,8 @@ export function Move(obj, radius, deltax, deltay) {
     }
   }
   let flags = 0;
-  let x = (obj.X0 = obj.X);
-  let y = (obj.Y0 = obj.Y);
+  let x = obj.X;
+  let y = obj.Y;
   let newx = x + deltax;
   let newy = y + deltay;
 

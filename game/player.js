@@ -3,24 +3,43 @@ import { ctx } from './render2d.js';
 import * as time from './time.js';
 import * as mover from './mover.js';
 import * as entityBox from './entity.box.js';
+import { AngleDelta } from './util.js';
 
+/**
+ * Player collision radius.
+ */
 const Radius = 0.375;
 
 const PushMargin = Radius - 0.25;
 
 /**
+ * Player movement speed, in grid squares per tick.
+ */
+const Speed = 3 / time.TickRate;
+
+/**
+ * Player turn speed, in radians per tick.
+ */
+const TurnSpeed = 12 / time.TickRate;
+
+/**
+ * Maximum angle between facing direction and moving direction, in radians.
+ * Slightly more than 45 degrees. If the difference is larger, the player will
+ * stand in place and turn.
+ */
+const MaxDeltaAngle = 0.8;
+
+/**
  * @type {{
  *  X0: number,
  *  Y0: number,
+ *  Angle0: number,
  *  X: number,
  *  Y: number,
  *  Angle: number,
  * }}
  */
-const Player = { X0: 0.5, Y0: 0.5, X: 0.5, Y: 0.5, Angle: 0 };
-
-/** @const {number} */
-const Speed = 3 / time.TickRate;
+const Player = { X0: 0.5, Y0: 0.5, Angle0: 0, X: 0.5, Y: 0.5, Angle: 0 };
 
 /** @type {entityBox.Box|null} */
 let CollideBox;
@@ -31,8 +50,24 @@ let CanPush;
  * Update the player state.
  */
 export function Update() {
-  if (input.MoveX || input.MoveY) {
-    Player.Angle = Math.atan2(input.MoveY, input.MoveX);
+  Player.X0 = Player.X;
+  Player.Y0 = Player.Y;
+  Player.Angle0 = Player.Angle;
+  if (!input.MoveX && !input.MoveY) {
+    return;
+  }
+  let targetAngle = Math.atan2(input.MoveY, input.MoveX);
+  let deltaAngle = AngleDelta(Player.Angle, targetAngle);
+  let absDeltaAngle = Math.abs(deltaAngle);
+  if (absDeltaAngle < TurnSpeed) {
+    Player.Angle = targetAngle;
+  } else if (deltaAngle > 0) {
+    Player.Angle += TurnSpeed;
+  } else {
+    Player.Angle -= TurnSpeed;
+  }
+  if (absDeltaAngle > MaxDeltaAngle) {
+    return;
   }
   const flags = mover.Move(
     Player,

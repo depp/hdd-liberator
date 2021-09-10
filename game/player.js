@@ -61,10 +61,10 @@ export function Update() {
   let absDeltaAngle = Math.abs(deltaAngle);
   if (absDeltaAngle < TurnSpeed) {
     Player.Angle = targetAngle;
-  } else if (deltaAngle > 0) {
-    Player.Angle += TurnSpeed;
   } else {
-    Player.Angle -= TurnSpeed;
+    Player.Angle =
+      (Player.Angle + (deltaAngle > 0 ? TurnSpeed : -TurnSpeed)) %
+      (2 * Math.PI);
   }
   if (absDeltaAngle > MaxDeltaAngle) {
     return;

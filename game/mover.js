@@ -12,12 +12,15 @@ import * as grid from './grid.js';
 export var Mover;
 
 /**
- * Array of the grid locations of the tiles that the last mover collided with.
- * The grid locations are interleaved: [x0, y0, x1, y1, ...]. This list is
- * conservative and may include an extra adjacent wall tile.
- * @type {!Array<number>}
+ * Flag returned from Move that indicates a collision in the +X or -X direction.
+ * @const
  */
-export let Collisions = [];
+export const FlagCollideX = 1;
+
+/**
+ * Flag returned from Move that indicates a collision in the +Y or -Y direction.
+ */
+export const FlagCollideY = 2;
 
 /**
  * Update a mover which can collide with objects in the game.
@@ -25,6 +28,7 @@ export let Collisions = [];
  * @param {number} radius Radius of collision box (square, not circle).
  * @param {number} deltax Delta X movement.
  * @param {number} deltay Delta Y movement.
+ * @return {number} Flags: FlagCollideX and FlagCollideY.
  */
 export function Move(obj, radius, deltax, deltay) {
   if (!COMPO) {
@@ -40,7 +44,7 @@ export function Move(obj, radius, deltax, deltay) {
       throw new Error(`movement too large: (${deltax}, ${deltay})`);
     }
   }
-  Collisions.length = 0;
+  let flags = 0;
   let x = (obj.X0 = obj.X);
   let y = (obj.Y0 = obj.Y);
   let newx = x + deltax;
@@ -85,11 +89,11 @@ export function Move(obj, radius, deltax, deltay) {
       // We are not already through, on the other side.
       if (pushx > 0) {
         newx = limitx;
-        Collisions.push(tx + dirx, ty);
+        flags = FlagCollideX;
       }
       if (pushy > 0) {
         newy = limity;
-        Collisions.push(tx, ty + diry);
+        flags |= FlagCollideY;
       }
     }
   } else if (tilexy) {
@@ -101,7 +105,7 @@ export function Move(obj, radius, deltax, deltay) {
       // There is vertical wall next to the object, with no nearby corners.
       if (pushx > 0) {
         newx = limitx;
-        Collisions.push(tx + dirx, ty, tx + dirx, ty + diry);
+        flags = FlagCollideX;
       }
     } else if (tiley) {
       // @|
@@ -111,7 +115,7 @@ export function Move(obj, radius, deltax, deltay) {
       // There is a horizontal wall next to the object, with no nearby corners.
       if (pushy > 0) {
         newy = limity;
-        Collisions.push(tx, ty + diry, tx + dirx, ty + diry);
+        flags = FlagCollideY;
       }
     } else {
       // @|
@@ -155,14 +159,15 @@ export function Move(obj, radius, deltax, deltay) {
     if (pushx < pushy) {
       if (pushx > 0) {
         newx = limitx;
-        Collisions.push(tx, ty);
+        flags = FlagCollideX;
       }
     } else if (pushy > 0) {
       newy = limity;
-      Collisions.push(tx, ty);
+      flags = FlagCollideY;
     }
   }
 
   obj.X = newx;
   obj.Y = newy;
+  return flags;
 }

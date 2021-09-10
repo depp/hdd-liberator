@@ -19,10 +19,29 @@ const Player = { X0: 0.5, Y0: 0.5, X: 0.5, Y: 0.5 };
 const Speed = 3 / time.TickRate;
 
 /**
+ * Array of collision locations. X values interleaved with Y.
+ * @type {!Array<number>}
+ */
+const Collisions = [];
+
+/**
  * Update the player state.
  */
 export function Update() {
-  mover.Move(Player, Radius, input.MoveX * Speed, input.MoveY * Speed);
+  Collisions.length = 0;
+  const flags = mover.Move(
+    Player,
+    Radius,
+    input.MoveX * Speed,
+    input.MoveY * Speed,
+  );
+
+  if (flags & mover.FlagCollideX) {
+    Collisions.push((Player.X | 0) + (input.MoveX > 0 ? 1.5 : -0.5), Player.Y);
+  }
+  if (flags & mover.FlagCollideY) {
+    Collisions.push(Player.X, (Player.Y | 0) + (input.MoveY > 0 ? 1.5 : -0.5));
+  }
 }
 
 /**
@@ -38,10 +57,10 @@ export function Render2D() {
     32 * 2 * Radius,
     32 * 2 * Radius,
   );
-  for (let i = 0; i < mover.Collisions.length; ) {
-    let tx = mover.Collisions[i++];
-    let ty = mover.Collisions[i++];
+  for (let i = 0; i < Collisions.length; ) {
+    let cx = Collisions[i++];
+    let cy = Collisions[i++];
     ctx.fillStyle = '#cc3';
-    ctx.fillRect(tx * 32 + 6, ty * 32 + 6, 20, 20);
+    ctx.fillRect(cx * 32 - 10, cy * 32 - 10, 20, 20);
   }
 }

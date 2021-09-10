@@ -12,6 +12,14 @@ import * as grid from './grid.js';
 export var Mover;
 
 /**
+ * Array of the grid locations of the tiles that the last mover collided with.
+ * The grid locations are interleaved: [x0, y0, x1, y1, ...]. This list is
+ * conservative and may include an extra adjacent wall tile.
+ * @type {!Array<number>}
+ */
+export let Collisions = [];
+
+/**
  * Update a mover which can collide with objects in the game.
  * @param {!Mover} obj The object to update.
  * @param {number} radius Radius of collision box (square, not circle).
@@ -32,6 +40,7 @@ export function Move(obj, radius, deltax, deltay) {
       throw new Error(`movement too large: (${deltax}, ${deltay})`);
     }
   }
+  Collisions.length = 0;
   let x = (obj.X0 = obj.X);
   let y = (obj.Y0 = obj.Y);
   let newx = x + deltax;
@@ -76,9 +85,11 @@ export function Move(obj, radius, deltax, deltay) {
       // We are not already through, on the other side.
       if (pushx > 0) {
         newx = limitx;
+        Collisions.push(tx + dirx, ty);
       }
       if (pushy > 0) {
         newy = limity;
+        Collisions.push(tx, ty + diry);
       }
     }
   } else if (tilexy) {
@@ -90,6 +101,7 @@ export function Move(obj, radius, deltax, deltay) {
       // There is vertical wall next to the object, with no nearby corners.
       if (pushx > 0) {
         newx = limitx;
+        Collisions.push(tx + dirx, ty, tx + dirx, ty + diry);
       }
     } else if (tiley) {
       // @|
@@ -99,6 +111,7 @@ export function Move(obj, radius, deltax, deltay) {
       // There is a horizontal wall next to the object, with no nearby corners.
       if (pushy > 0) {
         newy = limity;
+        Collisions.push(tx, ty + diry, tx + dirx, ty + diry);
       }
     } else {
       // @|
@@ -142,9 +155,11 @@ export function Move(obj, radius, deltax, deltay) {
     if (pushx < pushy) {
       if (pushx > 0) {
         newx = limitx;
+        Collisions.push(tx, ty);
       }
     } else if (pushy > 0) {
       newy = limity;
+      Collisions.push(tx, ty);
     }
   }
 

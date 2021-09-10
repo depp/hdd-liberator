@@ -38,4 +38,10 @@ export function Render2D() {
     32 * 2 * Radius,
     32 * 2 * Radius,
   );
+  for (let i = 0; i < mover.Collisions.length; ) {
+    let tx = mover.Collisions[i++];
+    let ty = mover.Collisions[i++];
+    ctx.fillStyle = '#cc3';
+    ctx.fillRect(tx * 32 + 6, ty * 32 + 6, 20, 20);
+  }
 }

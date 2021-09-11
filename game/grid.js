@@ -28,8 +28,8 @@ export function MoveRect(rect, dx, dy) {
  * @param {number} dy
  * @return {!Rect}
  */
-export function AddRect(rect, dx, dy) {
-  return { X: rect.X + dx, Y: rect.Y + dy, W: rect.W, H: rect.H };
+export function AddRect({ X, Y, W, H }, dx, dy) {
+  return { X: X + dx, Y: Y + dy, W, H };
 }
 
 /**
@@ -168,15 +168,14 @@ export function Set(x, y, value) {
 /**
  * Return true if the given rectangle is clear (all cells are zero). Returns
  * false if any part of the rectangle extends outside the grid. An offset can be
- * added to the box.
+ * added to the rectangle.
  *
  * @param {!Rect} rect
  * @param {number=} dx
  * @param {number=} dy
  * @return {boolean}
  */
-export function IsRectClear(rect, dx = 0, dy = 0) {
-  let { X, Y, W, H } = rect;
+export function IsRectClear({ X, Y, W, H }, dx = 0, dy = 0) {
   if (!COMPO) {
     if (
       typeof X != 'number' ||
@@ -216,8 +215,7 @@ export function IsRectClear(rect, dx = 0, dy = 0) {
  * @param {!Rect} rect
  * @param {number} value
  */
-export function SetRect(rect, value) {
-  let { X, Y, W, H } = rect;
+export function SetRect({ X, Y, W, H }, value) {
   if (!COMPO) {
     if (
       typeof X != 'number' ||

@@ -87,8 +87,6 @@ function FaceTowards(angle) {
   return absDeltaAngle - TurnSpeed;
 }
 
-let debugStr;
-
 /**
  * Get the cardinal direction that the player is moving. Returns the zero vector
  * if the player is not moving in a cardinal direction.
@@ -154,7 +152,6 @@ function Walk() {
           return;
         }
         [dx, dy] = CardinalMoveDirection();
-        debugStr = 'grabbed';
         if (dx + dy) {
           // To check if the box can move:
           // - Remove the box from the grid.
@@ -212,7 +209,6 @@ function Walk() {
           CollideBox = null;
           return;
         }
-        debugStr = 'Grab';
         let isMoving = FaceTowards(angle);
         let dx = tx - Player.X;
         let dy = ty - Player.Y;
@@ -245,7 +241,6 @@ function ICos(x) {
  * Update the player state.
  */
 export function Update() {
-  debugStr = '';
   Player.X0 = Player.X;
   Player.Y0 = Player.Y;
   Player.Angle0 = Player.Angle;
@@ -284,11 +279,5 @@ export function Render2D() {
       CollideBox.W * 32 - 12,
       CollideBox.H * 32 - 12,
     );
-  }
-
-  if (debugStr) {
-    ctx.font = '16px monospace';
-    ctx.fillStyle = '#000';
-    ctx.fillText(debugStr, -20, -20);
   }
 }

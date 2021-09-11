@@ -116,7 +116,7 @@ type buildMessage struct {
 
 func makeBuildMessage(d *buildState) *buildMessage {
 	var m buildMessage
-	if d.err == nil {
+	if d != nil && d.err == nil {
 		if d.data != nil {
 			m.State = "ok"
 		} else {

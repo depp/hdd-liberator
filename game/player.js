@@ -119,7 +119,7 @@ function Walk() {
         }
         debugStr = 'grabbed';
         if (dx + dy) {
-          if (entityBox.CanMove(box, dx, dy)) {
+          if (entityBox.CanMove(/** @type {!entityBox.Box} */ (box), dx, dy)) {
             debugStr = 'CAN MOVE';
           } else {
             debugStr = '<blocked>';

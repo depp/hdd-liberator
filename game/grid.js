@@ -1,6 +1,26 @@
 import { COMPO } from './common.js';
 
 /**
+ * @typedef {{
+ *   X: number,
+ *   Y: number,
+ *   W: number,
+ *   H: number,
+ * }}
+ */
+export var Rect;
+
+/**
+ * @param {Rect} rect
+ * @param {number} dx
+ * @param {number} dy
+ */
+export function MoveRect(rect, dx, dy) {
+  rect.X += dx;
+  rect.Y += dy;
+}
+
+/**
  * Tile value for boundary tiles (tiles outside the level).
  * @const
  */
@@ -103,36 +123,34 @@ export function Set(x, y, value) {
  * Return true if the given rectangle is clear (all cells are zero). Returns
  * false if any part of the rectangle extends outside the grid.
  *
- * @param {number} x The minimum X coordinate
- * @param {number} y The minimum Y coordinate
- * @param {number} w Width of the rectangle, in cells
- * @param {number} h Height of the rectangle, in cells
+ * @param {!Rect} rect
  * @return {boolean}
  */
-export function IsRectClear(x, y, w, h) {
+export function IsRectClear(rect) {
+  let { X, Y, W, H } = rect;
   if (!COMPO) {
     if (
-      typeof x != 'number' ||
-      (x | 0) != x ||
-      typeof y != 'number' ||
-      (y | 0) != y
+      typeof X != 'number' ||
+      (X | 0) != X ||
+      typeof Y != 'number' ||
+      (Y | 0) != Y
     ) {
-      throw new Error(`invalid position: (${x}, ${y})`);
+      throw new Error(`invalid position: (${X}, ${Y})`);
     }
     if (
-      typeof w != 'number' ||
-      (w | 0) != w ||
-      typeof h != 'number' ||
-      (h | 0) != h
+      typeof W != 'number' ||
+      (W | 0) != W ||
+      typeof H != 'number' ||
+      (H | 0) != H
     ) {
-      throw new Error(`invalid size: (${w}, ${h})`);
+      throw new Error(`invalid size: (${W}, ${H})`);
     }
   }
-  if (x < 0 || y < 0 || w > Width - x || h > Height - x) {
+  if (X < 0 || Y < 0 || W > Width - X || H > Height - X) {
     return false;
   }
-  for (let yy = y; yy < y + h; yy++) {
-    for (let xx = x; xx < x + w; xx++) {
+  for (let yy = Y; yy < Y + H; yy++) {
+    for (let xx = X; xx < X + W; xx++) {
       if (Cells[yy * Width + xx]) {
         return false;
       }
@@ -144,36 +162,34 @@ export function IsRectClear(x, y, w, h) {
 /**
  * Set all cells in a rectangle to the given value.
  *
- * @param {number} x The minimum X coordinate
- * @param {number} y The minimum Y coordinate
- * @param {number} w Width of the rectangle, in cells
- * @param {number} h Height of the rectangle, in cells
+ * @param {!Rect} rect
  * @param {number} value
  */
-export function SetRect(x, y, w, h, value) {
+export function SetRect(rect, value) {
+  let { X, Y, W, H } = rect;
   if (!COMPO) {
     if (
-      typeof x != 'number' ||
-      (x | 0) != x ||
-      typeof y != 'number' ||
-      (y | 0) != y
+      typeof X != 'number' ||
+      (X | 0) != X ||
+      typeof Y != 'number' ||
+      (Y | 0) != Y
     ) {
-      throw new Error(`invalid position: (${x}, ${y})`);
+      throw new Error(`invalid position: (${X}, ${Y})`);
     }
     if (
-      typeof w != 'number' ||
-      (w | 0) != w ||
-      typeof h != 'number' ||
-      (h | 0) != h
+      typeof W != 'number' ||
+      (W | 0) != W ||
+      typeof H != 'number' ||
+      (H | 0) != H
     ) {
-      throw new Error(`invalid size: (${w}, ${h})`);
+      throw new Error(`invalid size: (${W}, ${H})`);
     }
-    if (x < 0 || y < 0 || w > Width - x || h > Height - y) {
-      throw new Error(`rectangle outside grid: (${x}, ${y}, ${w}, ${h})`);
+    if (X < 0 || Y < 0 || W > Width - X || H > Height - Y) {
+      throw new Error(`rectangle outside grid: (${X}, ${Y}, ${W}, ${H})`);
     }
   }
-  for (let yy = y; yy < y + h; yy++) {
-    for (let xx = x; xx < x + w; xx++) {
+  for (let yy = Y; yy < Y + H; yy++) {
+    for (let xx = X; xx < X + W; xx++) {
       Cells[yy * Width + xx] = value;
     }
   }

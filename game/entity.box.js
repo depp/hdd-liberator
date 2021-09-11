@@ -22,13 +22,14 @@ let Boxes = [];
  */
 export function Spawn(rand) {
   for (let i = 5; i--; ) {
-    let x, y;
+    /** @type {!Box} */
+    let box = /** @type {!Box} */ ({ W: 2, H: 2 });
     do {
-      x = rand.NextInt(grid.Width - 1);
-      y = rand.NextInt(grid.Height - 1);
-    } while (!grid.IsRectClear(x, y, 2, 2));
-    grid.SetRect(x, y, 2, 2, grid.TileBox);
-    Boxes.push({ X: x, Y: y, W: 2, H: 2 });
+      box.X = rand.NextInt(grid.Width - 1);
+      box.Y = rand.NextInt(grid.Height - 1);
+    } while (!grid.IsRectClear(box));
+    grid.SetRect(box, grid.TileBox);
+    Boxes.push(box);
   }
 }
 
@@ -73,8 +74,11 @@ export function Get(tx, ty) {
  * @return {boolean}
  */
 export function CanMove(box, dx, dy) {
-  grid.SetRect(box.X, box.Y, box.W, box.H, 0);
-  let isclear = grid.IsRectClear(box.X + dx, box.Y + dy, box.W, box.H);
-  grid.SetRect(box.X, box.Y, box.W, box.H, grid.TileBox);
+  let moved = /** @type {!Box} */ ({ ...box });
+  let isclear;
+  grid.MoveRect(moved, dx, dy);
+  grid.SetRect(box, 0);
+  isclear = grid.IsRectClear(moved);
+  grid.SetRect(box, grid.TileBox);
   return isclear;
 }

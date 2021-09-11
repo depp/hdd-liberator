@@ -21,15 +21,17 @@ let Boxes = [];
  * @param {!Random} rand
  */
 export function Spawn(rand) {
-  for (let i = 5; i--; ) {
-    /** @type {!Box} */
-    let box = /** @type {!Box} */ ({ W: 2, H: 2 });
-    do {
-      box.X = rand.NextInt(grid.Width - 1);
-      box.Y = rand.NextInt(grid.Height - 1);
-    } while (!grid.IsRectClear(box));
-    grid.SetRect(box, grid.TileBox);
-    Boxes.push(box);
+  for (let j = 3; --j; ) {
+    for (let i = 5; i--; ) {
+      /** @type {!Box} */
+      let box = /** @type {!Box} */ ({ W: j, H: j });
+      do {
+        box.X = rand.NextInt(grid.Width - j);
+        box.Y = rand.NextInt(grid.Height - j);
+      } while (!grid.IsRectClear(box));
+      grid.SetRect(box, grid.TileBox);
+      Boxes.push(box);
+    }
   }
 }
 

@@ -153,8 +153,8 @@ function Walk() {
           // - Test whether the new positions for the box and player are clear.
           // - Add the box back to the grid.
           grid.SetRect(box, 0);
-          let playerClear = grid.IsRectClear(playerBounds, dx, dy);
-          let boxClear = grid.IsRectClear(box, dx, dy);
+          let playerClear = grid.IsRectClear(playerBounds, 0, dx, dy);
+          let boxClear = grid.IsRectClear(box, grid.TileDevice, dx, dy);
           grid.SetRect(box, grid.TileBox);
           if (playerClear & boxClear) {
             Player.Update = Pushing;

@@ -88,10 +88,16 @@ export const TileBoundary = -1;
 export const TileBox = 1;
 
 /**
+ * Tile value for device tiles.
+ * @const
+ */
+export const TileDevice = 2;
+
+/**
  * Tile value for tiles which are used for moving objects.
  * @const
  */
-export const TileTemporary = 2;
+export const TileTemporary = 3;
 
 /** @type {number} */
 export let Width;
@@ -99,8 +105,18 @@ export let Width;
 /** @type {number} */
 export let Height;
 
-/** @type {Uint8Array} */
-export let Cells;
+/**
+ * Cell data for moving objects. These cells, when non-zero, override the static
+ * cells.
+ * @type {Uint8Array}
+ */
+export let DynamicCells;
+
+/**
+ * Cell data for non-moving objects.
+ * @type {Uint8Array}
+ */
+export let StaticCells;
 
 /**
  * Set the size of the grid, and clear it so all cells contain 0.
@@ -122,7 +138,15 @@ export function Reset(width, height) {
   }
   Width = width;
   Height = height;
-  Cells = new Uint8Array(width * height);
+  DynamicCells = new Uint8Array(width * height);
+  StaticCells = new Uint8Array(width * height);
+}
+
+/**
+ * Freeze the dynamic cells as static. Overrides the last call to SetStatic.
+ */
+export function SetStatic() {
+  StaticCells.set(/** @type {!Uint8Array} */ (DynamicCells));
 }
 
 /**
@@ -146,11 +170,12 @@ export function Get(x, y) {
   if (x < 0 || Width <= x || y < 0 || Height <= y) {
     return TileBoundary;
   }
-  return Cells[y * Width + x];
+  x = y * Width + x;
+  return DynamicCells[x] || StaticCells[x];
 }
 
 /**
- * Set the value of the grid cell at (x, y).
+ * Set the value of the grid cell at (x, y). Only affects the dynamic layer.
  * @param {number} x
  * @param {number} y
  * @param {number} value
@@ -177,20 +202,21 @@ export function Set(x, y, value) {
   if (x < 0 || Width <= x || y < 0 || Height <= y) {
     return;
   }
-  Cells[y * Width + x] = value;
+  DynamicCells[y * Width + x] = value;
 }
 
 /**
  * Return true if the given rectangle is clear (all cells are zero). Returns
- * false if any part of the rectangle extends outside the grid. An offset can be
- * added to the rectangle.
+ * false if any part of the rectangle extends outside the grid. A specific tile
+ * type can be ignored. An offset can be added to the rectangle.
  *
  * @param {!Rect} rect
+ * @param {number=} ignore
  * @param {number=} dx
  * @param {number=} dy
  * @return {boolean}
  */
-export function IsRectClear({ X, Y, W, H }, dx = 0, dy = 0) {
+export function IsRectClear({ X, Y, W, H }, ignore = 0, dx = 0, dy = 0) {
   if (!COMPO) {
     if (
       typeof X != 'number' ||
@@ -216,7 +242,8 @@ export function IsRectClear({ X, Y, W, H }, dx = 0, dy = 0) {
   }
   for (let yy = Y; yy < Y + H; yy++) {
     for (let xx = X; xx < X + W; xx++) {
-      if (Cells[yy * Width + xx]) {
+      let value = DynamicCells[yy * Width + xx] || StaticCells[yy * Width + xx];
+      if (value && value != ignore) {
         return false;
       }
     }
@@ -258,7 +285,7 @@ export function SetRect({ X, Y, W, H }, value, dx = 0, dy = 0) {
   }
   for (let yy = Y; yy < Y + H; yy++) {
     for (let xx = X; xx < X + W; xx++) {
-      Cells[yy * Width + xx] = value;
+      DynamicCells[yy * Width + xx] = value;
     }
   }
 }

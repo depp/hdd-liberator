@@ -4,6 +4,7 @@ import * as player from './player.js';
 import * as time from './time.js';
 import * as grid from './grid.js';
 import * as entityBox from './entity.box.js';
+import * as entityDevice from './entity.device.js';
 import { ctx } from './render2d.js';
 import { NewRandom } from './random.js';
 
@@ -22,6 +23,10 @@ export function Start() {
   input.Start();
   audio.Start();
   grid.Reset(12, 8);
+  entityDevice.Spawn(10, 0);
+  entityDevice.Spawn(0, 6);
+  entityDevice.Spawn(10, 6);
+  grid.SetStatic();
   grid.Set(0, 0, 1);
   entityBox.Spawn(r);
   grid.Set(0, 0, 0);
@@ -61,7 +66,7 @@ export function Render2D() {
 
   ctx.save();
   /** @const {!Array<string>} */
-  const colors = ['#ccc', '#c00', '#999'];
+  const colors = ['#ccc', '#c00', '#6c6', '#999'];
   for (x = 0; x < grid.Width; x++) {
     for (y = 0; y < grid.Height; y++) {
       const value = grid.Get(x, y);

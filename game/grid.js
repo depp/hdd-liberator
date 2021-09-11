@@ -11,13 +11,59 @@ import { COMPO } from './common.js';
 export var Rect;
 
 /**
- * @param {Rect} rect
+ * Modify a rect to move it by the given amount.
+ * @param {!Rect} rect
  * @param {number} dx
  * @param {number} dy
  */
 export function MoveRect(rect, dx, dy) {
   rect.X += dx;
   rect.Y += dy;
+}
+
+/**
+ * Return a rectangle moved by the given amount.
+ * @param {!Rect} rect
+ * @param {number} dx
+ * @param {number} dy
+ * @return {!Rect}
+ */
+export function AddRect(rect, dx, dy) {
+  return { X: rect.X + dx, Y: rect.Y + dy, W: rect.W, H: rect.H };
+}
+
+/**
+ * Modify a rect, extending it by the given vector.
+ * @param {!Rect} rect
+ * @param {number} dx
+ * @param {number} dy
+ */
+export function ExtendRect(rect, dx, dy) {
+  if (dx < 0) {
+    rect.X += dx;
+    rect.W -= dx;
+  } else {
+    rect.W += dx;
+  }
+  if (dy < 0) {
+    rect.Y += dy;
+    rect.H -= dy;
+  } else {
+    rect.H += dy;
+  }
+}
+
+/**
+ * Create a bounding box for a square centered at the given point.
+ * @param {number} x
+ * @param {number} y
+ * @param {number} radius
+ * @return {!Rect}
+ */
+export function BoundsRect(x, y, radius) {
+  let X = Math.floor(x);
+  let Y = Math.floor(y);
+  return { X, Y, W: Math.ceil(x + radius - X), H: Math.ceil(y + radius - y) };
 }
 
 /**
@@ -121,12 +167,15 @@ export function Set(x, y, value) {
 
 /**
  * Return true if the given rectangle is clear (all cells are zero). Returns
- * false if any part of the rectangle extends outside the grid.
+ * false if any part of the rectangle extends outside the grid. An offset can be
+ * added to the box.
  *
  * @param {!Rect} rect
+ * @param {number=} dx
+ * @param {number=} dy
  * @return {boolean}
  */
-export function IsRectClear(rect) {
+export function IsRectClear(rect, dx = 0, dy = 0) {
   let { X, Y, W, H } = rect;
   if (!COMPO) {
     if (
@@ -146,6 +195,8 @@ export function IsRectClear(rect) {
       throw new Error(`invalid size: (${W}, ${H})`);
     }
   }
+  X += dx;
+  Y += dy;
   if (X < 0 || Y < 0 || W > Width - X || H > Height - X) {
     return false;
   }

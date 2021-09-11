@@ -1,5 +1,6 @@
 import * as input from './input.js';
 import { ctx } from './render2d.js';
+import * as grid from './grid.js';
 import * as time from './time.js';
 import * as mover from './mover.js';
 import * as entityBox from './entity.box.js';
@@ -94,8 +95,10 @@ function Walk() {
     // Tile coordinate of box being pushed (tx, ty).
     let tx = Math.floor(Player.X + dx * (Radius + GrabDistance));
     let ty = Math.floor(Player.Y + dy * (Radius + GrabDistance));
-    let box = entityBox.Get(tx, ty);
-    if (box) {
+    let nbox = entityBox.Get(tx, ty);
+    if (nbox) {
+      /** @type {!grid.Rect} */
+      const box = nbox;
       CollideBox = box;
       // Target position for grabbing (tx, ty), and target angle.
       tx = dx
@@ -105,6 +108,8 @@ function Walk() {
         ? ty - (0.5 + Radius) * dy + 0.5
         : Clamp(Player.Y, box.Y + 0.5, box.Y + box.H - 0.5);
       angle *= Math.PI / 2;
+
+      let playerBounds = grid.BoundsRect(tx, ty, Radius);
 
       // Update: grabbed, waiting for push.
       function Grabbed() {
@@ -119,11 +124,15 @@ function Walk() {
         }
         debugStr = 'grabbed';
         if (dx + dy) {
-          if (entityBox.CanMove(/** @type {!entityBox.Box} */ (box), dx, dy)) {
-            debugStr = 'CAN MOVE';
-          } else {
-            debugStr = '<blocked>';
-          }
+          // To check if the box can move:
+          // - Remove the box from the grid.
+          // - Test whether the new positions for the box and player are clear.
+          // - Add the box back to the grid.
+          grid.SetRect(box, 0);
+          let playerClear = grid.IsRectClear(playerBounds, dx, dy);
+          let boxClear = grid.IsRectClear(box, dx, dy);
+          grid.SetRect(box, grid.TileBox);
+          debugStr = `Player: ${playerClear}; Box: ${boxClear}`;
         }
         if (!input.ButtonState[input.Action]) {
           Player.Update = Walk;

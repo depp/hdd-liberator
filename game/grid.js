@@ -211,7 +211,7 @@ export function IsRectClear({ X, Y, W, H }, dx = 0, dy = 0) {
   }
   X += dx;
   Y += dy;
-  if (X < 0 || Y < 0 || W > Width - X || H > Height - X) {
+  if (X < 0 || Y < 0 || W > Width - X || H > Height - Y) {
     return false;
   }
   for (let yy = Y; yy < Y + H; yy++) {

@@ -84,6 +84,24 @@ function FaceTowards(angle) {
 
 let debugStr;
 
+/**
+ * Get the cardinal direction that the player is moving. Returns the zero vector
+ * if the player is not moving in a cardinal direction.
+ * @return {!Array<number>}
+ */
+function CardinalMoveDirection() {
+  let absx = Math.abs(input.MoveX);
+  let absy = Math.abs(input.MoveY);
+  let dx = 0;
+  let dy = 0;
+  if (absx > 2 * absy) {
+    dx = input.MoveX > 0 ? 1 : -1;
+  } else if (absy > 2 * absx) {
+    dy = input.MoveY > 0 ? 1 : -1;
+  }
+  return [dx, dy];
+}
+
 function Walk() {
   if (input.MoveX || input.MoveY) {
     let absDeltaAngle = FaceTowards(Math.atan2(input.MoveY, input.MoveX));
@@ -130,15 +148,7 @@ function Walk() {
           CollideBox = null;
           return;
         }
-        let absx = Math.abs(input.MoveX);
-        let absy = Math.abs(input.MoveY);
-        dx = 0;
-        dy = 0;
-        if (absx > 2 * absy) {
-          dx = input.MoveX > 0 ? 1 : -1;
-        } else if (absy > 2 * absx) {
-          dy = input.MoveY > 0 ? 1 : -1;
-        }
+        [dx, dy] = CardinalMoveDirection();
         debugStr = 'grabbed';
         if (dx + dy) {
           // To check if the box can move:

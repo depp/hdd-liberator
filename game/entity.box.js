@@ -65,20 +65,3 @@ export function Get(tx, ty) {
   }
   return null;
 }
-
-/**
- * Check if the box can move in the given direction.
- * @param {!Box} box
- * @param {number} dx
- * @param {number} dy
- * @return {boolean}
- */
-export function CanMove(box, dx, dy) {
-  let moved = /** @type {!Box} */ ({ ...box });
-  let isclear;
-  grid.MoveRect(moved, dx, dy);
-  grid.SetRect(box, 0);
-  isclear = grid.IsRectClear(moved);
-  grid.SetRect(box, grid.TileBox);
-  return isclear;
-}

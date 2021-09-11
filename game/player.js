@@ -14,7 +14,7 @@ const Radius = 0.375;
  * Distance at which the player can grab something, measured from the edge of
  * the player.
  */
-const GrabDistance = 0.125;
+const GrabDistance = 0.25;
 
 /**
  * Player movement speed, in grid squares per tick.

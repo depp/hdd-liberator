@@ -32,11 +32,6 @@ func defineBoolean(name string, value bool) *pb.Define {
 	}
 }
 
-// A Terser contains the configuration for running Terser.
-type Terser struct {
-	Compress string `json:"compress"`
-}
-
 // A Config contains the project configuration.
 type Config struct {
 	Title        string    `json:"title"`
@@ -45,7 +40,6 @@ type Config struct {
 	MainStandard string    `json:"main.standard"`
 	SourceDir    string    `json:"srcDir"`
 	Timestamp    time.Time `json:"timestamp"`
-	Terser       *Terser   `json:"terser"`
 }
 
 // A Project is a JS13K project which can be built.
@@ -193,7 +187,7 @@ func (p *Project) CompileCompo(ctx context.Context, c Compiler) (*CompoData, err
 		SourceMap: rsp.GetSourceMap(),
 	}
 	if len(scr.Code) != 0 {
-		mscr, err := p.terser(ctx, scr)
+		mscr, err := p.minify(ctx, scr)
 		if err != nil {
 			return nil, err
 		}

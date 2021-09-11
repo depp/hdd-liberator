@@ -20,12 +20,12 @@ const GrabDistance = 0.25;
 /**
  * Player movement speed, in grid squares per tick.
  */
-const Speed = 3 / time.TickRate;
+const Speed = 6 / time.TickRate;
 
 /**
  * Player movement speed when pushing boxes, in grid squares per tick.
  */
-const PushSpeed = 2 / time.TickRate;
+const PushSpeed = 3 / time.TickRate;
 
 /**
  * How far a player can push a block and change their mind.

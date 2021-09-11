@@ -3,11 +3,16 @@
  * more abstract buttons like "left" and "right".
  */
 
-export const Left = 'l';
-export const Right = 'r';
-export const Backward = 'b';
-export const Forward = 'f';
-export const Action = 'a';
+// Zero is unused so that falsy values in the button bindings can be treated as
+// unbound.
+
+export const Action = 1;
+export const Left = 2;
+export const Right = 3;
+export const Backward = 4;
+export const Forward = 5;
+
+const NumButtons = 6;
 
 /**
  * Map from events to buttons.
@@ -15,7 +20,7 @@ export const Action = 'a';
  * These are taken from KeyboardEvent.code, and correspond to physical locations
  * on the keyboard. WASD will be ZQSD on a French layout keyboard, etc.
  *
- * @const {!Object<string, string>}
+ * @const {!Object<string, number>}
  */
 const ButtonBindings = {
   // WASD
@@ -36,25 +41,15 @@ const ButtonBindings = {
 
 /**
  * Map from button to whether the button is currently pressed.
- * @const {!Object<string, number>}
+ * @const {!Array<boolean>}
  */
-export const ButtonState = {};
+export const ButtonState = Array(NumButtons).fill(false);
 
 /**
  * Map from button to whether the button was pressed this tick.
- * @const {!Object<string, number>}
+ * @const {!Array<boolean>}
  */
-export const ButtonPress = {};
-
-/**
- * Set all buttons in the record to zero.
- * @param {Object<string, number>} record
- */
-function ZeroButtons(record) {
-  for (const c of 'lrbfa') {
-    record[c] = 0;
-  }
-}
+export const ButtonPress = Array(NumButtons).fill(false);
 
 /**
  * @param {KeyboardEvent} evt
@@ -62,8 +57,8 @@ function ZeroButtons(record) {
 function HandleKeyDown(evt) {
   const binding = ButtonBindings[evt.code];
   if (binding) {
-    ButtonState[binding] = 1;
-    ButtonPress[binding] = 1;
+    ButtonState[binding] = true;
+    ButtonPress[binding] = true;
     evt.preventDefault();
   }
 }
@@ -74,7 +69,7 @@ function HandleKeyDown(evt) {
 function HandleKeyUp(evt) {
   const binding = ButtonBindings[evt.code];
   if (binding) {
-    ButtonState[binding] = 0;
+    ButtonState[binding] = false;
     evt.preventDefault();
   }
 }
@@ -117,7 +112,6 @@ export function Init() {
 export function Start() {
   document.onkeydown = /** @type {function(Event)} */ (HandleKeyDown);
   document.onkeyup = /** @type {function(Event)} */ (HandleKeyUp);
-  ZeroButtons(ButtonState);
 }
 
 /** @type {number} */
@@ -169,14 +163,14 @@ export function UpdateState() {
  * Process the end of a frame.
  */
 export function EndFrame() {
-  ZeroButtons(ButtonPress);
+  ButtonPress.fill(false);
 }
 
 /**
  * Get the value of an axis controlled by button precess.
  *
- * @param {string} negative The button which adds -1 to the axis.
- * @param {string} positive The button which adds +1 to the axis.
+ * @param {number} negative The button which adds -1 to the axis.
+ * @param {number} positive The button which adds +1 to the axis.
  * @returns {number} -1, 0, or +1.
  */
 export function ButtonAxis(negative, positive) {

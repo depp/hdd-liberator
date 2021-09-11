@@ -32,15 +32,19 @@ const ButtonBindings = {
 
   // Action / attack
   'Space': Action,
-  'ControlLeft': Action,
-  'ControlRight': Action,
 };
 
 /**
- * Map from
+ * Map from button to whether the button is currently pressed.
  * @const {!Object<string, number>}
  */
-const ButtonState = {};
+export const ButtonState = {};
+
+/**
+ * Map from button to whether the button was pressed this tick.
+ * @const {!Object<string, number>}
+ */
+export const ButtonPress = {};
 
 /**
  * Set all buttons in the record to zero.
@@ -59,6 +63,7 @@ function HandleKeyDown(evt) {
   const binding = ButtonBindings[evt.code];
   if (binding) {
     ButtonState[binding] = 1;
+    ButtonPress[binding] = 1;
     evt.preventDefault();
   }
 }
@@ -136,9 +141,9 @@ const JoystickRange = 0.8;
 const JoystickDeadZone = 0.2;
 
 /**
- * Process the beginning of a frame.
+ * Update the input state.
  */
-export function BeginFrame() {
+export function UpdateState() {
   MoveX = ButtonAxis(Left, Right);
   MoveY = ButtonAxis(Forward, Backward);
   if (Gamepads.length) {
@@ -158,6 +163,13 @@ export function BeginFrame() {
       : 0;
   MoveX *= scale;
   MoveY *= scale;
+}
+
+/**
+ * Process the end of a frame.
+ */
+export function EndFrame() {
+  ZeroButtons(ButtonPress);
 }
 
 /**

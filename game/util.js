@@ -40,3 +40,14 @@ export function NormalizedDot(x1, y1, x2, y2) {
     (x1 * x2 + y1 * y2) / Math.sqrt((x1 * x1 + y1 * y1) * (x2 * x2 + y2 * y2));
   return isFinite(r) ? r : 0;
 }
+
+/**
+ * Clamp a number to a range.
+ * @param {number} x
+ * @param {number} minval
+ * @param {number} maxval
+ * @return {number}
+ */
+export function Clamp(x, minval, maxval) {
+  return x < minval ? minval : x > maxval ? maxval : x;
+}

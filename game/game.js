@@ -32,10 +32,11 @@ export function Start() {
  * @param {number} timestamp Current timestamp, in milliseconds.
  */
 export function Update(timestamp) {
-  input.BeginFrame();
+  input.UpdateState();
   for (let ticks = time.UpdateForTimestamp(timestamp); ticks--; ) {
     time.Advance();
     player.Update();
+    input.EndFrame();
   }
 }
 

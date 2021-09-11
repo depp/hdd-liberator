@@ -3,14 +3,18 @@ import { ctx } from './render2d.js';
 import * as time from './time.js';
 import * as mover from './mover.js';
 import * as entityBox from './entity.box.js';
-import { AngleDelta } from './util.js';
+import { AngleDelta, Clamp } from './util.js';
 
 /**
  * Player collision radius.
  */
 const Radius = 0.375;
 
-const PushMargin = Radius - 0.25;
+/**
+ * Distance at which the player can grab something, measured from the edge of
+ * the player.
+ */
+const GrabDistance = 0.125;
 
 /**
  * Player movement speed, in grid squares per tick.
@@ -29,22 +33,92 @@ const TurnSpeed = 12 / time.TickRate;
  */
 const MaxDeltaAngle = 0.8;
 
+// =============================================================================
+
+const StateWalk = 0;
+const StateGrabbing = 1;
+
+// =============================================================================
+
 /**
  * @type {{
- *  X0: number,
- *  Y0: number,
- *  Angle0: number,
- *  X: number,
- *  Y: number,
- *  Angle: number,
+ *   X0: number,
+ *   Y0: number,
+ *   Angle0: number,
+ *   X: number,
+ *   Y: number,
+ *   Angle: number,
+ *   State: number,
+ *   TX: number,
+ *   TY: number,
+ *   TAngle: number,
  * }}
  */
-const Player = { X0: 0.5, Y0: 0.5, Angle0: 0, X: 0.5, Y: 0.5, Angle: 0 };
+const Player = {
+  X0: 0.5,
+  Y0: 0.5,
+  Angle0: 0,
+  X: 0.5,
+  Y: 0.5,
+  Angle: 0,
+  State: StateWalk,
+  TX: 0,
+  TY: 0,
+  TAngle: 0,
+};
 
 /** @type {entityBox.Box|null} */
 let CollideBox;
 
-let CanPush;
+/**
+ * Turn the player towards a specific angle.
+ * @param {number} angle
+ * @return {number} Absolute value of delta angle
+ */
+function FaceTowards(angle) {
+  let deltaAngle = AngleDelta(Player.Angle, angle);
+  let absDeltaAngle = Math.abs(deltaAngle);
+  if (absDeltaAngle < TurnSpeed) {
+    Player.Angle = angle;
+  } else {
+    Player.Angle =
+      (Player.Angle + (deltaAngle > 0 ? TurnSpeed : -TurnSpeed)) %
+      (2 * Math.PI);
+  }
+  return absDeltaAngle;
+}
+
+function Walk() {
+  if (!input.MoveX && !input.MoveY) {
+    return;
+  }
+  let absDeltaAngle = FaceTowards(Math.atan2(input.MoveY, input.MoveX));
+  if (absDeltaAngle < MaxDeltaAngle) {
+    mover.Move(Player, Radius, input.MoveX * Speed, input.MoveY * Speed);
+  }
+}
+
+function Grab() {
+  FaceTowards(Player.TAngle);
+  let dx = Player.TX - Player.X;
+  let dy = Player.TY - Player.Y;
+  let dr = Math.hypot(dx, dy);
+  if (dr < Speed) {
+    Player.X = Player.TX;
+    Player.Y = Player.TY;
+  } else {
+    Player.X += (Speed / dr) * dx;
+    Player.Y += (Speed / dr) * dy;
+  }
+}
+
+/**
+ * @param {number} x
+ * @return {number}
+ */
+function ICos(x) {
+  return x & 1 ? 0 : 1 - (x & 2);
+}
 
 /**
  * Update the player state.
@@ -53,64 +127,32 @@ export function Update() {
   Player.X0 = Player.X;
   Player.Y0 = Player.Y;
   Player.Angle0 = Player.Angle;
-  if (!input.MoveX && !input.MoveY) {
-    return;
-  }
-  let targetAngle = Math.atan2(input.MoveY, input.MoveX);
-  let deltaAngle = AngleDelta(Player.Angle, targetAngle);
-  let absDeltaAngle = Math.abs(deltaAngle);
-  if (absDeltaAngle < TurnSpeed) {
-    Player.Angle = targetAngle;
-  } else {
-    Player.Angle =
-      (Player.Angle + (deltaAngle > 0 ? TurnSpeed : -TurnSpeed)) %
-      (2 * Math.PI);
-  }
-  if (absDeltaAngle > MaxDeltaAngle) {
-    return;
-  }
-  const flags = mover.Move(
-    Player,
-    Radius,
-    input.MoveX * Speed,
-    input.MoveY * Speed,
-  );
-
-  // Check to see if the player is pushing anything. The player can only push in
-  // cardinal directions, so we check that the movement vector points in a
-  // cardinal direction, and not diagonally. There's also a minimum movement
-  // threshold for moving.
-  const pushThreshold = 0.5;
-  let absx = Math.abs(input.MoveX);
-  let absy = Math.abs(input.MoveY);
-  let tx = Player.X | 0;
-  let ty = Player.Y | 0;
-  let dx = 0;
-  let dy = 0;
-  if (flags & mover.FlagCollideX && absx > 2 * absy && absx > pushThreshold) {
-    dx = input.MoveX > 0 ? 1 : -1;
-  } else if (
-    flags & mover.FlagCollideY &&
-    absy > 2 * absx &&
-    absy > pushThreshold
-  ) {
-    dy = input.MoveY > 0 ? 1 : -1;
-  }
-  tx += dx;
-  ty += dy;
-  CollideBox = null;
-  if (dx + dy) {
-    CollideBox = entityBox.Get(tx, ty);
-    if (CollideBox) {
-      if (dy) {
-        CanPush =
-          Player.X > CollideBox.X + PushMargin &&
-          Player.X < CollideBox.X + CollideBox.W - PushMargin;
-      } else {
-        CanPush =
-          Player.Y > CollideBox.Y + PushMargin &&
-          Player.Y < CollideBox.Y + CollideBox.H - PushMargin;
+  if (Player.State == StateWalk) {
+    Walk();
+    if (input.ButtonPress[input.Action]) {
+      let angle = Math.round((Player.Angle * 2) / Math.PI);
+      let dx = ICos(angle);
+      let dy = ICos(angle - 1);
+      let tx = Math.floor(Player.X + dx * (Radius + GrabDistance));
+      let ty = Math.floor(Player.Y + dy * (Radius + GrabDistance));
+      let box = entityBox.Get(tx, ty);
+      if (box) {
+        CollideBox = box;
+        Player.State = StateGrabbing;
+        Player.TX = dx
+          ? tx - (0.5 + Radius) * dx + 0.5
+          : Clamp(Player.X, box.X + 0.5, box.X + box.W - 0.5);
+        Player.TY = dy
+          ? ty - (0.5 + Radius) * dy + 0.5
+          : Clamp(Player.Y, box.Y + 0.5, box.Y + box.H - 0.5);
+        Player.TAngle = (angle * Math.PI) / 2;
       }
+    }
+  } else {
+    Grab();
+    if (!input.ButtonState[input.Action]) {
+      CollideBox = null;
+      Player.State = StateWalk;
     }
   }
 }
@@ -140,7 +182,7 @@ export function Render2D() {
   ctx.restore();
 
   if (CollideBox) {
-    ctx.fillStyle = CanPush ? '#cc3' : '#333';
+    ctx.fillStyle = '#cc3';
     ctx.fillRect(
       CollideBox.X * 32 + 6,
       CollideBox.Y * 32 + 6,

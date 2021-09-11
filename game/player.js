@@ -28,6 +28,11 @@ const Speed = 3 / time.TickRate;
 const PushSpeed = 2 / time.TickRate;
 
 /**
+ * How far a player can push a block and change their mind.
+ */
+const PushAbortTime = 0.2;
+
+/**
  * Player turn speed, in radians per tick.
  */
 const TurnSpeed = 12 / time.TickRate;
@@ -170,23 +175,34 @@ function Walk() {
 
       // Update: grabbed and pushing a box
       function Pushing() {
-        moveamt += PushSpeed;
-        if (moveamt > 1) {
-          grid.SetRect(boxRect, 0);
-          grid.MoveRect(playerBounds, dx, dy);
-          grid.MoveRect(boxRect, dx, dy);
+        let vel = PushSpeed;
+        if (moveamt < PushAbortTime) {
+          let [curdx, curdy] = CardinalMoveDirection();
+          if ((curdx - dx) | (curdy - dy)) {
+            vel = -PushSpeed;
+          }
+        }
+        moveamt += vel;
+        if (moveamt > 1 || moveamt < 0) {
+          if (moveamt > 1) {
+            grid.SetRect(boxRect, 0);
+            grid.MoveRect(playerBounds, dx, dy);
+            grid.MoveRect(boxRect, dx, dy);
+          } else {
+            grid.SetRect(boxRect, 0, dx, dy);
+          }
           grid.SetRect(boxRect, grid.TileBox);
           box.X = boxRect.X;
           box.Y = boxRect.Y;
           Player.X = box.X + relx;
           Player.Y = box.Y + rely;
           Player.Update = Grabbed;
-        } else {
-          box.X = boxRect.X + moveamt * dx;
-          box.Y = boxRect.Y + moveamt * dy;
-          Player.X = box.X + relx;
-          Player.Y = box.Y + rely;
+          return;
         }
+        box.X = boxRect.X + moveamt * dx;
+        box.Y = boxRect.Y + moveamt * dy;
+        Player.X = box.X + relx;
+        Player.Y = box.Y + rely;
       }
 
       // Grab update function.

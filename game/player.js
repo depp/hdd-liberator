@@ -84,7 +84,7 @@ function Walk() {
       mover.Move(Player, Radius, input.MoveX * Speed, input.MoveY * Speed);
     }
   }
-  if (input.ButtonPress[input.Action]) {
+  if (input.DidPress(input.Action)) {
     let angle = Math.round((Player.Angle * 2) / Math.PI);
     // Direction of push (dx, dy);
     let dx = ICos(angle);

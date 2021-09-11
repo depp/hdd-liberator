@@ -15,14 +15,14 @@ export const Forward = 5;
 const NumButtons = 6;
 
 /**
- * Map from events to buttons.
+ * Map from events to virtual buttons.
  *
  * These are taken from KeyboardEvent.code, and correspond to physical locations
  * on the keyboard. WASD will be ZQSD on a French layout keyboard, etc.
  *
  * @const {!Object<string, number>}
  */
-const ButtonBindings = {
+const KeyBindings = {
   // WASD
   'KeyW': Forward,
   'KeyA': Left,
@@ -41,24 +41,33 @@ const ButtonBindings = {
 
 /**
  * Map from button to whether the button is currently pressed.
- * @const {!Array<boolean>}
+ * @type {!Array<boolean>}
  */
 export const ButtonState = Array(NumButtons).fill(false);
 
 /**
  * Map from button to whether the button was pressed this tick.
- * @const {!Array<boolean>}
+ * @type {!Array<boolean>}
  */
-export const ButtonPress = Array(NumButtons).fill(false);
+let PreviousState = [];
+
+/**
+ * Returns true if the given button was unpressed last frame, but pressed this
+ * frame.
+ * @param {number} button
+ * @return {boolean}
+ */
+export function DidPress(button) {
+  return ButtonState[button] && !PreviousState[button];
+}
 
 /**
  * @param {KeyboardEvent} evt
  */
 function HandleKeyDown(evt) {
-  const binding = ButtonBindings[evt.code];
+  const binding = KeyBindings[evt.code];
   if (binding) {
     ButtonState[binding] = true;
-    ButtonPress[binding] = true;
     evt.preventDefault();
   }
 }
@@ -67,7 +76,7 @@ function HandleKeyDown(evt) {
  * @param {KeyboardEvent} evt
  */
 function HandleKeyUp(evt) {
-  const binding = ButtonBindings[evt.code];
+  const binding = KeyBindings[evt.code];
   if (binding) {
     ButtonState[binding] = false;
     evt.preventDefault();
@@ -163,7 +172,7 @@ export function UpdateState() {
  * Process the end of a frame.
  */
 export function EndFrame() {
-  ButtonPress.fill(false);
+  PreviousState = [...ButtonState];
 }
 
 /**

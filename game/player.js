@@ -35,11 +35,6 @@ const MaxDeltaAngle = 0.8;
 
 // =============================================================================
 
-const StateWalk = 0;
-const StateGrabbing = 1;
-
-// =============================================================================
-
 /**
  * @type {{
  *   X0: number,
@@ -48,10 +43,7 @@ const StateGrabbing = 1;
  *   X: number,
  *   Y: number,
  *   Angle: number,
- *   State: number,
- *   TX: number,
- *   TY: number,
- *   TAngle: number,
+ *   Update: function(),
  * }}
  */
 const Player = {
@@ -61,10 +53,7 @@ const Player = {
   X: 0.5,
   Y: 0.5,
   Angle: 0,
-  State: StateWalk,
-  TX: 0,
-  TY: 0,
-  TAngle: 0,
+  Update: Walk,
 };
 
 /** @type {entityBox.Box|null} */
@@ -89,26 +78,49 @@ function FaceTowards(angle) {
 }
 
 function Walk() {
-  if (!input.MoveX && !input.MoveY) {
-    return;
+  if (input.MoveX || input.MoveY) {
+    let absDeltaAngle = FaceTowards(Math.atan2(input.MoveY, input.MoveX));
+    if (absDeltaAngle < MaxDeltaAngle) {
+      mover.Move(Player, Radius, input.MoveX * Speed, input.MoveY * Speed);
+    }
   }
-  let absDeltaAngle = FaceTowards(Math.atan2(input.MoveY, input.MoveX));
-  if (absDeltaAngle < MaxDeltaAngle) {
-    mover.Move(Player, Radius, input.MoveX * Speed, input.MoveY * Speed);
-  }
-}
-
-function Grab() {
-  FaceTowards(Player.TAngle);
-  let dx = Player.TX - Player.X;
-  let dy = Player.TY - Player.Y;
-  let dr = Math.hypot(dx, dy);
-  if (dr < Speed) {
-    Player.X = Player.TX;
-    Player.Y = Player.TY;
-  } else {
-    Player.X += (Speed / dr) * dx;
-    Player.Y += (Speed / dr) * dy;
+  if (input.ButtonPress[input.Action]) {
+    let angle = Math.round((Player.Angle * 2) / Math.PI);
+    // Direction of push (dx, dy);
+    let dx = ICos(angle);
+    let dy = ICos(angle - 1);
+    // Tile coordinate of box being pushed (tx, ty).
+    let tx = Math.floor(Player.X + dx * (Radius + GrabDistance));
+    let ty = Math.floor(Player.Y + dy * (Radius + GrabDistance));
+    let box = entityBox.Get(tx, ty);
+    if (box) {
+      CollideBox = box;
+      // Target position for grabbing (tx, ty), and target angle.
+      tx = dx
+        ? tx - (0.5 + Radius) * dx + 0.5
+        : Clamp(Player.X, box.X + 0.5, box.X + box.W - 0.5);
+      ty = dy
+        ? ty - (0.5 + Radius) * dy + 0.5
+        : Clamp(Player.Y, box.Y + 0.5, box.Y + box.H - 0.5);
+      angle *= Math.PI / 2;
+      Player.Update = () => {
+        FaceTowards(angle);
+        let dx = tx - Player.X;
+        let dy = ty - Player.Y;
+        let dr = Math.hypot(dx, dy);
+        if (dr < Speed) {
+          Player.X = tx;
+          Player.Y = ty;
+        } else {
+          Player.X += (Speed / dr) * dx;
+          Player.Y += (Speed / dr) * dy;
+        }
+        if (!input.ButtonState[input.Action]) {
+          Player.Update = Walk;
+          CollideBox = null;
+        }
+      };
+    }
   }
 }
 
@@ -127,34 +139,7 @@ export function Update() {
   Player.X0 = Player.X;
   Player.Y0 = Player.Y;
   Player.Angle0 = Player.Angle;
-  if (Player.State == StateWalk) {
-    Walk();
-    if (input.ButtonPress[input.Action]) {
-      let angle = Math.round((Player.Angle * 2) / Math.PI);
-      let dx = ICos(angle);
-      let dy = ICos(angle - 1);
-      let tx = Math.floor(Player.X + dx * (Radius + GrabDistance));
-      let ty = Math.floor(Player.Y + dy * (Radius + GrabDistance));
-      let box = entityBox.Get(tx, ty);
-      if (box) {
-        CollideBox = box;
-        Player.State = StateGrabbing;
-        Player.TX = dx
-          ? tx - (0.5 + Radius) * dx + 0.5
-          : Clamp(Player.X, box.X + 0.5, box.X + box.W - 0.5);
-        Player.TY = dy
-          ? ty - (0.5 + Radius) * dy + 0.5
-          : Clamp(Player.Y, box.Y + 0.5, box.Y + box.H - 0.5);
-        Player.TAngle = (angle * Math.PI) / 2;
-      }
-    }
-  } else {
-    Grab();
-    if (!input.ButtonState[input.Action]) {
-      CollideBox = null;
-      Player.State = StateWalk;
-    }
-  }
+  Player.Update();
 }
 
 /**

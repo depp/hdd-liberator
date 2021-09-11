@@ -23,11 +23,6 @@ const GrabDistance = 0.25;
 const Speed = 6 / time.TickRate;
 
 /**
- * Player movement speed when pushing boxes, in grid squares per tick.
- */
-const PushSpeed = 3 / time.TickRate;
-
-/**
  * How far a player can push a block and change their mind.
  */
 const PushAbortTime = 0.2;
@@ -172,14 +167,14 @@ function Walk() {
 
       // Update: grabbed and pushing a box
       function Pushing() {
-        let vel = PushSpeed;
+        let vel = Speed;
         if (moveamt < PushAbortTime) {
           let [curdx, curdy] = CardinalMoveDirection();
           if ((curdx - dx) | (curdy - dy)) {
-            vel = -PushSpeed;
+            vel = -Speed;
           }
         }
-        moveamt += vel;
+        moveamt += (vel * 4) / (4 + box.W * box.H);
         if (moveamt > 1 || moveamt < 0) {
           if (moveamt > 1) {
             grid.SetRect(boxRect, 0);

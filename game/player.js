@@ -69,13 +69,14 @@ function FaceTowards(angle) {
   let absDeltaAngle = Math.abs(deltaAngle);
   if (absDeltaAngle < TurnSpeed) {
     Player.Angle = angle;
-  } else {
-    Player.Angle =
-      (Player.Angle + (deltaAngle > 0 ? TurnSpeed : -TurnSpeed)) %
-      (2 * Math.PI);
+    return 0;
   }
-  return absDeltaAngle;
+  Player.Angle =
+    (Player.Angle + (deltaAngle > 0 ? TurnSpeed : -TurnSpeed)) % (2 * Math.PI);
+  return absDeltaAngle - TurnSpeed;
 }
+
+let debugStr;
 
 function Walk() {
   if (input.MoveX || input.MoveY) {
@@ -85,6 +86,7 @@ function Walk() {
     }
   }
   if (input.DidPress(input.Action)) {
+    // Grab a box.
     let angle = Math.round((Player.Angle * 2) / Math.PI);
     // Direction of push (dx, dy);
     let dx = ICos(angle);
@@ -103,8 +105,36 @@ function Walk() {
         ? ty - (0.5 + Radius) * dy + 0.5
         : Clamp(Player.Y, box.Y + 0.5, box.Y + box.H - 0.5);
       angle *= Math.PI / 2;
-      Player.Update = () => {
-        FaceTowards(angle);
+
+      // Update: grabbed, waiting for push.
+      function Grabbed() {
+        let absx = Math.abs(input.MoveX);
+        let absy = Math.abs(input.MoveY);
+        let dx = 0;
+        let dy = 0;
+        if (absx > 2 * absy) {
+          dx = input.MoveX > 0 ? 1 : -1;
+        } else if (absy > 2 * absx) {
+          dy = input.MoveY > 0 ? 1 : -1;
+        }
+        debugStr = 'grabbed';
+        if (dx + dy) {
+          if (entityBox.CanMove(box, dx, dy)) {
+            debugStr = 'CAN MOVE';
+          } else {
+            debugStr = '<blocked>';
+          }
+        }
+        if (!input.ButtonState[input.Action]) {
+          Player.Update = Walk;
+          CollideBox = null;
+        }
+      }
+
+      // Grab update function.
+      Player.Update = function Grab() {
+        debugStr = 'Grab';
+        let isMoving = FaceTowards(angle);
         let dx = tx - Player.X;
         let dy = ty - Player.Y;
         let dr = Math.hypot(dx, dy);
@@ -114,6 +144,10 @@ function Walk() {
         } else {
           Player.X += (Speed / dr) * dx;
           Player.Y += (Speed / dr) * dy;
+          isMoving = 1;
+        }
+        if (!isMoving) {
+          Player.Update = Grabbed;
         }
         if (!input.ButtonState[input.Action]) {
           Player.Update = Walk;
@@ -136,6 +170,7 @@ function ICos(x) {
  * Update the player state.
  */
 export function Update() {
+  debugStr = '';
   Player.X0 = Player.X;
   Player.Y0 = Player.Y;
   Player.Angle0 = Player.Angle;
@@ -174,5 +209,11 @@ export function Render2D() {
       CollideBox.W * 32 - 12,
       CollideBox.H * 32 - 12,
     );
+  }
+
+  if (debugStr) {
+    ctx.font = '16px monospace';
+    ctx.fillStyle = '#000';
+    ctx.fillText(debugStr, -20, -20);
   }
 }

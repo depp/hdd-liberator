@@ -60,10 +60,12 @@ export function Render2D() {
   );
 
   ctx.save();
+  /** @const {!Array<string>} */
+  const colors = ['#ccc', '#c00', '#999'];
   for (x = 0; x < grid.Width; x++) {
     for (y = 0; y < grid.Height; y++) {
       const value = grid.Get(x, y);
-      ctx.fillStyle = value ? '#c00' : '#ccc';
+      ctx.fillStyle = colors[value] ?? '#0ff';
       ctx.fillRect(x * gs, y * gs, gs, gs);
     }
   }

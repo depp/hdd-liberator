@@ -23,6 +23,11 @@ const GrabDistance = 0.25;
 const Speed = 3 / time.TickRate;
 
 /**
+ * Player movement speed when pushing boxes, in grid squares per tick.
+ */
+const PushSpeed = 2 / time.TickRate;
+
+/**
  * Player turn speed, in radians per tick.
  */
 const TurnSpeed = 12 / time.TickRate;
@@ -97,6 +102,8 @@ function Walk() {
     let ty = Math.floor(Player.Y + dy * (Radius + GrabDistance));
     let nbox = entityBox.Get(tx, ty);
     if (nbox) {
+      // The "nbox" is nullable box... box and nbox just exist to quiet Closure
+      // compiler errors. It will be optimized out.
       /** @type {!grid.Rect} */
       const box = nbox;
       CollideBox = box;
@@ -109,14 +116,24 @@ function Walk() {
         : Clamp(Player.Y, box.Y + 0.5, box.Y + box.H - 0.5);
       angle *= Math.PI / 2;
 
+      let boxRect = grid.CopyRect(box);
+      let relx = tx - boxRect.X;
+      let rely = ty - boxRect.Y;
       let playerBounds = grid.BoundsRect(tx, ty, Radius);
+      /** @type {number} */
+      let moveamt;
 
       // Update: grabbed, waiting for push.
       function Grabbed() {
+        if (!input.ButtonState[input.Action]) {
+          Player.Update = Walk;
+          CollideBox = null;
+          return;
+        }
         let absx = Math.abs(input.MoveX);
         let absy = Math.abs(input.MoveY);
-        let dx = 0;
-        let dy = 0;
+        dx = 0;
+        dy = 0;
         if (absx > 2 * absy) {
           dx = input.MoveX > 0 ? 1 : -1;
         } else if (absy > 2 * absx) {
@@ -132,16 +149,43 @@ function Walk() {
           let playerClear = grid.IsRectClear(playerBounds, dx, dy);
           let boxClear = grid.IsRectClear(box, dx, dy);
           grid.SetRect(box, grid.TileBox);
-          debugStr = `Player: ${playerClear}; Box: ${boxClear}`;
+          if (playerClear & boxClear) {
+            Player.Update = Pushing;
+            grid.SetRect(box, grid.TileTemporary);
+            grid.SetRect(box, grid.TileTemporary, dx, dy);
+            moveamt = 0;
+          }
         }
-        if (!input.ButtonState[input.Action]) {
-          Player.Update = Walk;
-          CollideBox = null;
+      }
+
+      // Update: grabbed and pushing a box
+      function Pushing() {
+        moveamt += PushSpeed;
+        if (moveamt > 1) {
+          grid.SetRect(boxRect, 0);
+          grid.MoveRect(playerBounds, dx, dy);
+          grid.MoveRect(boxRect, dx, dy);
+          grid.SetRect(boxRect, grid.TileBox);
+          box.X = boxRect.X;
+          box.Y = boxRect.Y;
+          Player.X = box.X + relx;
+          Player.Y = box.Y + rely;
+          Player.Update = Grabbed;
+        } else {
+          box.X = boxRect.X + moveamt * dx;
+          box.Y = boxRect.Y + moveamt * dy;
+          Player.X = box.X + relx;
+          Player.Y = box.Y + rely;
         }
       }
 
       // Grab update function.
       Player.Update = function Grab() {
+        if (!input.ButtonState[input.Action]) {
+          Player.Update = Walk;
+          CollideBox = null;
+          return;
+        }
         debugStr = 'Grab';
         let isMoving = FaceTowards(angle);
         let dx = tx - Player.X;
@@ -157,10 +201,6 @@ function Walk() {
         }
         if (!isMoving) {
           Player.Update = Grabbed;
-        }
-        if (!input.ButtonState[input.Action]) {
-          Player.Update = Walk;
-          CollideBox = null;
         }
       };
     }

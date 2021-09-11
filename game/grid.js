@@ -11,6 +11,15 @@ import { COMPO } from './common.js';
 export var Rect;
 
 /**
+ * Copy a rectangle.
+ * @param {!Rect} rect
+ * @return {!Rect}
+ */
+export function CopyRect({ X, Y, W, H }) {
+  return { X, Y, W, H };
+}
+
+/**
  * Modify a rect to move it by the given amount.
  * @param {!Rect} rect
  * @param {number} dx
@@ -77,6 +86,12 @@ export const TileBoundary = -1;
  * @const
  */
 export const TileBox = 1;
+
+/**
+ * Tile value for tiles which are used for moving objects.
+ * @const
+ */
+export const TileTemporary = 2;
 
 /** @type {number} */
 export let Width;
@@ -214,8 +229,12 @@ export function IsRectClear({ X, Y, W, H }, dx = 0, dy = 0) {
  *
  * @param {!Rect} rect
  * @param {number} value
+ * @param {number=} dx
+ * @param {number=} dy
  */
-export function SetRect({ X, Y, W, H }, value) {
+export function SetRect({ X, Y, W, H }, value, dx = 0, dy = 0) {
+  X += dx;
+  Y += dy;
   if (!COMPO) {
     if (
       typeof X != 'number' ||

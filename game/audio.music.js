@@ -21,7 +21,7 @@ export function PlaySong(song, ctx, destination, startTime) {
   gain.connect(destination);
   let EndTime = startTime;
   for (const track of Tracks) {
-    const { Values, Durations, Instrument } = track;
+    const { Values, Durations, Instrument, ConstantDuration } = track;
     let t = startTime;
     for (let i = 0; i < Values.length; i++) {
       const noteValue = Values[i];
@@ -33,7 +33,7 @@ export function PlaySong(song, ctx, destination, startTime) {
           ctx,
           gain,
           t,
-          noteDuration * TickDuration,
+          (ConstantDuration || noteDuration) * TickDuration,
           noteValue,
         );
         if (end > EndTime) {

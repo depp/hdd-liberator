@@ -45,9 +45,10 @@ type Note struct {
 
 // A Track is an individual instrument track within a song.
 type Track struct {
-	Name       string
-	Instrument string
-	Notes      []Note
+	Name             string
+	Instrument       string
+	ConstantDuration int
+	Notes            []Note
 }
 
 // A Song is a complete piece of music.
@@ -295,6 +296,16 @@ func (tr *Track) setProp(key, value string) error {
 		return nil
 	case "instrument":
 		tr.Instrument = value
+		return nil
+	case "constant_duration":
+		n, err := strconv.ParseUint(value, 10, strconv.IntSize-1)
+		if err != nil {
+			return err
+		}
+		if n == 0 {
+			return errors.New("constant duration may not be zero")
+		}
+		tr.ConstantDuration = int(n)
 		return nil
 	default:
 		return fmt.Errorf("unknown property key: %q", key)

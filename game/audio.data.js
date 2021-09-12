@@ -9,6 +9,7 @@ export let Sounds;
  *   Values: Array<number>!,
  *   Durations: Array<number>!,
  *   Instrument: number,
+ *   ConstantDuration: number,
  * }}
  */
 export var Track;
@@ -53,7 +54,7 @@ export function Load(data) {
   while (nsongs--) {
     if (
       !COMPO &&
-      (pos + 4 > data.length || pos + 4 + data[pos] > data.length)
+      (pos + 4 > data.length || pos + 4 + 2 * data[pos] > data.length)
     ) {
       throw new Error('music parsing failed');
     }
@@ -62,7 +63,8 @@ export function Load(data) {
       data[pos],
       (i) =>
         /** @type {Track} */ ({
-          Instrument: data[pos + 4 + i],
+          Instrument: data[pos + 2 * i + 4],
+          ConstantDuration: data[pos + 2 * i + 5],
         }),
     );
     allTracks.push(...Tracks);
@@ -71,7 +73,7 @@ export function Load(data) {
       Duration: NUM_VALUES * data[pos + 2] + data[pos + 3],
       Tracks,
     });
-    pos += 4 + data[pos];
+    pos += 4 + 2 * data[pos];
   }
   for (const track of allTracks) {
     let value = initialValue;

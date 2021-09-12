@@ -70,6 +70,7 @@ func compile(snd *sounds, songs []*Song) (*Compiled, error) {
 				value = arr[0]*N + arr[1]
 			track[]: track metadata
 			    byte: instrument, index into program array
+				byte: constant duration -- if nonzero, all note durations are this value
 		byte[]: note values
 			Contains all tracks across all songs, in order, concatenated.
 			Each track ends with N-1.
@@ -157,7 +158,7 @@ func compile(snd *sounds, songs []*Song) (*Compiled, error) {
 				instrIdx[tr.Instrument] = inum
 				soundnames = append(soundnames, tr.Instrument)
 			}
-			songdata = append(songdata, uint8(inum))
+			songdata = append(songdata, uint8(inum), uint8(tr.ConstantDuration))
 		}
 	}
 	var data []byte

@@ -116,15 +116,16 @@ type buildMessage struct {
 
 func makeBuildMessage(d *buildState) *buildMessage {
 	var m buildMessage
-	if d != nil && d.err == nil {
-		if d.data != nil {
-			m.State = "ok"
-		} else {
-			m.State = "building"
-		}
-	} else {
+	switch {
+	case d == nil:
+		m.State = "building"
+	case d.err != nil:
 		m.State = "fail"
 		m.Error = d.err.Error()
+	case d.data == nil:
+		m.State = "building"
+	default:
+		m.State = "ok"
 	}
 	return &m
 }

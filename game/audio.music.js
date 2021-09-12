@@ -1,4 +1,3 @@
-import { COMPO } from './common.js';
 import { Sounds, Song } from './audio.data.js';
 import { PlaySynth } from './audio.synth.js';
 
@@ -21,27 +20,29 @@ export function PlaySong(song, ctx, destination, startTime) {
   gain.connect(destination);
   let EndTime = startTime;
   for (const track of Tracks) {
-    const { Values, Durations, Instrument, ConstantDuration } = track;
-    let t = startTime;
-    for (let i = 0; i < Values.length; i++) {
-      const noteValue = Values[i];
-      const noteDuration = Durations[i];
+    const { Voices, Durations, Instrument, ConstantDuration } = track;
+    for (let voice of Voices) {
+      let t = startTime;
+      for (let i = 0; i < voice.length; i++) {
+        const noteValue = voice[i];
+        const noteDuration = Durations[i];
 
-      if (noteValue > 0) {
-        let end = PlaySynth(
-          Sounds[Instrument],
-          ctx,
-          gain,
-          t,
-          (ConstantDuration || noteDuration) * TickDuration,
-          noteValue,
-        );
-        if (end > EndTime) {
-          EndTime = end;
+        if (noteValue > 0) {
+          let end = PlaySynth(
+            Sounds[Instrument],
+            ctx,
+            gain,
+            t,
+            (ConstantDuration || noteDuration) * TickDuration,
+            noteValue,
+          );
+          if (end > EndTime) {
+            EndTime = end;
+          }
         }
-      }
 
-      t += noteDuration * TickDuration;
+        t += noteDuration * TickDuration;
+      }
     }
   }
 

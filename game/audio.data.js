@@ -6,8 +6,8 @@ export let Sounds;
 
 /**
  * @typedef {{
- *   Values: Array<number>!,
- *   Durations: Array<number>!,
+ *   Voices: !Array<!Array<number>>,
+ *   Durations: !Array<number>,
  *   Instrument: number,
  *   ConstantDuration: number,
  * }}
@@ -76,31 +76,47 @@ export function Load(data) {
     pos += 4 + 2 * data[pos];
   }
   for (const track of allTracks) {
-    let value = initialValue;
-    /** @type {Array<number>!} */
-    let values = [];
-    track.Values = values;
-    loop: while (1) {
+    /** @type {!Array<!Array<number>>} */
+    let voices = [[]];
+    /** @type {!Array<number>} */
+    let last = [initialValue];
+    let nvoices = 1;
+    let i;
+    track.Voices = voices;
+    while (1) {
       if (!COMPO && pos >= data.length) {
         throw new Error('music parsing failed');
       }
       const byte = data[pos++];
-      switch (byte) {
-        case NUM_VALUES - 2:
-          // rest
-          values.push(-1);
-          break;
-        case NUM_VALUES - 1:
-          // track end
-          break loop;
-        default:
-          value = (value + byte) % (NUM_VALUES - 2);
-          values.push(value);
-          break;
+      if (byte < NUM_VALUES - 6) {
+        pos--;
+        for (i = 0; i < nvoices; i++) {
+          voices[i].push(
+            (last[i] =
+              ((last[i] ?? last[i - 1]) + data[pos++]) % (NUM_VALUES - 6)),
+          );
+        }
+        for (; i < voices.length; i++) {
+          voices[i].push(-1);
+        }
+      } else if (byte == NUM_VALUES - 1) {
+        // End of track
+        break;
+      } else if (byte == NUM_VALUES - 6) {
+        for (i = 0; i < voices.length; i++) {
+          // Rest
+          voices[i].push(-1);
+        }
+      } else {
+        // Polyphony change
+        nvoices = byte - (NUM_VALUES - 6);
+        while (voices.length < nvoices) {
+          voices.push(Array(voices[0].length).fill(-1));
+        }
       }
     }
   }
   for (const track of allTracks) {
-    track.Durations = data.slice(pos, (pos += track.Values.length));
+    track.Durations = data.slice(pos, (pos += track.Voices[0].length));
   }
 }

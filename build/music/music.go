@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"strconv"
+	"strings"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
@@ -227,10 +228,22 @@ var dumpTrack = cobra.Command{
 	},
 }
 
+const chordSize = 8
+
 type note struct {
 	start uint32
 	end   uint32
-	value uint8
+	value [chordSize]uint8
+}
+
+// chordSize returns the number of notes in the chord.
+func (n *note) chordSize() int {
+	for i, v := range n.value {
+		if v != 0 {
+			return i
+		}
+	}
+	return chordSize
 }
 
 type noteWriter struct {
@@ -239,6 +252,7 @@ type noteWriter struct {
 	barlen   uint32
 	hasline  bool
 	out      *bufio.Writer
+	lastNote [chordSize]uint8
 }
 
 func (w *noteWriter) advance(time uint32) {
@@ -260,9 +274,28 @@ func (w *noteWriter) advance(time uint32) {
 	}
 }
 
+// flagRepeat indicates that note repeats may be used.
+var flagRepeat bool
+
 func (w *noteWriter) write(n note) {
 	w.advance(n.start)
-	v := midi.NoteName(n.value) + "."
+	var v string
+	if flagRepeat && n.value == w.lastNote {
+		v = ":"
+	} else {
+		var b strings.Builder
+		for _, v := range n.value {
+			if v == 0 {
+				break
+			}
+			b.WriteString(midi.NoteName(v))
+		}
+		if b.Len() == 0 {
+			panic("empty chord")
+		}
+		b.WriteByte('.')
+		v = b.String()
+	}
 	for w.time < n.end {
 		bend := w.barstart + w.barlen
 		if w.hasline {
@@ -282,6 +315,7 @@ func (w *noteWriter) write(n note) {
 		w.hasline = false
 		w.barstart += w.barlen
 	}
+	w.lastNote = n.value
 }
 
 // flagMinRest is the minimum length of a rest, in grid divisions.
@@ -323,15 +357,47 @@ var extractNotes = cobra.Command{
 		gmeasure := measure / grid
 		logrus.Infoln("Measure size (ticks):", measure)
 		logrus.Infoln("Grid size (ticks):", grid)
-		nns := make([]note, len(ns))
-		for i, n := range ns {
-			t0 := (n.Time + grid/2) / grid
-			dur := (n.Duration + grid - 1) / grid
-			nns[i] = note{
-				start: t0,
-				end:   t0 + dur,
-				value: n.Value,
+		// Extract quantized notes, combine into chords.
+		var nns []note
+		var lastStart uint32
+		for _, n := range ns {
+			if n.Value == 0 {
+				return errors.New("cannot use MIDI note 0")
 			}
+			t0 := (n.Time + grid/2) / grid
+			t1 := t0 + (n.Duration+grid-1)/grid
+			if t1 < t0+1 {
+				t1 = t0 + 1
+			}
+			if len(nns) != 0 && lastStart == t0 {
+				// Insert note into chord.
+				nn := nns[len(nns)-1]
+				if t1 > nn.end {
+					nn.end = t1
+				}
+				pos := -1
+				for i, v := range nn.value {
+					if v == 0 || v > n.Value {
+						pos = i
+						break
+					}
+				}
+				if pos == -1 {
+					return errors.New("too many notes in a chord")
+				}
+				copy(nn.value[pos+1:], nn.value[pos:])
+				nn.value[pos] = n.Value
+				nns[len(nns)-1] = nn
+			} else {
+				// New note.
+				nn := note{
+					start: t0,
+					end:   t1,
+				}
+				nn.value[0] = n.Value
+				nns = append(nns, nn)
+			}
+			lastStart = t0
 		}
 		for i, n := range nns[:len(nns)-1] {
 			lim := nns[i+1].start
@@ -425,6 +491,7 @@ func main() {
 	f := extractNotes.Flags()
 	f.Uint32Var(&flagGrid, "grid", 48, "size of musical grid, default is 1/48 (32nd note triplets)")
 	f.Uint32Var(&flagMinRest, "min-rest", 1, "length of minimum size of rest, in grid divisions")
+	f.BoolVar(&flagRepeat, "repeat", false, "allow the use of ':' repeat symbols for repeated notes")
 	f = compile.Flags()
 	f.StringVarP(&flagOutput, "output", "o", "", "output file for compiled songs")
 	workingDirectory = os.Getenv("BUILD_WORKING_DIRECTORY")

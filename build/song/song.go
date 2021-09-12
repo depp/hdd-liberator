@@ -34,12 +34,14 @@ type TrackInfo struct {
 	Name string
 }
 
+const ChordSize = 8
+
 // A Note is an individual note in an instrument track. A note does not store
 // the time when it starts, instead, a note starts when the previous note
 // finishes.
 type Note struct {
 	IsRest   bool
-	Value    uint8
+	Value    [ChordSize]uint8
 	Duration uint8
 }
 
@@ -318,6 +320,7 @@ type noteParser struct {
 	bar      int
 	barstart int
 	notes    []Note
+	last     [ChordSize]uint8
 }
 
 func (p *noteParser) parseLine(text string) error {
@@ -383,6 +386,52 @@ func trimByteFront(text string, b uint8) (int, string) {
 	return pos, text[pos:]
 }
 
+func parseValue(text string) (values [ChordSize]uint8, err error) {
+	for pos := 0; len(text) > 0; pos++ {
+		if pos >= ChordSize {
+			return values, errors.New("too many notes in a chord")
+		}
+		value := baseNote[int(text[0])-'a']
+		text = text[1:]
+		var n int
+		if n, text = trimByteFront(text, '#'); n > 0 {
+			if n > 3 {
+				return values, errors.New("too many sharps")
+			}
+			value += n
+		} else if n, text = trimByteFront(text, 'b'); n > 0 {
+			if n > 3 {
+				return values, errors.New("too many flats")
+			}
+			value -= n
+		}
+		i := 0
+		for ; i < len(text); i++ {
+			c := text[i]
+			if (c < '0' || '9' < c) && c != '-' {
+				break
+			}
+		}
+		if i == 0 {
+			return values, errors.New("missing octave")
+		}
+		oct, err := strconv.ParseInt(text[:i], 10, strconv.IntSize)
+		if err != nil {
+			return values, fmt.Errorf("invalid octave: %v", err)
+		}
+		if oct < 0 || 10 < oct {
+			return values, fmt.Errorf("octave too large: %d", oct)
+		}
+		value += 12 * (int(oct) + 1)
+		if value <= 0 || 127 < value {
+			return values, errors.New("note out of range")
+		}
+		text = text[i:]
+		values[pos] = uint8(value)
+	}
+	return values, nil
+}
+
 func (p *noteParser) parseToken(text string) error {
 	if len(text) == 0 {
 		panic("empty token")
@@ -412,7 +461,7 @@ func (p *noteParser) parseToken(text string) error {
 			}
 		}
 		if dur > 0 {
-			p.notes = append(p.notes, Note{true, 0, uint8(dur)})
+			p.notes = append(p.notes, Note{true, [ChordSize]uint8{}, uint8(dur)})
 		}
 		return nil
 	case '~':
@@ -446,34 +495,13 @@ func (p *noteParser) parseToken(text string) error {
 		p.barstart = barend
 		return nil
 	case 'a', 'b', 'c', 'd', 'e', 'f', 'g':
-		value := baseNote[int(c)-'a']
-		text = text[1:]
-		var n int
-		if n, text = trimByteFront(text, '#'); n > 0 {
-			if n > 3 {
-				return errors.New("too many sharps")
-			}
-			value += n
-		} else if n, text = trimByteFront(text, 'b'); n > 0 {
-			if n > 3 {
-				return errors.New("too many flats")
-			}
-			value -= n
-		}
 		i := strings.IndexByte(text, '.')
 		if i == -1 {
 			return errors.New("missing duration")
 		}
-		oct, err := strconv.ParseInt(text[:i], 10, strconv.IntSize)
+		value, err := parseValue(text[:i])
 		if err != nil {
-			return fmt.Errorf("invalid octave: %v", err)
-		}
-		if oct < 0 || 10 < oct {
-			return fmt.Errorf("octave too large: %d", oct)
-		}
-		value += 12 * (int(oct) + 1)
-		if value < 0 || 127 < value {
-			return errors.New("note out of range")
+			return err
 		}
 		text = text[i+1:]
 		dur, err := p.parseDur(text)
@@ -483,7 +511,21 @@ func (p *noteParser) parseToken(text string) error {
 		if err := p.advanceTime(dur); err != nil {
 			return err
 		}
-		p.notes = append(p.notes, Note{false, uint8(value), uint8(dur)})
+		p.notes = append(p.notes, Note{false, value, uint8(dur)})
+		p.last = value
+		return nil
+	case ':':
+		if p.last[0] == 0 {
+			return errors.New("cannot repeat without previous note")
+		}
+		dur, err := p.parseDur(text[1:])
+		if err != nil {
+			return err
+		}
+		if err := p.advanceTime(dur); err != nil {
+			return err
+		}
+		p.notes = append(p.notes, Note{false, p.last, uint8(dur)})
 		return nil
 	default:
 		return errors.New("unknown token")

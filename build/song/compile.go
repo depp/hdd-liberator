@@ -13,10 +13,13 @@ import (
 	"moria.us/js13k/build/embed"
 )
 
+const maxPolyphony = 4
+
 // Special note values.
 const (
-	trackEnd = embed.NumValues - 1 - iota
-	restValue
+	trackEnd  = embed.NumValues - 1
+	poly1     = trackEnd - maxPolyphony
+	restValue = poly1 - 1
 )
 
 const (
@@ -91,25 +94,65 @@ func compile(snd *sounds, songs []*Song) (*Compiled, error) {
 		var slen int
 		for _, tr := range sn.Tracks {
 			var tlen int
-			var last int = startValue
+			var last [maxPolyphony]int
+			last[0] = startValue
+			curPolyphony := 1
 			for _, n := range tr.Notes {
-				var enc uint8
-				if n.IsRest {
-					enc = restValue
-				} else {
-					if n.Value >= restValue {
-						return nil, fmt.Errorf("note value out of range: %d", n.Value)
-					}
-					n := int(n.Value)
-					delta := n - last
-					if delta < 0 {
-						delta += restValue
-					}
-					enc = byte(delta)
-					last = n
+				count := 1
+				rem := n.Duration
+				for rem >= embed.NumValues {
+					count++
+					durations = append(durations, uint8(embed.NumValues-1))
+					rem -= embed.NumValues - 1
 				}
-				values = append(values, enc)
-				durations = append(durations, n.Duration)
+				durations = append(durations, uint8(rem))
+				if n.IsRest {
+					for i := 0; i < count; i++ {
+						values = append(values, restValue)
+					}
+				} else {
+					// Figure out the polyphony of this note.
+					var cc int = ChordSize
+					for i, v := range n.Value {
+						if v == 0 {
+							cc = i
+							break
+						}
+						if v >= restValue {
+							return nil, fmt.Errorf("note value out of range: %d", n.Value)
+						}
+					}
+					if cc == 0 {
+						return nil, errors.New("empty chord")
+					}
+					if cc > maxPolyphony {
+						return nil, errors.New("too much polyphony")
+					}
+					// Emit polyphony change if necessary.
+					if curPolyphony != cc {
+						values = append(values, uint8(poly1+cc-1))
+					}
+					var nlast int
+					for i, v := range n.Value[:cc] {
+						// Relative to previous note in same voice, falls back
+						// to previous note in this chord.
+						if i < curPolyphony {
+							nlast = last[i]
+						}
+						vi := int(v)
+						delta := vi - nlast
+						if delta < 0 {
+							delta += restValue
+						}
+						nlast = vi
+						last[i] = vi
+						values = append(values, uint8(delta))
+					}
+					curPolyphony = cc
+					for i := cc; i < count*cc; i++ {
+						values = append(values, 0)
+					}
+				}
 				tlen += int(n.Duration)
 			}
 			values = append(values, trackEnd)

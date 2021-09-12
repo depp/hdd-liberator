@@ -69,6 +69,7 @@ c4.8 r8 |
 @track
 name: Lead 2
 instrument: Pluck
+gain: +4
 pan: -0.5
 
 r16 |

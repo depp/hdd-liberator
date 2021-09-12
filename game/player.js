@@ -94,10 +94,12 @@ function CardinalMoveDirection() {
   let absy = Math.abs(Controller.Y);
   let dx = 0;
   let dy = 0;
-  if (absx > 2 * absy) {
-    dx = Controller.X > 0 ? 1 : -1;
-  } else if (absy > 2 * absx) {
-    dy = Controller.Y > 0 ? 1 : -1;
+  if (absx + absy > 0.5) {
+    if (absx > absy) {
+      dx = Controller.X > 0 ? 1 : -1;
+    } else {
+      dy = Controller.Y > 0 ? 1 : -1;
+    }
   }
   return [dx, dy];
 }

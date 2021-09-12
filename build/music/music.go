@@ -284,6 +284,9 @@ func (w *noteWriter) write(n note) {
 	}
 }
 
+// flagMinRest is the minimum length of a rest, in grid divisions.
+var flagMinRest uint32
+
 var extractNotes = cobra.Command{
 	Use:  "extract-notes <midi> <track>",
 	Args: cobra.ExactArgs(2),
@@ -335,7 +338,7 @@ var extractNotes = cobra.Command{
 			if lim <= n.start {
 				return errors.New("reverse sorted notes")
 			}
-			if lim < n.end {
+			if lim < n.end || lim-n.end < flagMinRest {
 				nns[i].end = lim
 			}
 		}
@@ -421,6 +424,7 @@ func main() {
 	root.AddCommand(&listTracks, &dumpTrack, &extractNotes, &convert, &compile)
 	f := extractNotes.Flags()
 	f.Uint32Var(&flagGrid, "grid", 48, "size of musical grid, default is 1/48 (32nd note triplets)")
+	f.Uint32Var(&flagMinRest, "min-rest", 1, "length of minimum size of rest, in grid divisions")
 	f = compile.Flags()
 	f.StringVarP(&flagOutput, "output", "o", "", "output file for compiled songs")
 	workingDirectory = os.Getenv("BUILD_WORKING_DIRECTORY")

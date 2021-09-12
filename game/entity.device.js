@@ -22,7 +22,7 @@ export var Device;
 /**
  * @type {!Array<!Device>}
  */
-let Devices = [];
+export let Devices = [];
 
 /**
  * Spawn a device at the given location. This should be called before

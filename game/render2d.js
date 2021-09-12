@@ -2,6 +2,7 @@ import * as grid from './grid.js';
 import * as time from './time.js';
 import { Player, Radius } from './player.js';
 import { Boxes } from './entity.box.js';
+import { Devices } from './entity.device.js';
 
 /**
  * Size of one grid square, in pixels.
@@ -30,14 +31,14 @@ let EmojiOffset;
  * Font for rendering emjoi.
  * @const
  */
-const EmojiFont = '32px serif';
+const EmojiFont = '"Noto Color Emoji"';
 
 /**
  * @param {CanvasRenderingContext2D?} c
  */
 export function SetContext(c) {
   ctx = c;
-  c.font = '100px serif';
+  c.font = '100px ' + EmojiFont;
   const m = c.measureText('\u{1F600}');
   EmojiOffset = (m.actualBoundingBoxAscent - m.actualBoundingBoxDescent) / 200;
 }
@@ -50,6 +51,21 @@ function Translate({ X, Y, X0, Y0 }) {
   ctx.translate(
     GridSize * (X0 + (X - X0) * time.Fraction),
     GridSize * (Y0 + (Y - Y0) * time.Fraction),
+  );
+}
+
+/**
+ * Draw an icon in the center of a box.
+ * @param {{W: number, H: number}} box
+ * @param {string} str
+ */
+function DrawIcon({ W, H }, str) {
+  let size = Math.min(W, H) * ((GridSize * 0.9) | 0);
+  ctx.font = `${size}px ${EmojiFont}`;
+  ctx.fillText(
+    str,
+    (GridSize / 2) * W,
+    (GridSize / 2) * H + ((size * EmojiOffset) | 0),
   );
 }
 
@@ -93,21 +109,20 @@ export function Render2D() {
   ctx.stroke();
   ctx.restore();
 
+  for (let obj of Devices) {
+    ctx.save();
+    ctx.translate(obj.X * GridSize, obj.Y * GridSize);
+    DrawIcon(obj, '\u{fe0f}\u{267b}');
+    ctx.restore();
+  }
+
   // ===========================================================================
-  // Render player.
+  // Render boxes.
 
   ctx.fillStyle = '#cc3';
-  for (let box of Boxes) {
-    let { H, W } = box;
-    Translate(box);
-    ctx.fillRect(6, 6, W * GridSize - 12, H * GridSize - 12);
-    let size = Math.min(W, H) * ((GridSize * 0.9) | 0);
-    ctx.font = `${size}px serif`;
-    ctx.fillText(
-      '\u{1F4C4}',
-      (GridSize / 2) * W,
-      (GridSize / 2) * H + ((size * EmojiOffset) | 0),
-    );
+  for (let obj of Boxes) {
+    Translate(obj);
+    DrawIcon(obj, '\u{1F4C4}');
     ctx.restore();
   }
 

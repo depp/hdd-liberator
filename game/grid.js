@@ -70,8 +70,8 @@ export function ExtendRect(rect, dx, dy) {
  * @return {!Rect}
  */
 export function BoundsRect(x, y, radius) {
-  let X = Math.floor(x);
-  let Y = Math.floor(y);
+  let X = Math.floor(x - radius);
+  let Y = Math.floor(y - radius);
   return { X, Y, W: Math.ceil(x + radius - X), H: Math.ceil(y + radius - y) };
 }
 

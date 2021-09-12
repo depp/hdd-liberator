@@ -54,6 +54,27 @@ type Compiled struct {
 	SongNames  []string `json:"songNames"`
 }
 
+func encodeGain(gainDB float64) (uint8, error) {
+	const exponent = 0.94
+	x := math.Round(gainDB / (20 * math.Log10(exponent)))
+	if x < 0 || embed.NumValues <= x {
+		return 0, fmt.Errorf("gain out of range: %f dB", gainDB)
+	}
+	return uint8(x), nil
+}
+
+func encodePan(pan float64) (uint8, error) {
+	const (
+		zero  = (embed.NumValues - 1) >> 1
+		scale = 60
+	)
+	x := math.Round(pan*scale) + zero
+	if x < 0 || embed.NumValues <= x {
+		return 0, fmt.Errorf("pan out of range: %f", pan)
+	}
+	return uint8(x), nil
+}
+
 func compile(snd *sounds, songs []*Song) (*Compiled, error) {
 	/*
 		Data format:
@@ -73,6 +94,8 @@ func compile(snd *sounds, songs []*Song) (*Compiled, error) {
 				value = arr[0]*N + arr[1]
 			track[]: track metadata
 			    byte: instrument, index into program array
+				byte: gain
+				byte: pan
 				byte: constant duration -- if nonzero, all note durations are this value
 		byte[]: note values
 			Contains all tracks across all songs, in order, concatenated.
@@ -201,7 +224,15 @@ func compile(snd *sounds, songs []*Song) (*Compiled, error) {
 				instrIdx[tr.Instrument] = inum
 				soundnames = append(soundnames, tr.Instrument)
 			}
-			songdata = append(songdata, uint8(inum), uint8(tr.ConstantDuration))
+			gain, err := encodeGain(sn.Info.GainDB + tr.GainDB)
+			if err != nil {
+				return nil, compileErrorf(sn, i, tr, "invalid gain")
+			}
+			pan, err := encodePan(tr.Pan)
+			if err != nil {
+				return nil, compileErrorf(sn, i, tr, "invalid pan")
+			}
+			songdata = append(songdata, uint8(inum), gain, pan, uint8(tr.ConstantDuration))
 		}
 	}
 	var data []byte

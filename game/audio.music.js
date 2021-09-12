@@ -15,12 +15,15 @@ import { PlaySynth } from './audio.synth.js';
  */
 export function PlaySong(song, ctx, destination, startTime) {
   const { TickDuration, Duration, Tracks } = song;
-  const gain = ctx.createGain();
-  gain.gain.value = 0.2;
-  gain.connect(destination);
   let EndTime = startTime;
   for (const track of Tracks) {
     const { Voices, Durations, Instrument, ConstantDuration } = track;
+    const gain = ctx.createGain();
+    gain.gain.value = track.Gain;
+    gain.connect(destination);
+    const pan = ctx.createStereoPanner();
+    pan.connect(gain);
+    pan.pan.value = track.Pan;
     for (let voice of Voices) {
       let t = startTime;
       for (let i = 0; i < voice.length; i++) {
@@ -31,7 +34,7 @@ export function PlaySong(song, ctx, destination, startTime) {
           let end = PlaySynth(
             Sounds[Instrument],
             ctx,
-            gain,
+            pan,
             t,
             (ConstantDuration || noteDuration) * TickDuration,
             noteValue,

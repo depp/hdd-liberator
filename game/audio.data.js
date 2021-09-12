@@ -9,6 +9,8 @@ export let Sounds;
  *   Voices: !Array<!Array<number>>,
  *   Durations: !Array<number>,
  *   Instrument: number,
+ *   Gain: number,
+ *   Pan: number,
  *   ConstantDuration: number,
  * }}
  */
@@ -52,28 +54,35 @@ export function Load(data) {
     Sounds.push(data.slice(pos, (pos += length)));
   }
   while (nsongs--) {
-    if (
-      !COMPO &&
-      (pos + 4 > data.length || pos + 4 + 2 * data[pos] > data.length)
-    ) {
+    if (!COMPO && pos + 4 > data.length) {
+      throw new Error('music parsing failed');
+    }
+    let [numtracks, tickduration, lengthHi, lengthLo] = data.slice(
+      pos,
+      (pos += 4),
+    );
+    if (!COMPO && pos + 4 * numtracks > data.length) {
       throw new Error('music parsing failed');
     }
     /** @type {!Array<!Track>} */
-    const Tracks = Iterate(
-      data[pos],
-      (i) =>
-        /** @type {Track} */ ({
-          Instrument: data[pos + 2 * i + 4],
-          ConstantDuration: data[pos + 2 * i + 5],
-        }),
-    );
+    const Tracks = Iterate(numtracks, () => {
+      let [Instrument, gain, pan, ConstantDuration] = data.slice(
+        pos,
+        (pos += 4),
+      );
+      return /** @type {Track} */ ({
+        Instrument,
+        Gain: 0.94 ** gain,
+        Pan: (pan - ((NUM_VALUES - 1) >> 1)) / 60,
+        ConstantDuration,
+      });
+    });
     allTracks.push(...Tracks);
     Songs.push({
-      TickDuration: data[pos + 1] / 500,
-      Duration: NUM_VALUES * data[pos + 2] + data[pos + 3],
+      TickDuration: tickduration / 500,
+      Duration: NUM_VALUES * lengthHi + lengthLo,
       Tracks,
     });
-    pos += 4 + 2 * data[pos];
   }
   for (const track of allTracks) {
     /** @type {!Array<!Array<number>>} */

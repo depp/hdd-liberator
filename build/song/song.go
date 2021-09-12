@@ -27,6 +27,7 @@ type Info struct {
 	Tempo    float64
 	Time     TimeSignature
 	Division int
+	GainDB   float64
 }
 
 // A TrackInfo contains the metadata for an instrument track within a song.
@@ -49,6 +50,8 @@ type Note struct {
 type Track struct {
 	Name             string
 	Instrument       string
+	GainDB           float64
+	Pan              float64
 	ConstantDuration int
 	Notes            []Note
 }
@@ -286,6 +289,13 @@ func (d *Info) setProp(key, value string) error {
 		}
 		d.Division = int(n)
 		return nil
+	case "gain":
+		n, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return err
+		}
+		d.GainDB = n
+		return nil
 	default:
 		return fmt.Errorf("unknown property key: %q", key)
 	}
@@ -298,6 +308,23 @@ func (tr *Track) setProp(key, value string) error {
 		return nil
 	case "instrument":
 		tr.Instrument = value
+		return nil
+	case "gain":
+		n, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return err
+		}
+		tr.GainDB = n
+		return nil
+	case "pan":
+		n, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return err
+		}
+		if n < -1 || 1 < n {
+			return errors.New("pan must be in the range [-1, +1]")
+		}
+		tr.Pan = n
 		return nil
 	case "constant_duration":
 		n, err := strconv.ParseUint(value, 10, strconv.IntSize-1)

@@ -4,6 +4,7 @@ composer: Dietrich Epp
 tempo: 102
 time: 4/4
 division: 16
+gain: -18
 
 @track
 name: Bass
@@ -38,6 +39,7 @@ c3.2 c4.2 c3.2 c4.2 c3.2 c4.1 g3.1 g#3.2 a#3.2 |
 @track
 name: Lead 1
 instrument: Soft Lead
+pan: 0.5
 
 r16 |
 r16 |
@@ -67,6 +69,7 @@ c4.8 r8 |
 @track
 name: Lead 2
 instrument: Pluck
+pan: -0.5
 
 r16 |
 r16 |
@@ -98,6 +101,7 @@ c4.8 r8 |
 name: Chords
 instrument: Keys
 constant_duration: 1
+gain: -3
 
 c4e4g4.6 :4 :4 :2 |
 c4e4g#4.6 :4 :4 :2 |

@@ -3,16 +3,21 @@
  * more abstract buttons like "left" and "right".
  */
 
-// Zero is unused so that falsy values in the button bindings can be treated as
-// unbound.
+import { COMPO } from './common.js';
+
+// =============================================================================
+// Constants
+
+// Virtual button definitions. Zero is unused so that falsy values in the button
+// bindings can be treated as unbound.
 
 export const Action = 1;
-export const Left = 2;
-export const Right = 3;
-export const Backward = 4;
-export const Forward = 5;
+export const Up = 2;
+export const Down = 3;
+export const Left = 4;
+export const Right = 5;
 
-const NumButtons = 6;
+const ButtonCount = 6;
 
 /**
  * Map from events to virtual buttons.
@@ -24,15 +29,15 @@ const NumButtons = 6;
  */
 const KeyBindings = {
   // WASD
-  'KeyW': Forward,
+  'KeyW': Up,
   'KeyA': Left,
-  'KeyS': Backward,
+  'KeyS': Down,
   'KeyD': Right,
 
   // Arrow keys
-  'ArrowUp': Forward,
+  'ArrowUp': Up,
   'ArrowLeft': Left,
-  'ArrowDown': Backward,
+  'ArrowDown': Down,
   'ArrowRight': Right,
 
   // Action / attack
@@ -40,26 +45,55 @@ const KeyBindings = {
 };
 
 /**
- * Map from button to whether the button is currently pressed.
- * @type {!Array<boolean>}
+ * Map from gamepad buttons (in the standard mapping) to virtual buttons.
+ * @const {!Array<number>}
  */
-export const ButtonState = Array(NumButtons).fill(false);
+const GamepadBindings = [Action, , , , , , , , , , , , Up, Down, Left, Right];
+
+// =============================================================================
 
 /**
- * Map from button to whether the button was pressed this tick.
- * @type {!Array<boolean>}
+ * IsActive is true if the controller has buttons that were pressed this frame.
+ *
+ * @typedef {{
+ *   State: !Array<boolean>,
+ *   PrevState: !Array<boolean>,
+ *   X: number,
+ *   Y: number,
+ * }}
  */
-let PreviousState = [];
+export var Controller;
 
 /**
  * Returns true if the given button was unpressed last frame, but pressed this
  * frame.
+ * @param {!Controller} controller
  * @param {number} button
  * @return {boolean}
  */
-export function DidPress(button) {
-  return ButtonState[button] && !PreviousState[button];
+export function DidPress({ State, PrevState }, button) {
+  if (!COMPO && (button < 1 || ButtonCount <= button)) {
+    throw new Error(`invalid button: ${button}`);
+  }
+  return State[button] && !PrevState[button];
 }
+
+/**
+ * @return {!Controller}
+ */
+function NewController() {
+  return {
+    State: Array(ButtonCount).fill(false),
+    PrevState: Array(ButtonCount).fill(false),
+    X: 0,
+    Y: 0,
+  };
+}
+
+/**
+ * @type {!Controller}
+ */
+export let Keyboard = NewController();
 
 /**
  * @param {KeyboardEvent} evt
@@ -67,7 +101,8 @@ export function DidPress(button) {
 function HandleKeyDown(evt) {
   const binding = KeyBindings[evt.code];
   if (binding) {
-    ButtonState[binding] = true;
+    Keyboard.IsActive = true;
+    Keyboard.State[binding] = true;
     evt.preventDefault();
   }
 }
@@ -78,15 +113,15 @@ function HandleKeyDown(evt) {
 function HandleKeyUp(evt) {
   const binding = KeyBindings[evt.code];
   if (binding) {
-    ButtonState[binding] = false;
+    Keyboard.State[binding] = false;
     evt.preventDefault();
   }
 }
 
 /**
- * @type {!Array<number>}
+ * @type {!Array<Controller|null>}
  */
-const Gamepads = [];
+export let Gamepads = [];
 
 /**
  * First initialization, before the game starts.
@@ -97,7 +132,7 @@ export function Init() {
     /** @type{function(Event)} */ (
       (/** !GamepadEvent */ event) => {
         if (event.gamepad.mapping == 'standard') {
-          Gamepads.push(event.gamepad.index);
+          Gamepads[event.gamepad.index] = NewController();
         }
       }
     ),
@@ -105,12 +140,7 @@ export function Init() {
   window.addEventListener(
     'gamepaddisconnected',
     /** @type{function(Event)} */ (
-      (/** !GamepadEvent */ event) => {
-        const index = Gamepads.indexOf(event.gamepad.index);
-        if (index >= 0) {
-          Gamepads.splice(index, 1);
-        }
-      }
+      (/** !GamepadEvent */ event) => (Gamepads[event.gamepad.index] = null)
     ),
   );
 }
@@ -122,12 +152,6 @@ export function Start() {
   document.onkeydown = /** @type {function(Event)} */ (HandleKeyDown);
   document.onkeyup = /** @type {function(Event)} */ (HandleKeyUp);
 }
-
-/** @type {number} */
-export let MoveX;
-
-/** @type {number} */
-export let MoveY;
 
 /**
  * The range of joysticks. Joysticx values are scaled so that input values with
@@ -144,44 +168,104 @@ const JoystickRange = 0.8;
 const JoystickDeadZone = 0.2;
 
 /**
+ * Set the X and Y values of a controller.
+ * @param {!Controller} controller
+ * @param {number} x Joystick X position
+ * @param {number} y Joystick Y position
+ */
+function SetControllerXY(controller, x, y) {
+  var r;
+  // If any button is down, override the joystick.
+  if (
+    controller.State[Up] |
+    controller.State[Down] |
+    controller.State[Left] |
+    controller.State[Right]
+  ) {
+    y = controller.State[Down] - controller.State[Up];
+    x = controller.State[Right] - controller.State[Left];
+  }
+  r = Math.hypot(x, y);
+  if (r > 1) {
+    x *= 1 / r;
+    y *= 1 / r;
+  }
+  controller.X = x;
+  controller.Y = y;
+}
+
+/**
  * Update the input state.
  */
 export function UpdateState() {
-  MoveX = ButtonAxis(Left, Right);
-  MoveY = ButtonAxis(Forward, Backward);
+  var i, j, controller, states, state, x, y, button;
   if (Gamepads.length) {
-    const data = navigator.getGamepads();
-    for (const index of Gamepads) {
-      const gamepad = data[index];
-      MoveX += gamepad.axes[0] / JoystickRange;
-      MoveY += gamepad.axes[1] / JoystickRange;
+    states = navigator.getGamepads();
+    for (i = 0; i < Gamepads.length; i++) {
+      controller = Gamepads[i];
+      state = states[i];
+
+      if (controller) {
+        // Read the buttons.
+        controller.State.fill(false);
+        for (j = 0; j < GamepadBindings.length; j++) {
+          button = GamepadBindings[j];
+          if (button && state.buttons[j].pressed) {
+            controller.State[button] = true;
+          }
+        }
+
+        // Read the joystick.
+        x = state.axes[0];
+        y = state.axes[1];
+        if (x * x + y * y < JoystickDeadZone) {
+          x = 0;
+          y = 0;
+        }
+        SetControllerXY(controller, x / JoystickRange, y / JoystickRange);
+      }
     }
   }
-  const magnitude = Math.hypot(MoveX, MoveY);
-  const scale =
-    magnitude > 1
-      ? 1 / magnitude
-      : magnitude > JoystickDeadZone
-      ? magnitude
-      : 0;
-  MoveX *= scale;
-  MoveY *= scale;
+  SetControllerXY(Keyboard, 0, 0);
+}
+
+/**
+ * Invoke a function for each controller.
+ * @param {function(!Controller)} callback
+ */
+export function ForEachController(callback) {
+  var i, controller;
+  for (i = -1; i < Gamepads.length; i++) {
+    controller = i < 0 ? Keyboard : Gamepads[i];
+    if (controller) {
+      callback(controller);
+    }
+  }
 }
 
 /**
  * Process the end of a frame.
  */
 export function EndFrame() {
-  PreviousState = [...ButtonState];
+  ForEachController((controller) => {
+    var j;
+    for (j = 0; j < ButtonCount; j++) {
+      controller.PrevState[j] = controller.State[j];
+    }
+  });
 }
 
 /**
- * Get the value of an axis controlled by button precess.
- *
- * @param {number} negative The button which adds -1 to the axis.
- * @param {number} positive The button which adds +1 to the axis.
- * @returns {number} -1, 0, or +1.
+ * Test if the controller has any buttons pressed this frame.
+ * @param {!Controller} controller
+ * @return {boolean}
  */
-export function ButtonAxis(negative, positive) {
-  return ButtonState[positive] - ButtonState[negative];
+export function IsActive(controller) {
+  var i;
+  for (i = 0; i < ButtonCount; i++) {
+    if (controller.State[i] && !controller.PrevState[i]) {
+      return true;
+    }
+  }
+  return false;
 }

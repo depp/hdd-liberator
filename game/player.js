@@ -42,6 +42,11 @@ const MaxDeltaAngle = 0.8;
 // =============================================================================
 
 /**
+ * @type {!input.Controller}
+ */
+let Controller = input.Keyboard;
+
+/**
  * @type {{
  *   X0: number,
  *   Y0: number,
@@ -85,26 +90,26 @@ function FaceTowards(angle) {
  * @return {!Array<number>}
  */
 function CardinalMoveDirection() {
-  let absx = Math.abs(input.MoveX);
-  let absy = Math.abs(input.MoveY);
+  let absx = Math.abs(Controller.X);
+  let absy = Math.abs(Controller.Y);
   let dx = 0;
   let dy = 0;
   if (absx > 2 * absy) {
-    dx = input.MoveX > 0 ? 1 : -1;
+    dx = Controller.X > 0 ? 1 : -1;
   } else if (absy > 2 * absx) {
-    dy = input.MoveY > 0 ? 1 : -1;
+    dy = Controller.Y > 0 ? 1 : -1;
   }
   return [dx, dy];
 }
 
 function Walk() {
-  if (input.MoveX || input.MoveY) {
-    let absDeltaAngle = FaceTowards(Math.atan2(input.MoveY, input.MoveX));
+  if (Controller.X || Controller.Y) {
+    let absDeltaAngle = FaceTowards(Math.atan2(Controller.Y, Controller.X));
     if (absDeltaAngle < MaxDeltaAngle) {
-      mover.Move(Player, Radius, input.MoveX * Speed, input.MoveY * Speed);
+      mover.Move(Player, Radius, Controller.X * Speed, Controller.Y * Speed);
     }
   }
-  if (input.DidPress(input.Action)) {
+  if (input.DidPress(Controller, input.Action)) {
     // Grab a box.
     let angle = Math.round((Player.Angle * 2) / Math.PI);
     // Direction of push (dx, dy);
@@ -140,7 +145,7 @@ function Walk() {
 
       // Update: grabbed, waiting for push.
       function Grabbed() {
-        if (!input.ButtonState[input.Action]) {
+        if (!Controller.State[input.Action]) {
           Player.Update = Walk;
           box.Idle = true;
           return;
@@ -204,7 +209,7 @@ function Walk() {
 
       // Grab update function.
       Player.Update = function Grab() {
-        if (!input.ButtonState[input.Action]) {
+        if (!Controller.State[input.Action]) {
           Player.Update = Walk;
           box.Idle = true;
           return;
@@ -241,5 +246,13 @@ function ICos(x) {
  * Update the player state.
  */
 export function Update() {
+  // If the player's controller is not active, but some other controller is
+  // active, switch to that one.
+  if (!input.IsActive(Controller)) {
+    input.ForEachController(
+      (/** !input.Controller */ controller) =>
+        input.IsActive(controller) && (Controller = controller),
+    );
+  }
   Player.Update();
 }

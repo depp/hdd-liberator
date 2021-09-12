@@ -76,6 +76,28 @@ export function BoundsRect(x, y, radius) {
 }
 
 /**
+ * Find rectangles in an array of rectangles.
+ * @param {!Array<!T>} rects
+ * @param {number} x
+ * @param {number} y
+ * @return {T|null}
+ * @template T
+ */
+export function FindRect(rects, x, y) {
+  for (const rect of /** @type {!Array<!Rect>} */ (rects)) {
+    if (
+      x >= rect.X &&
+      x < rect.X + rect.W &&
+      y >= rect.Y &&
+      y < rect.Y + rect.H
+    ) {
+      return rect;
+    }
+  }
+  return null;
+}
+
+/**
  * Tile value for boundary tiles (tiles outside the level).
  * @const
  */
@@ -147,6 +169,7 @@ export function Reset(width, height) {
  */
 export function SetStatic() {
   StaticCells.set(/** @type {!Uint8Array} */ (DynamicCells));
+  DynamicCells.fill(0);
 }
 
 /**
@@ -206,6 +229,33 @@ export function Set(x, y, value) {
 }
 
 /**
+ * Throw an exception if the rectangle is not a valid rectangle wiht integer
+ * coordinates.
+ * @param {number} x
+ * @param {number} y
+ * @param {number} w
+ * @param {number} h
+ */
+function CheckRect(x, y, w, h) {
+  if (
+    typeof x != 'number' ||
+    (x | 0) != x ||
+    typeof y != 'number' ||
+    (y | 0) != y
+  ) {
+    throw new Error(`invalid position: (${x}, ${y})`);
+  }
+  if (
+    typeof w != 'number' ||
+    (w | 0) != w ||
+    typeof h != 'number' ||
+    (h | 0) != h
+  ) {
+    throw new Error(`invalid size: (${w}, ${h})`);
+  }
+}
+
+/**
  * Return true if the given rectangle is clear (all cells are zero). Returns
  * false if any part of the rectangle extends outside the grid. A specific tile
  * type can be ignored. An offset can be added to the rectangle.
@@ -218,22 +268,7 @@ export function Set(x, y, value) {
  */
 export function IsRectClear({ X, Y, W, H }, ignore = 0, dx = 0, dy = 0) {
   if (!COMPO) {
-    if (
-      typeof X != 'number' ||
-      (X | 0) != X ||
-      typeof Y != 'number' ||
-      (Y | 0) != Y
-    ) {
-      throw new Error(`invalid position: (${X}, ${Y})`);
-    }
-    if (
-      typeof W != 'number' ||
-      (W | 0) != W ||
-      typeof H != 'number' ||
-      (H | 0) != H
-    ) {
-      throw new Error(`invalid size: (${W}, ${H})`);
-    }
+    CheckRect(X, Y, W, H);
   }
   X += dx;
   Y += dy;
@@ -244,6 +279,29 @@ export function IsRectClear({ X, Y, W, H }, ignore = 0, dx = 0, dy = 0) {
     for (let xx = X; xx < X + W; xx++) {
       let value = DynamicCells[yy * Width + xx] || StaticCells[yy * Width + xx];
       if (value && value != ignore) {
+        return false;
+      }
+    }
+  }
+  return true;
+}
+
+/**
+ * Return true if all cells for the given rectangle are set to device tiles in
+ * the static layer.
+ * @param {!Rect} rect
+ * @return {boolean}
+ */
+export function IsRectInsideDevice({ X, Y, W, H }) {
+  if (!COMPO) {
+    CheckRect(X, Y, W, H);
+  }
+  if (X < 0 || Y < 0 || W > Width - X || H > Height - Y) {
+    return false;
+  }
+  for (let yy = Y; yy < Y + H; yy++) {
+    for (let xx = X; xx < X + W; xx++) {
+      if (StaticCells[yy * Width + xx] != TileDevice) {
         return false;
       }
     }
@@ -263,22 +321,7 @@ export function SetRect({ X, Y, W, H }, value, dx = 0, dy = 0) {
   X += dx;
   Y += dy;
   if (!COMPO) {
-    if (
-      typeof X != 'number' ||
-      (X | 0) != X ||
-      typeof Y != 'number' ||
-      (Y | 0) != Y
-    ) {
-      throw new Error(`invalid position: (${X}, ${Y})`);
-    }
-    if (
-      typeof W != 'number' ||
-      (W | 0) != W ||
-      typeof H != 'number' ||
-      (H | 0) != H
-    ) {
-      throw new Error(`invalid size: (${W}, ${H})`);
-    }
+    CheckRect(X, Y, W, H);
     if (X < 0 || Y < 0 || W > Width - X || H > Height - Y) {
       throw new Error(`rectangle outside grid: (${X}, ${Y}, ${W}, ${H})`);
     }

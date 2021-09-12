@@ -3,6 +3,7 @@ import * as input from './input.js';
 import * as player from './player.js';
 import * as time from './time.js';
 import * as grid from './grid.js';
+import * as entityGeneric from './entity.generic.js';
 import * as entityBox from './entity.box.js';
 import * as entityDevice from './entity.device.js';
 import { ctx } from './render2d.js';
@@ -40,6 +41,7 @@ export function Update(timestamp) {
   input.UpdateState();
   for (let ticks = time.UpdateForTimestamp(timestamp); ticks--; ) {
     time.Advance();
+    entityGeneric.Update();
     player.Update();
     input.EndFrame();
   }
@@ -88,6 +90,7 @@ export function Render2D() {
   ctx.stroke();
   ctx.restore();
 
+  entityBox.Render2D();
   player.Render2D();
 
   // Draw an emoji, centered on a grid square. To center it vertically,

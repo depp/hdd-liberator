@@ -4,6 +4,7 @@ import * as grid from './grid.js';
 import * as time from './time.js';
 import * as mover from './mover.js';
 import * as entityBox from './entity.box.js';
+import * as entityDevice from './entity.device.js';
 import { AngleDelta, Clamp } from './util.js';
 
 /**
@@ -62,9 +63,6 @@ const Player = {
   Update: Walk,
 };
 
-/** @type {entityBox.Box|null} */
-let CollideBox;
-
 /**
  * Turn the player towards a specific angle.
  * @param {number} angle
@@ -116,13 +114,12 @@ function Walk() {
     // Tile coordinate of box being pushed (tx, ty).
     let tx = Math.floor(Player.X + dx * (Radius + GrabDistance));
     let ty = Math.floor(Player.Y + dy * (Radius + GrabDistance));
-    let nbox = entityBox.Get(tx, ty);
+    let nbox = entityBox.GetIdle(tx, ty);
     if (nbox) {
       // The "nbox" is nullable box... box and nbox just exist to quiet Closure
       // compiler errors. It will be optimized out.
-      /** @type {!grid.Rect} */
+      /** @type {!entityBox.Box} */
       const box = nbox;
-      CollideBox = box;
       // Target position for grabbing (tx, ty), and target angle.
       tx = dx
         ? tx - (0.5 + Radius) * dx + 0.5
@@ -139,11 +136,14 @@ function Walk() {
       /** @type {number} */
       let moveamt;
 
+      // Mark the box as "busy" so nothing else will use it.
+      box.Idle = false;
+
       // Update: grabbed, waiting for push.
       function Grabbed() {
         if (!input.ButtonState[input.Action]) {
           Player.Update = Walk;
-          CollideBox = null;
+          box.Idle = true;
           return;
         }
         [dx, dy] = CardinalMoveDirection();
@@ -188,7 +188,13 @@ function Walk() {
           box.Y = boxRect.Y;
           Player.X = box.X + relx;
           Player.Y = box.Y + rely;
-          Player.Update = Grabbed;
+
+          if (entityDevice.CheckBox(box)) {
+            // Device is now using the box, so don't mark the box as idle.
+            Player.Update = Walk;
+          } else {
+            Player.Update = Grabbed;
+          }
           return;
         }
         box.X = boxRect.X + moveamt * dx;
@@ -201,7 +207,7 @@ function Walk() {
       Player.Update = function Grab() {
         if (!input.ButtonState[input.Action]) {
           Player.Update = Walk;
-          CollideBox = null;
+          box.Idle = true;
           return;
         }
         let isMoving = FaceTowards(angle);
@@ -265,14 +271,4 @@ export function Render2D() {
   ctx.fill();
   ctx.stroke();
   ctx.restore();
-
-  if (CollideBox) {
-    ctx.fillStyle = '#cc3';
-    ctx.fillRect(
-      CollideBox.X * 32 + 6,
-      CollideBox.Y * 32 + 6,
-      CollideBox.W * 32 - 12,
-      CollideBox.H * 32 - 12,
-    );
-  }
 }

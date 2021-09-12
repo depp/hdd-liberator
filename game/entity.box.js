@@ -1,6 +1,7 @@
 import { COMPO } from './common.js';
 import * as grid from './grid.js';
 import { Random } from './random.js';
+import { ctx } from './render2d.js';
 
 /**
  * @typedef {{
@@ -8,6 +9,7 @@ import { Random } from './random.js';
  *   Y: number,
  *   W: number,
  *   H: number,
+ *   Idle: boolean,
  * }}
  */
 export var Box;
@@ -24,7 +26,7 @@ export function Spawn(rand) {
   for (let j = 3; --j; ) {
     for (let i = 5; i--; ) {
       /** @type {!Box} */
-      let box = /** @type {!Box} */ ({ W: j, H: j });
+      let box = /** @type {!Box} */ ({ W: j, H: j, Idle: true });
       do {
         box.X = rand.NextInt(grid.Width - j);
         box.Y = rand.NextInt(grid.Height - j);
@@ -36,34 +38,50 @@ export function Spawn(rand) {
 }
 
 /**
- * Get the box at the given tile coordinates, or return null if no box exists at
- * those coordinates.
- * @param {number} tx
- * @param {number} ty
+ * Get the box at the given tile coordinates if it is idle. Return null if no
+ * box exists at those coordinates or if the box is not idle (it is being used
+ * by something).
+ * @param {number} x
+ * @param {number} y
  * @returns {Box|null}
  */
-export function Get(tx, ty) {
+export function GetIdle(x, y) {
   if (!COMPO) {
     if (
-      typeof tx != 'number' ||
-      (tx | 0) != tx ||
-      typeof ty != 'number' ||
-      (ty | 0) != ty
+      typeof x != 'number' ||
+      (x | 0) != x ||
+      typeof y != 'number' ||
+      (y | 0) != y
     ) {
-      throw new Error(`invalid location: (${tx}, ${ty})`);
+      throw new Error(`invalid location: (${x}, ${y})`);
     }
   }
-  if (grid.Get(tx, ty) == grid.TileBox) {
-    for (const box of Boxes) {
-      if (
-        tx >= box.X &&
-        tx < box.X + box.W &&
-        ty >= box.Y &&
-        ty < box.Y + box.H
-      ) {
-        return box;
-      }
+  if (grid.Get(x, y) == grid.TileBox) {
+    let box = grid.FindRect(Boxes, x, y);
+    if (box?.Idle) {
+      return box;
     }
   }
   return null;
+}
+
+/**
+ * @param {!Box} box
+ */
+export function Destroy(box) {
+  let index = Boxes.indexOf(box);
+  if (index >= 0) {
+    Boxes.splice(index, 1);
+  }
+  grid.SetRect(box, 0);
+}
+
+/**
+ * Render the boxes.
+ */
+export function Render2D() {
+  ctx.fillStyle = '#cc3';
+  for (let { X, Y, W, H } of Boxes) {
+    ctx.fillRect(X * 32 + 6, Y * 32 + 6, W * 32 - 12, H * 32 - 12);
+  }
 }

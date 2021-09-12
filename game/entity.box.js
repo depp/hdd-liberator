@@ -1,10 +1,11 @@
 import { COMPO } from './common.js';
 import * as grid from './grid.js';
 import { Random } from './random.js';
-import { ctx } from './render2d.js';
 
 /**
  * @typedef {{
+ *   X0: number,
+ *   Y0: number,
  *   X: number,
  *   Y: number,
  *   W: number,
@@ -17,7 +18,7 @@ export var Box;
 /**
  * @type {!Array<!Box>}
  */
-let Boxes = [];
+export let Boxes = [];
 
 /**
  * @param {!Random} rand
@@ -28,8 +29,8 @@ export function Spawn(rand) {
       /** @type {!Box} */
       let box = /** @type {!Box} */ ({ W: j, H: j, Idle: true });
       do {
-        box.X = rand.NextInt(grid.Width - j);
-        box.Y = rand.NextInt(grid.Height - j);
+        box.X0 = box.X = rand.NextInt(grid.Width - j);
+        box.Y0 = box.Y = rand.NextInt(grid.Height - j);
       } while (!grid.IsRectClear(box));
       grid.SetRect(box, grid.TileBox);
       Boxes.push(box);
@@ -74,14 +75,4 @@ export function Destroy(box) {
     Boxes.splice(index, 1);
   }
   grid.SetRect(box, 0);
-}
-
-/**
- * Render the boxes.
- */
-export function Render2D() {
-  ctx.fillStyle = '#cc3';
-  for (let { X, Y, W, H } of Boxes) {
-    ctx.fillRect(X * 32 + 6, Y * 32 + 6, W * 32 - 12, H * 32 - 12);
-  }
 }

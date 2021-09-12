@@ -50,7 +50,7 @@ function HandleResize() {
  */
 function Frame(timestamp) {
   game.Update(timestamp);
-  game.Render2D();
+  render2D.Render2D();
   RAFHandle = requestAnimationFrame(Frame);
 }
 

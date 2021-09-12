@@ -1,5 +1,4 @@
 import * as input from './input.js';
-import { ctx } from './render2d.js';
 import * as grid from './grid.js';
 import * as time from './time.js';
 import * as mover from './mover.js';
@@ -10,7 +9,7 @@ import { AngleDelta, Clamp } from './util.js';
 /**
  * Player collision radius.
  */
-const Radius = 0.375;
+export const Radius = 0.375;
 
 /**
  * Distance at which the player can grab something, measured from the edge of
@@ -53,7 +52,7 @@ const MaxDeltaAngle = 0.8;
  *   Update: function(),
  * }}
  */
-const Player = {
+export const Player = {
   X0: 0.5,
   Y0: 0.5,
   Angle0: 0,
@@ -242,33 +241,5 @@ function ICos(x) {
  * Update the player state.
  */
 export function Update() {
-  Player.X0 = Player.X;
-  Player.Y0 = Player.Y;
-  Player.Angle0 = Player.Angle;
   Player.Update();
-}
-
-/**
- * Render the player.
- */
-export function Render2D() {
-  ctx.save();
-  ctx.translate(
-    32 * (Player.X0 + (Player.X - Player.X0) * time.Fraction),
-    32 * (Player.Y0 + (Player.Y - Player.Y0) * time.Fraction),
-  );
-  ctx.fillStyle = '#00c';
-  ctx.fillRect(-32 * Radius, -32 * Radius, 32 * 2 * Radius, 32 * 2 * Radius);
-  ctx.strokeStyle = '#000;';
-  ctx.fillStyle = '#fff';
-  ctx.rotate(Player.Angle);
-  ctx.beginPath();
-  ctx.moveTo(15, 0);
-  ctx.lineTo(-15, 7);
-  ctx.lineTo(-15, -7);
-  ctx.closePath();
-  ctx.lineWidth = 2;
-  ctx.fill();
-  ctx.stroke();
-  ctx.restore();
 }

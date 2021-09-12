@@ -1,7 +1,7 @@
 import * as grid from './grid.js';
 import * as time from './time.js';
 import { Player, Radius } from './player.js';
-import { Boxes } from './entity.box.js';
+import { Boxes, TotalBoxArea } from './entity.box.js';
 import { Devices } from './entity.device.js';
 
 /**
@@ -80,10 +80,9 @@ export function Render2D() {
   ctx.fillStyle = '#666';
   ctx.fillRect(0, 0, c.width, c.height);
 
-  ctx.translate(
-    (c.width - GridSize * grid.Width) >> 1,
-    (c.height - GridSize * grid.Height) >> 1,
-  );
+  const xsize = GridSize * grid.Width;
+  const ysize = GridSize * grid.Height;
+  ctx.translate((c.width - xsize) >> 1, (c.height - ysize) >> 1);
 
   ctx.save();
   /** @const {!Array<string>} */
@@ -146,7 +145,26 @@ export function Render2D() {
   ctx.restore();
 
   // ===========================================================================
-  // Done.
+  // Draw UI.
+
+  {
+    const barheight = ysize - 20;
+    const bary = Math.min(
+      barheight - 2,
+      Math.round(((barheight - 2) * TotalBoxArea) / grid.StaticFreeArea),
+    );
+    ctx.save();
+    ctx.translate(-32, 0);
+    ctx.font = '16px monospace';
+    ctx.fillStyle = '#000';
+    ctx.fillText('%full', 0, ysize);
+    ctx.fillRect(-8, 0, 16, ysize - 20);
+    ctx.fillStyle = '#c33';
+    if (bary > 0) {
+      ctx.fillRect(-7, barheight - 1 - bary, 14, bary);
+    }
+    ctx.restore();
+  }
 
   ctx.restore();
 }

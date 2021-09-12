@@ -21,21 +21,24 @@ export var Box;
 export let Boxes = [];
 
 /**
- * @param {!Random} rand
+ * Total area of all boxes on screen.
+ * @type {number}
  */
-export function Spawn(rand) {
-  for (let j = 3; --j; ) {
-    for (let i = 5; i--; ) {
-      /** @type {!Box} */
-      let box = /** @type {!Box} */ ({ W: j, H: j, Idle: true });
-      do {
-        box.X0 = box.X = rand.NextInt(grid.Width - j);
-        box.Y0 = box.Y = rand.NextInt(grid.Height - j);
-      } while (!grid.IsRectClear(box));
-      grid.SetRect(box, grid.TileBox);
-      Boxes.push(box);
-    }
-  }
+export let TotalBoxArea = 0;
+
+/**
+ * @param {!Random} rand
+ * @param {number} size
+ */
+export function Spawn(rand, size) {
+  let box = /** @type {!Box} */ ({ W: size, H: size, Idle: true });
+  do {
+    box.X0 = box.X = rand.NextInt(grid.Width - size);
+    box.Y0 = box.Y = rand.NextInt(grid.Height - size);
+  } while (!grid.IsRectClear(box));
+  grid.SetRect(box, grid.TileBox);
+  Boxes.push(box);
+  TotalBoxArea += size * size;
 }
 
 /**
@@ -73,6 +76,9 @@ export function Destroy(box) {
   let index = Boxes.indexOf(box);
   if (index >= 0) {
     Boxes.splice(index, 1);
+    grid.SetRect(box, 0);
+    TotalBoxArea -= box.W * box.H;
+  } else if (!COMPO) {
+    throw new Error('box does not exist');
   }
-  grid.SetRect(box, 0);
 }

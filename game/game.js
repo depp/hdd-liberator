@@ -28,7 +28,11 @@ export function Start() {
   entityDevice.Spawn(10, 6);
   grid.SetStatic();
   grid.Set(0, 0, 1);
-  entityBox.Spawn(r);
+  for (let j = 3; --j; ) {
+    for (let i = 5; i--; ) {
+      entityBox.Spawn(r, j);
+    }
+  }
   grid.Set(0, 0, 0);
 }
 

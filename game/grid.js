@@ -141,6 +141,13 @@ export let DynamicCells;
 export let StaticCells;
 
 /**
+ * Total area of space which has a tile value of 0 in the static layer.
+ * Initialized by SetStatic().
+ * @type {number}
+ */
+export let StaticFreeArea;
+
+/**
  * Set the size of the grid, and clear it so all cells contain 0.
  * @param {number} width
  * @param {number} height
@@ -168,8 +175,13 @@ export function Reset(width, height) {
  * Freeze the dynamic cells as static. Overrides the last call to SetStatic.
  */
 export function SetStatic() {
+  var i;
   StaticCells.set(/** @type {!Uint8Array} */ (DynamicCells));
   DynamicCells.fill(0);
+  StaticFreeArea = 0;
+  for (i = 0; i < StaticCells.length; i++) {
+    StaticFreeArea += !StaticCells[0];
+  }
 }
 
 /**

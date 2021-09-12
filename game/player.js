@@ -90,10 +90,10 @@ function FaceTowards(angle) {
  * @return {!Array<number>}
  */
 function CardinalMoveDirection() {
-  let absx = Math.abs(Controller.X);
-  let absy = Math.abs(Controller.Y);
-  let dx = 0;
-  let dy = 0;
+  var absx = Math.abs(Controller.X);
+  var absy = Math.abs(Controller.Y);
+  var dx = 0;
+  var dy = 0;
   if (absx + absy > 0.5) {
     if (absx > absy) {
       dx = Controller.X > 0 ? 1 : -1;
@@ -104,6 +104,160 @@ function CardinalMoveDirection() {
   return [dx, dy];
 }
 
+/**
+ * Try to grab the box in front of the player.
+ */
+function TryGrab() {
+  var angle = Math.round((Player.Angle * 2) / Math.PI);
+
+  // Direction of push (dx, dy);
+  var dx = ICos(angle);
+  var dy = ICos(angle - 1);
+
+  // Tile coordinate of box being pushed (tx, ty).
+  var tx = Math.floor(Player.X + dx * (Radius + GrabDistance));
+  var ty = Math.floor(Player.Y + dy * (Radius + GrabDistance));
+
+  /** @type {!entityBox.Box} */
+  var box = /** @type {!entityBox.Box} */ (entityBox.GetIdle(tx, ty));
+  if (!box) {
+    return;
+  }
+
+  // Target position for grabbing (tx, ty), and target angle.
+  tx = dx
+    ? tx - (0.5 + Radius) * dx + 0.5
+    : Clamp(Player.X, box.X + 0.5, box.X + box.W - 0.5);
+  ty = dy
+    ? ty - (0.5 + Radius) * dy + 0.5
+    : Clamp(Player.Y, box.Y + 0.5, box.Y + box.H - 0.5);
+  angle *= Math.PI / 2;
+
+  // Bounding rectangle for the player. To avoid interference with other
+  // objects, this will be marked as temporarily in use, and must be clear
+  // before movement starts.
+  var playerBounds = grid.BoundsRect(tx, ty, Radius);
+  if (!grid.IsRectClear(playerBounds)) {
+    return;
+  }
+
+  var boxRect = grid.CopyRect(box);
+  var relx = tx - boxRect.X;
+  var rely = ty - boxRect.Y;
+
+  /** @type {number} */
+  var moveamt;
+
+  // Mark the box as "busy" so nothing else will use it.
+  box.Idle = false;
+
+  // Mark the player bounds as in use.
+  grid.SetRect(playerBounds, grid.TileTemporary);
+
+  // Update: grabbed, waiting for push.
+  function Grabbed() {
+    if (!Controller.State[input.Action]) {
+      Done();
+      return;
+    }
+    [dx, dy] = CardinalMoveDirection();
+    if (dx + dy) {
+      // To check if the box can move:
+      // - Remove the box from the grid.
+      // - Test whether the new positions for the box and player are clear.
+      // - Add the box back to the grid.
+      grid.SetRect(playerBounds, 0);
+      grid.SetRect(box, 0);
+      var playerClear = grid.IsRectClear(playerBounds, 0, dx, dy);
+      var boxClear = grid.IsRectClear(box, grid.TileDevice, dx, dy);
+      grid.SetRect(playerBounds, grid.TileTemporary);
+      grid.SetRect(box, grid.TileBox);
+      if (playerClear & boxClear) {
+        Player.Update = Pushing;
+        grid.SetRect(box, grid.TileTemporary);
+        grid.SetRect(box, grid.TileTemporary, dx, dy);
+        grid.SetRect(playerBounds, grid.TileTemporary, dx, dy);
+        moveamt = 0;
+      }
+    }
+  }
+
+  // Update: grabbed and pushing a box
+  function Pushing() {
+    var vel = Speed;
+    if (moveamt < PushAbortTime) {
+      var [curdx, curdy] = CardinalMoveDirection();
+      if ((curdx - dx) | (curdy - dy)) {
+        vel = -Speed;
+      }
+    }
+    moveamt += (vel * 4) / (4 + box.W * box.H);
+    if (moveamt > 1 || moveamt < 0) {
+      if (moveamt > 1) {
+        grid.SetRect(boxRect, 0);
+        grid.SetRect(playerBounds, 0);
+        grid.MoveRect(boxRect, dx, dy);
+        grid.MoveRect(playerBounds, dx, dy);
+      } else {
+        grid.SetRect(playerBounds, 0, dx, dy);
+        grid.SetRect(boxRect, 0, dx, dy);
+      }
+      grid.SetRect(playerBounds, grid.TileTemporary);
+      grid.SetRect(boxRect, grid.TileBox);
+      box.X = boxRect.X;
+      box.Y = boxRect.Y;
+      Player.X = box.X + relx;
+      Player.Y = box.Y + rely;
+
+      if (entityDevice.CheckBox(box)) {
+        // Device is now using the box, so don't mark the box as idle.
+        Done(false);
+      } else {
+        Player.Update = Grabbed;
+      }
+      return;
+    }
+    box.X = boxRect.X + moveamt * dx;
+    box.Y = boxRect.Y + moveamt * dy;
+    Player.X = box.X + relx;
+    Player.Y = box.Y + rely;
+  }
+
+  // Grab update function.
+  Player.Update = function Grab() {
+    if (!Controller.State[input.Action]) {
+      Done();
+      return;
+    }
+    var isMoving = FaceTowards(angle);
+    var dx = tx - Player.X;
+    var dy = ty - Player.Y;
+    var dr = Math.hypot(dx, dy);
+    if (dr < Speed) {
+      Player.X = tx;
+      Player.Y = ty;
+    } else {
+      Player.X += (Speed / dr) * dx;
+      Player.Y += (Speed / dr) * dy;
+      isMoving = 1;
+    }
+    if (!isMoving) {
+      Player.Update = Grabbed;
+    }
+  };
+
+  /**
+   * @param {boolean=} boxIsIdle
+   */
+  function Done(boxIsIdle = true) {
+    Player.Update = Walk;
+    grid.SetRect(playerBounds, 0);
+    if (boxIsIdle) {
+      box.Idle = true;
+    }
+  }
+}
+
 function Walk() {
   if (Controller.X || Controller.Y) {
     let absDeltaAngle = FaceTowards(Math.atan2(Controller.Y, Controller.X));
@@ -112,127 +266,7 @@ function Walk() {
     }
   }
   if (input.DidPress(Controller, input.Action)) {
-    // Grab a box.
-    let angle = Math.round((Player.Angle * 2) / Math.PI);
-    // Direction of push (dx, dy);
-    let dx = ICos(angle);
-    let dy = ICos(angle - 1);
-    // Tile coordinate of box being pushed (tx, ty).
-    let tx = Math.floor(Player.X + dx * (Radius + GrabDistance));
-    let ty = Math.floor(Player.Y + dy * (Radius + GrabDistance));
-    let nbox = entityBox.GetIdle(tx, ty);
-    if (nbox) {
-      // The "nbox" is nullable box... box and nbox just exist to quiet Closure
-      // compiler errors. It will be optimized out.
-      /** @type {!entityBox.Box} */
-      const box = nbox;
-      // Target position for grabbing (tx, ty), and target angle.
-      tx = dx
-        ? tx - (0.5 + Radius) * dx + 0.5
-        : Clamp(Player.X, box.X + 0.5, box.X + box.W - 0.5);
-      ty = dy
-        ? ty - (0.5 + Radius) * dy + 0.5
-        : Clamp(Player.Y, box.Y + 0.5, box.Y + box.H - 0.5);
-      angle *= Math.PI / 2;
-
-      let boxRect = grid.CopyRect(box);
-      let relx = tx - boxRect.X;
-      let rely = ty - boxRect.Y;
-      let playerBounds = grid.BoundsRect(tx, ty, Radius);
-      /** @type {number} */
-      let moveamt;
-
-      // Mark the box as "busy" so nothing else will use it.
-      box.Idle = false;
-
-      // Update: grabbed, waiting for push.
-      function Grabbed() {
-        if (!Controller.State[input.Action]) {
-          Player.Update = Walk;
-          box.Idle = true;
-          return;
-        }
-        [dx, dy] = CardinalMoveDirection();
-        if (dx + dy) {
-          // To check if the box can move:
-          // - Remove the box from the grid.
-          // - Test whether the new positions for the box and player are clear.
-          // - Add the box back to the grid.
-          grid.SetRect(box, 0);
-          let playerClear = grid.IsRectClear(playerBounds, 0, dx, dy);
-          let boxClear = grid.IsRectClear(box, grid.TileDevice, dx, dy);
-          grid.SetRect(box, grid.TileBox);
-          if (playerClear & boxClear) {
-            Player.Update = Pushing;
-            grid.SetRect(box, grid.TileTemporary);
-            grid.SetRect(box, grid.TileTemporary, dx, dy);
-            moveamt = 0;
-          }
-        }
-      }
-
-      // Update: grabbed and pushing a box
-      function Pushing() {
-        let vel = Speed;
-        if (moveamt < PushAbortTime) {
-          let [curdx, curdy] = CardinalMoveDirection();
-          if ((curdx - dx) | (curdy - dy)) {
-            vel = -Speed;
-          }
-        }
-        moveamt += (vel * 4) / (4 + box.W * box.H);
-        if (moveamt > 1 || moveamt < 0) {
-          if (moveamt > 1) {
-            grid.SetRect(boxRect, 0);
-            grid.MoveRect(playerBounds, dx, dy);
-            grid.MoveRect(boxRect, dx, dy);
-          } else {
-            grid.SetRect(boxRect, 0, dx, dy);
-          }
-          grid.SetRect(boxRect, grid.TileBox);
-          box.X = boxRect.X;
-          box.Y = boxRect.Y;
-          Player.X = box.X + relx;
-          Player.Y = box.Y + rely;
-
-          if (entityDevice.CheckBox(box)) {
-            // Device is now using the box, so don't mark the box as idle.
-            Player.Update = Walk;
-          } else {
-            Player.Update = Grabbed;
-          }
-          return;
-        }
-        box.X = boxRect.X + moveamt * dx;
-        box.Y = boxRect.Y + moveamt * dy;
-        Player.X = box.X + relx;
-        Player.Y = box.Y + rely;
-      }
-
-      // Grab update function.
-      Player.Update = function Grab() {
-        if (!Controller.State[input.Action]) {
-          Player.Update = Walk;
-          box.Idle = true;
-          return;
-        }
-        let isMoving = FaceTowards(angle);
-        let dx = tx - Player.X;
-        let dy = ty - Player.Y;
-        let dr = Math.hypot(dx, dy);
-        if (dr < Speed) {
-          Player.X = tx;
-          Player.Y = ty;
-        } else {
-          Player.X += (Speed / dr) * dx;
-          Player.Y += (Speed / dr) * dy;
-          isMoving = 1;
-        }
-        if (!isMoving) {
-          Player.Update = Grabbed;
-        }
-      };
-    }
+    TryGrab();
   }
 }
 

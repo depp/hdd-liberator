@@ -16,6 +16,7 @@ ICONS = """
 av/pause
 av/play_arrow
 av/stop
+file/download
 """.split()
 
 class IconError(Exception):
@@ -25,10 +26,18 @@ def read_icon(path: str) -> str:
     """Read the path data from an icon."""
     tree = etree.parse(path)
     root = tree.getroot()
-    tname = '{http://www.w3.org/2000/svg}path'
-    if len(root) != 2 or root[0].tag != tname or root[1].tag != tname:
-        raise IconError('expected two <path> elements')
+    prefix = '{http://www.w3.org/2000/svg}'
+    pathTag = prefix + 'path'
+    gTag = prefix + 'g'
+    if len(root) != 2:
+        raise IconError('expected two elements')
     elem = root[1]
+    if elem.tag == gTag:
+        if len(elem) != 1:
+            raise IconError('expected one element in <g>')
+        elem = elem[0]
+    if elem.tag != pathTag:
+        raise IconError('expected <path>')
     data = elem.attrib.get('d')
     if data is None:
         raise IconError('missing <path d=""> attribute')

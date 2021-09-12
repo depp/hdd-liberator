@@ -4,3 +4,4 @@
 export const Pause = "M6 19h4V5H6v14zm8-14v14h4V5h-4z";
 export const PlayArrow = "M8 5v14l11-7z";
 export const Stop = "M6 6h12v12H6z";
+export const Download = "M5,20h14v-2H5V20z M19,9h-4V3H9v6H5l7,7L19,9z";

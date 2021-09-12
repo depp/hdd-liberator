@@ -15,10 +15,31 @@ const GridSize = 32;
 export let ctx;
 
 /**
+ * Vertical offset for centering emoji, relative to font size.
+ *
+ * To center emoji vertically, textBaseline does not appear to be sufficient...
+ * it was observed to be off-center on different systems by different amounts.
+ * Instead, we pick an emoji with a very circular shape (U+1F600 grinning face)
+ * and measure the actual center of the glyph.
+ *
+ * @type {number}
+ */
+let EmojiOffset;
+
+/**
+ * Font for rendering emjoi.
+ * @const
+ */
+const EmojiFont = '32px serif';
+
+/**
  * @param {CanvasRenderingContext2D?} c
  */
 export function SetContext(c) {
   ctx = c;
+  c.font = '100px serif';
+  const m = c.measureText('\u{1F600}');
+  EmojiOffset = (m.actualBoundingBoxAscent - m.actualBoundingBoxDescent) / 200;
 }
 
 /**
@@ -36,6 +57,7 @@ export function Render2D() {
   let x, y;
 
   ctx.save();
+  ctx.textAlign = 'center';
 
   /** @type {HTMLCanvasElement} */
   const c = ctx.canvas;
@@ -76,8 +98,16 @@ export function Render2D() {
 
   ctx.fillStyle = '#cc3';
   for (let box of Boxes) {
+    let { H, W } = box;
     Translate(box);
-    ctx.fillRect(6, 6, box.W * GridSize - 12, box.H * GridSize - 12);
+    ctx.fillRect(6, 6, W * GridSize - 12, H * GridSize - 12);
+    let size = Math.min(W, H) * ((GridSize * 0.9) | 0);
+    ctx.font = `${size}px serif`;
+    ctx.fillText(
+      '\u{1F4C4}',
+      (GridSize / 2) * W,
+      (GridSize / 2) * H + ((size * EmojiOffset) | 0),
+    );
     ctx.restore();
   }
 
@@ -100,20 +130,8 @@ export function Render2D() {
   ctx.stroke();
   ctx.restore();
 
-  // Draw an emoji, centered on a grid square. To center it vertically,
-  // textBaseline does not appear to be sufficient... it was observed to be
-  // off-center on different systems by different amounts. Instead, we pick an
-  // emoji with a very circular shape (U+1F600 grinning face) and measure the
-  // actual center of the glyph.
-  ctx.save();
-  ctx.font = '32px serif';
-  const m = ctx.measureText('\u{1F600}');
-  const off = (m.actualBoundingBoxAscent - m.actualBoundingBoxDescent) >> 1;
-  ctx.textAlign = 'center';
-  const str = '\u{1F923}';
-  ctx.fillText(str, GridSize * 2.5, GridSize * 0.5 + off);
-  ctx.fillRect(GridSize * 2.5 - 1, GridSize * 0.5 - 1, 2, 2);
-  ctx.restore();
+  // ===========================================================================
+  // Done.
 
   ctx.restore();
 }

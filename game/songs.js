@@ -67,6 +67,60 @@ function MakeIcon(...paths) {
   return { svg, icons };
 }
 
+function makeWave(sampleRate, channels) {
+  const headersize = 44;
+  const datasize = 4 * channels.length * channels[0].length;
+  const filesize = headersize + datasize;
+  const buffer = new Uint8Array(filesize).buffer;
+  const d = new DataView(buffer);
+  let pos = 0;
+
+  function u16(n) {
+    d.setUint16(pos, n, true);
+    pos += 2;
+  }
+
+  function u32(n) {
+    d.setUint32(pos, n, true);
+    pos += 4;
+  }
+
+  function string(s) {
+    for (let i = 0; i < s.length; i++) {
+      d.setUint8(pos + i, s.charCodeAt(i));
+    }
+    pos += s.length;
+  }
+
+  string('RIFF');
+  u32(filesize - 8);
+  string('WAVE');
+
+  string('fmt ');
+  u32(16);
+  u16(3); // float
+  u16(channels.length);
+  u32(sampleRate);
+  u32(sampleRate * channels.length * 4); // bytes per second
+  u16(channels.length * 4); // bytes per frame
+  u16(32); // bits per sample
+
+  string('data');
+  u32(datasize);
+
+  const floats = new Float32Array(buffer, headersize);
+
+  let n = channels.length;
+  for (let i = 0; i < n; i++) {
+    const channel = channels[i];
+    for (let j = 0; j < channel.length; j++) {
+      floats[i + n * j] = channel[j];
+    }
+  }
+
+  return buffer;
+}
+
 class IconButton {
   constructor(...paths) {
     const { svg, icons } = MakeIcon(...paths);
@@ -140,6 +194,10 @@ class Song {
     progress.value = 0;
     controls.appendChild(progress);
 
+    const download = new IconButton(icons.Download);
+    controls.append(download.button);
+    download.button.addEventListener('click', () => this.handleDownload());
+
     /** @type {HTMLElement} */
     this.div = div;
     /** @type {boolean} */
@@ -194,6 +252,59 @@ class Song {
   startPlayback(startTime) {
     this.startTime = startTime;
     PlaySong(this.song, Ctx, this.node, startTime);
+  }
+
+  handleDownload() {
+    console.log('Starting rendering');
+    const tailLength = 2;
+    const sampleRate = 48000;
+
+    const constructor =
+      window.OfflineAudioContext ?? window.webkitOfflineAudioContext;
+    if (!constructor) {
+      throw new Error('no constructor');
+    }
+    let end = 0;
+    for (const track of this.song.Tracks) {
+      let tlen = 0;
+      for (const dur of track.Durations) {
+        tlen += dur;
+      }
+      end = Math.max(end, tlen);
+    }
+    const length = end * this.song.TickDuration + tailLength;
+    const ctx = new constructor(2, (sampleRate * length) | 0, sampleRate);
+    const t0 = performance.now();
+    PlaySong(this.song, ctx, ctx.destination, 0.25);
+    ctx.startRendering().then((buffer) => {
+      const t1 = performance.now();
+      console.log(`Rendering done: time=${(t1 - t0) * 0.001}`);
+      let data = [];
+      for (let channel = 0; channel < 2; channel++) {
+        data.push(buffer.getChannelData(channel));
+      }
+      let peak = 0;
+      for (const cdata of data) {
+        for (const s of cdata) {
+          const as = Math.abs(s);
+          if (as > peak) {
+            peak = as;
+          }
+        }
+      }
+      console.log(`Peak: ${20 * Math.log10(peak)} dB`);
+
+      const dbuffer = makeWave(sampleRate, data);
+      const blob = new Blob([dbuffer, { type: 'audio/wav' }]);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.style.display = 'none';
+      a.href = url;
+      a.download = this.name + '.wav';
+      document.body.appendChild(a);
+      a.click();
+      URL.revokeObjectURL(url);
+    });
   }
 }
 

@@ -465,7 +465,7 @@ def keys(c: ProgramContext) -> None:
     for _ in range(2):
         c.lowpass(
             frequency=FADSR(500, 5000, MIN, 0.4, 0.2, 0.4),
-            q=GConst(4.0),
+            q=DBConst(4.0),
         )
     c.gain(
         gain=GConst(0.5),

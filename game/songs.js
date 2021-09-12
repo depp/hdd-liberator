@@ -4,7 +4,7 @@
 
 import { GetMain, PutErrorMessage, NewErrorMessage } from './ui.standard.js';
 import * as audiodata from './audio.data.js';
-import { RenderedSong, RenderSong } from './audio.music.js';
+import { PlaySong } from './audio.music.js';
 import * as icons from './icons.js';
 
 /** @type {HTMLElement} */
@@ -145,19 +145,15 @@ class Song {
     /** @type {boolean} */
     this.isPlaying = false;
 
-    /** @type {RenderedSong} */
-    this.rendered = null;
-    /** @type {boolean} */
-    this.isRendering = false;
     /** @type {number} */
     this.position = 0;
-    /** @type {AudioBufferSourceNode} */
+    /** @type {GainNode} */
     this.node = null;
     /**
      * Audio context time for t=0.
      * @type {number}
      */
-    this.playbackOffset = 0;
+    this.startTime = 0;
   }
 
   handlePlayPause() {
@@ -175,11 +171,11 @@ class Song {
     this.isPlaying = true;
     this.playPause.show(1);
     StartAudio();
-    if (this.rendered != null) {
-      this.startPlayback(Ctx.currentTime, this.position);
-    } else {
-      this.startRendering();
+    if (this.node == null) {
+      this.node = Ctx.createGain();
+      this.node.connect(Ctx.destination);
     }
+    this.startPlayback(Ctx.currentTime + 0.25);
   }
 
   pause() {
@@ -191,58 +187,13 @@ class Song {
     if (this.node != null) {
       this.node.disconnect();
       this.node = null;
-      this.position = Ctx.currentTime - this.playbackOffset;
+      this.position = Ctx.currentTime - this.startTime;
     }
   }
 
-  /**
-   * @param {number} when
-   * @param {number} offset
-   */
-  startPlayback(when, offset) {
-    try {
-      const { Buffer } = this.rendered;
-      const source = Ctx.createBufferSource();
-      source.buffer = Buffer;
-      source.connect(Ctx.destination);
-      source.start(when, offset);
-      this.node = source;
-      this.playbackOffset = when - offset;
-    } catch (e) {
-      console.error(e);
-      this.pause();
-    }
-  }
-
-  startRendering() {
-    if (this.isRendering) {
-      return;
-    }
-    this.isRendering = true;
-    (async () => {
-      try {
-        try {
-          while (this.isPlaying) {
-            const { song, version } = this;
-            const result = await RenderSong(song, Ctx.sampleRate);
-            if (version == this.version) {
-              this.rendered = result;
-              break;
-            }
-            console.log('AGAIN');
-          }
-        } finally {
-          this.isRendering = false;
-        }
-      } catch (e) {
-        console.error(e);
-        SetError(`Render: ${e}`);
-        return;
-      }
-      if (this.rendered != null) {
-        this.startPlayback(Ctx.currentTime, this.position);
-      }
-    })();
+  startPlayback(startTime) {
+    this.startTime = startTime;
+    PlaySong(this.song, Ctx, this.node, startTime);
   }
 }
 

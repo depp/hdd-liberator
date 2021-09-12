@@ -1,51 +1,34 @@
+import { COMPO } from './common.js';
 import { Sounds, Song } from './audio.data.js';
 import { PlaySynth } from './audio.synth.js';
-import { COMPO } from './common.js';
-
-/**
- * The audio tail for songs, in seconds.
- * @const {number}
- */
-const SongTail = 2.0;
-
-/**
- * @typedef {{
- *   Buffer: !AudioBuffer,
- *   Duration: number,
- * }}
- */
-export var RenderedSong;
 
 /**
  * Render a song to an audio buffer.
  * @param {!Song} song The song to render.
- * @param {number} sampleRate The sample rate.
- * @returns {Promise<RenderedSong>}
+ * @param {!AudioContext} ctx The web audio context.
+ * @param {!AudioNode} destination The destination node to send audio to.
+ * @param {number} startTime Audio context timestamp at which to start the song.
+ * @returns {{
+ *   LoopTime: number,
+ *   EndTime: number,
+ * }} LoopTime is the timestamp when the next loop starts, EndTime is the time
+ * when playback finishes.
  */
-export function RenderSong(song, sampleRate) {
+export function PlaySong(song, ctx, destination, startTime) {
   const { TickDuration, Duration, Tracks } = song;
-  const constructor =
-    window.OfflineAudioContext ?? window.webkitOfflineAudioContext;
-  if (!COMPO && !constructor) {
-    throw new Error('no offline audio constructor');
-  }
-  const ctx = new constructor(
-    2,
-    sampleRate * (TickDuration * Duration + SongTail),
-    sampleRate,
-  );
   const gain = ctx.createGain();
   gain.gain.value = 0.2;
-  gain.connect(ctx.destination);
+  gain.connect(destination);
+  let EndTime = startTime;
   for (const track of Tracks) {
     const { Values, Durations, Instrument } = track;
-    let t = 0;
+    let t = startTime;
     for (let i = 0; i < Values.length; i++) {
       const noteValue = Values[i];
       const noteDuration = Durations[i];
 
       if (noteValue > 0) {
-        PlaySynth(
+        let end = PlaySynth(
           Sounds[Instrument],
           ctx,
           gain,
@@ -53,12 +36,17 @@ export function RenderSong(song, sampleRate) {
           noteDuration * TickDuration,
           noteValue,
         );
+        if (end > EndTime) {
+          EndTime = end;
+        }
       }
 
       t += noteDuration * TickDuration;
     }
   }
-  return ctx
-    .startRendering()
-    .then((Buffer) => ({ Buffer, Duration: TickDuration * Duration }));
+
+  return {
+    LoopTime: TickDuration * Duration,
+    EndTime,
+  };
 }

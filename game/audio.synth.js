@@ -8,6 +8,7 @@ import { COMPO, NUM_VALUES } from './common.js';
  * @param {number} t0 The program start time, seconds since start
  * @param {number} tgate The length of the note, in seconds
  * @param {number} note The MIDI note value to play
+ * @return {number} The ending timestamp of the note
  */
 export function PlaySynth(program, ctx, out, t0, tgate, note) {
   /**
@@ -224,4 +225,6 @@ export function PlaySynth(program, ctx, out, t0, tgate, note) {
     source.start(t0);
     source.stop(t0 + duration);
   }
+
+  return t0 + duration;
 }

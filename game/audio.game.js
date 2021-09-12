@@ -1,6 +1,4 @@
 import { COMPO } from './common.js';
-import { Songs } from './audio.data.js';
-import { RenderSong } from './audio.music.js';
 
 /**
  * @type {AudioContext?}
@@ -19,20 +17,6 @@ function PlayBuffer(buffer) {
   source.buffer = buffer;
   source.connect(Ctx.destination);
   source.start();
-}
-
-/**
- * Play an in-game sound.
- */
-function PlaySound() {
-  if (Songs == null || Ctx == null) {
-    return;
-  }
-  const song = Songs[0];
-  if (song == null) {
-    return;
-  }
-  RenderSong(song, Ctx.sampleRate).then(({ Buffer }) => PlayBuffer(Buffer));
 }
 
 /**

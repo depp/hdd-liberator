@@ -50,6 +50,7 @@ export function NewErrorMessage(msg) {
   const p = document.createElement('p');
   div.appendChild(p);
   p.appendChild(document.createTextNode(msg));
+  return div;
 }
 
 /**

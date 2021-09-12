@@ -7,7 +7,7 @@ division: 16
 
 @track
 name: Bass
-instrument: Bass
+instrument: Dance Bass
 constant_duration: 1
 
 c3.2 c4.2 c3.2 c4.2 c3.2 c4.1 g3.1 c3.2 c4.2 |

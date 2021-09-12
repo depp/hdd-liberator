@@ -313,7 +313,7 @@ GADSR = ParameterType('GADSR', TimeValue, TimeValue, GainValue, TimeValue)
 FADSR = ParameterType(
     'FADSR', FrequencyValue, FrequencyValue,
     TimeValue, TimeValue, GainValue, TimeValue)
-Note = ParameterType('Note')()
+Note = ParameterType('Note', IntValue)
 RandomBipolar = ParameterType('RandomBipolar', DetuneValue)
 
 @node('gain')
@@ -386,7 +386,20 @@ def bass(c: ProgramContext) -> None:
             q=DBConst(4.0),
         )
     c.sawtooth(
-        frequency=Note,
+        frequency=Note(0),
+    )
+
+@instrument('Dance Bass')
+def dance_bass(c: ProgramContext) -> None:
+    c.gain(
+        gain=GADSR(MIN, 0.5, 0.2, 0.05)
+    )
+    c.lowpass(
+        frequency=FADSR(400, 8000, MIN, 0.5, MIN, 0.05),
+        q=DBConst(0),
+    )
+    c.square(
+        frequency=Note(-12),
     )
 
 @instrument('Soft Lead')
@@ -404,7 +417,7 @@ def soft_lead(c: ProgramContext) -> None:
             pan=RandomBipolar(0.5),
         )
         c.sawtooth(
-            frequency=Note,
+            frequency=Note(0),
             detune=RandomBipolar(10.0),
         )
 
@@ -417,7 +430,7 @@ def pluck(c: ProgramContext) -> None:
         frequency=FADSR(600, 1800, MIN, 0.3, MIN, 0.3),
     )
     c.square(
-        frequency=Note,
+        frequency=Note(0),
     )
 
 ################################################################################

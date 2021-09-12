@@ -125,7 +125,9 @@ export function PlaySynth(program, ctx, out, t0, tgate, note) {
     },
     // Note value.
     (/** !AudioParam */ param) => {
-      param.value = 440 * 2 ** ((note - 69) / 12);
+      param.value =
+        440 *
+        2 ** ((note + program[pos++] - 69 - ((NUM_VALUES - 1) >> 1)) / 12);
     },
     // Random bipolar value.
     (/** !AudioParam */ param) => {

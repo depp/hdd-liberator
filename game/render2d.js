@@ -87,9 +87,10 @@ export function Render2D() {
   ctx.save();
   /** @const {!Array<string>} */
   const colors = ['#ccc', '#c00', '#6c6', '#999'];
+  let scan = grid.ScanFreeSpace(2, 2);
   for (x = 0; x < grid.Width; x++) {
     for (y = 0; y < grid.Height; y++) {
-      const value = grid.Get(x, y);
+      const value = scan[y * grid.Width + x];
       ctx.fillStyle = colors[value] ?? '#0ff';
       ctx.fillRect(x * GridSize, y * GridSize, GridSize, GridSize);
     }

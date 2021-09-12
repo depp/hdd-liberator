@@ -148,6 +148,12 @@ export let StaticCells;
 export let StaticFreeArea;
 
 /**
+ * Used for scanning for free spaces.
+ * @type {Uint8Array}
+ */
+let ScanArray;
+
+/**
  * Set the size of the grid, and clear it so all cells contain 0.
  * @param {number} width
  * @param {number} height
@@ -169,6 +175,7 @@ export function Reset(width, height) {
   Height = height;
   DynamicCells = new Uint8Array(width * height);
   StaticCells = new Uint8Array(width * height);
+  ScanArray = new Uint8Array(width * height);
 }
 
 /**
@@ -343,4 +350,51 @@ export function SetRect({ X, Y, W, H }, value, dx = 0, dy = 0) {
       DynamicCells[yy * Width + xx] = value;
     }
   }
+}
+
+export const ScanStatic = 1;
+export const ScanDynamic = 2;
+
+/**
+ * Find free spaces in the level of the given minimum size. Returns an array
+ * which contains the flags ScanStatic and ScanDynamic for each cell. ScanStatic
+ * indicates that a rectangle placed with the origin in that tile will intersect
+ * with static objects. ScanDynamic indicates that it will intersect with either
+ * static or dynamic objects.
+ *
+ * @param {number} width
+ * @param {number} height
+ * @return {!Uint8Array}
+ */
+export function ScanFreeSpace(width, height) {
+  var i, j;
+  // Mark each tile as individually free or occupied.
+  for (i = 0; i < Width * Height; i++) {
+    ScanArray[i] = StaticCells[i]
+      ? ScanStatic | ScanDynamic
+      : DynamicCells[i]
+      ? ScanDynamic
+      : 0;
+  }
+  // Dilate horizontally.
+  for (i = 1; i < width; i++) {
+    for (j = 0; j < Width * Height - 1; j++) {
+      ScanArray[j] |= ScanArray[j + 1];
+    }
+    for (i = 0; i < Height; i++) {
+      ScanArray[i * Width + Width - 1] = ScanStatic | ScanDynamic;
+    }
+  }
+  // Dilate vertically.
+  for (i = 1; i < height; i++) {
+    for (j = 0; j < Width * Height - 1; j++) {
+      ScanArray[j] |= ScanArray[j + Width];
+    }
+    ScanArray.fill(
+      ScanStatic | ScanDynamic,
+      Width * Height - Width,
+      Width * Height,
+    );
+  }
+  return ScanArray;
 }

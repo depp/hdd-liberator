@@ -96,29 +96,6 @@ function NewController() {
 export let Keyboard = NewController();
 
 /**
- * @param {KeyboardEvent} evt
- */
-function HandleKeyDown(evt) {
-  const binding = KeyBindings[evt.code];
-  if (binding) {
-    Keyboard.IsActive = true;
-    Keyboard.State[binding] = true;
-    evt.preventDefault();
-  }
-}
-
-/**
- * @param {KeyboardEvent} evt
- */
-function HandleKeyUp(evt) {
-  const binding = KeyBindings[evt.code];
-  if (binding) {
-    Keyboard.State[binding] = false;
-    evt.preventDefault();
-  }
-}
-
-/**
  * @type {!Array<Controller|null>}
  */
 export let Gamepads = [];
@@ -149,8 +126,25 @@ export function Init() {
  * Start listening for player input.
  */
 export function Start() {
-  document.onkeydown = /** @type {function(Event)} */ (HandleKeyDown);
-  document.onkeyup = /** @type {function(Event)} */ (HandleKeyUp);
+  document.onkeydown = /** @type {function(Event)} */ (
+    function HandleKeyDown(/** KeyboardEvent */ evt) {
+      const binding = KeyBindings[evt.code];
+      if (binding) {
+        Keyboard.IsActive = true;
+        Keyboard.State[binding] = true;
+        evt.preventDefault();
+      }
+    }
+  );
+  document.onkeyup = /** @type {function(Event)} */ (
+    function HandleKeyUp(/** KeyboardEvent */ evt) {
+      const binding = KeyBindings[evt.code];
+      if (binding) {
+        Keyboard.State[binding] = false;
+        evt.preventDefault();
+      }
+    }
+  );
 }
 
 /**

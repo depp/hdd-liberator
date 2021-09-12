@@ -21,7 +21,13 @@ export function PlaySynth(program, ctx, out, t0, tgate, note) {
    * All audio sources.
    * @type {!Array<!OscillatorNode>}
    */
-  const sources = [];
+  let sources = [];
+
+  /**
+   * Stack of all destinations.
+   * @type {!Array<!AudioNode>}
+   */
+  let stack = [];
 
   /**
    * Exponent for calculating parameter values. Numbers encoded as N are decoded
@@ -50,6 +56,17 @@ export function PlaySynth(program, ctx, out, t0, tgate, note) {
    * @type {number}
    */
   let pos = 0;
+
+  // Variables saved from the beginning of a loop.
+
+  /** @type {?number} */
+  let repeatCount;
+  /** @type {?number} */
+  let repeatPos;
+  /** @type {AudioNode} */
+  let repeatOut;
+  /** @type {Array<!AudioNode>} */
+  let repeatStack;
 
   /**
    * Set an audio parameter to follow an ADSR envelope.
@@ -110,6 +127,10 @@ export function PlaySynth(program, ctx, out, t0, tgate, note) {
     (/** !AudioParam */ param) => {
       param.value = program[pos++] - ((NUM_VALUES - 1) >> 1);
     },
+    // Constant pan value.
+    (/** !AudioParam */ param) => {
+      param.value = (program[pos++] - ((NUM_VALUES - 1) >> 1)) / 60;
+    },
     // Gain ADSR.
     (/** !AudioParam */ param) => ADSR(param, exponent ** (NUM_VALUES - 1), 1),
     // Frequency ADSR.
@@ -154,17 +175,11 @@ export function PlaySynth(program, ctx, out, t0, tgate, note) {
       f(param);
     }
     node.connect(out);
-    out = node;
+    if (node.numberOfInputs) {
+      stack.push(out);
+      out = node;
+    }
   }
-
-  // Variables saved from the beginning of a loop.
-
-  /** @type {?number} */
-  let repeatCount;
-  /** @type {?number} */
-  let repeatPos;
-  /** @type {AudioNode} */
-  let repeatOut;
 
   /** @type {Array<function()!>} */
   const opcodes = [
@@ -173,6 +188,7 @@ export function PlaySynth(program, ctx, out, t0, tgate, note) {
       repeatCount = program[pos++];
       repeatPos = pos;
       repeatOut = out;
+      repeatStack = [...stack];
     },
     // End repeat.
     () => {
@@ -184,10 +200,20 @@ export function PlaySynth(program, ctx, out, t0, tgate, note) {
           throw new Error('negative repeat count');
         }
       }
+      out = /** @type {!AudioNode} */ (repeatOut);
+      stack = [...repeatStack];
       if (repeatCount--) {
         pos = /** @type {number} */ (repeatPos);
-        out = /** @type {!AudioNode} */ (repeatOut);
       }
+    },
+    // Pop destination stack.
+    () => {
+      if (!COMPO) {
+        if (stack.length == 0) {
+          throw new Error('cannot pop node');
+        }
+      }
+      out = stack.pop();
     },
     // Create gain node.
     () => {

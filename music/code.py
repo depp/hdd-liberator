@@ -229,13 +229,14 @@ class Parameter:
 
 Opcode = Callable[[Writer], None]
 
-OPCODE_ENCODING = 2
-
 OPCODES: Dict[str, Tuple[int, Opcode]]
 OPCODES = {}
 
 OPCODE_REPEAT = 0
 OPCODE_ENDREPEAT = 1
+OPCODE_POP = 2
+
+OPCODE_ENCODING = 3
 
 def node(*names: str) -> Callable[[Opcode], Opcode]:
     def wrapped(arg: Opcode) -> Opcode:
@@ -294,6 +295,9 @@ class ProgramContext:
         self.writer.write((OPCODE_REPEAT, count - 1))
         return RepeatContext(self)
 
+    def pop(self) -> None:
+        self.writer.write((OPCODE_POP,))
+
 ################################################################################
 # Definitions
 ################################################################################
@@ -303,12 +307,14 @@ TimeValue = ExpScale('time', 20.0)
 FrequencyValue = ExpScale('frequency', 20e3)
 DetuneValue = ExpScale('detune', 99.0/2.0)
 IntValue = LinScale('int', 1.0, True)
+PanValue = LinScale('int', 1/60, True)
 
 Default = ParameterType('Default')()
 GConst = ParameterType('GConst', GainValue)
 TConst = ParameterType('TConst', TimeValue)
 FConst = ParameterType('FConst', FrequencyValue)
 DBConst = ParameterType('DBConst', IntValue)
+PanConst = ParameterType('PanConst', PanValue)
 GADSR = ParameterType('GADSR', TimeValue, TimeValue, GainValue, TimeValue)
 FADSR = ParameterType(
     'FADSR', FrequencyValue, FrequencyValue,
@@ -392,14 +398,32 @@ def bass(c: ProgramContext) -> None:
 @instrument('Dance Bass')
 def dance_bass(c: ProgramContext) -> None:
     c.gain(
-        gain=GADSR(MIN, 0.5, 0.2, 0.05)
+        gain=GADSR(0.01, 0.5, 0.2, 0.1)
     )
     c.lowpass(
-        frequency=FADSR(400, 8000, MIN, 0.5, MIN, 0.05),
+        frequency=FADSR(100, 6000, MIN, 0.2, 0.2, 0.2),
         q=DBConst(0),
+    )
+    c.gain(
+        gain=GConst(0.5),
     )
     c.square(
         frequency=Note(-12),
+    )
+    c.pan(
+        pan=PanConst(-0.5),
+    )
+    c.sawtooth(
+        frequency=Note(0),
+        detune=RandomBipolar(10.0),
+    )
+    c.pop()
+    c.pan(
+        pan=PanConst(+0.5),
+    )
+    c.sawtooth(
+        frequency=Note(0),
+        detune=RandomBipolar(10.0),
     )
 
 @instrument('Soft Lead')

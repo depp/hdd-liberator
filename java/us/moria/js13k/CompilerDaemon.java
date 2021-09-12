@@ -289,7 +289,9 @@ public class CompilerDaemon {
         // options.setBrowserFeaturesetYear(2020);
         options.setCodingConvention(CodingConventions.getDefault());
         options.setTrustedStrings(true);
-        options.setWarningLevel(DiagnosticGroups.REPORT_UNKNOWN_TYPES, CheckLevel.WARNING);
+        if (request.getWarnUnknownTypes()) {
+            options.setWarningLevel(DiagnosticGroups.REPORT_UNKNOWN_TYPES, CheckLevel.WARNING);
+        }
 
         // options.setNumParallelThreads
         // options.setEnvironment

@@ -19,6 +19,7 @@ message BuildRequest {
   string base_directory = 3;
   string output_source_map = 4;
   repeated Define define = 5;
+  bool warn_unknown_types = 6;
 }
 
 message Diagnostic {

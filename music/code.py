@@ -457,6 +457,38 @@ def pluck(c: ProgramContext) -> None:
         frequency=Note(0),
     )
 
+@instrument('Keys')
+def keys(c: ProgramContext) -> None:
+    c.gain(
+        gain=GADSR(MIN, 0.5, MIN, 0.5),
+    )
+    for _ in range(2):
+        c.lowpass(
+            frequency=FADSR(500, 5000, MIN, 0.4, 0.2, 0.4),
+            q=GConst(4.0),
+        )
+    c.gain(
+        gain=GConst(0.5),
+    )
+    c.sawtooth(
+        frequency=Note(0),
+    )
+    c.pan(
+        pan=PanConst(-0.5),
+    )
+    c.square(
+        frequency=Note(12),
+        detune=RandomBipolar(10),
+    )
+    c.pop()
+    c.pan(
+        pan=PanConst(+0.5),
+    )
+    c.square(
+        frequency=Note(12),
+        detune=RandomBipolar(10),
+    )
+
 ################################################################################
 
 def compile(func: Callable[[ProgramContext], None]) -> bytes:

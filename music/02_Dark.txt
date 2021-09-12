@@ -96,7 +96,8 @@ c4.8 r8 |
 
 @track
 name: Chords
-instrument: Pluck
+instrument: Keys
+constant_duration: 1
 
 c4e4g4.6 :4 :4 :2 |
 c4e4g#4.6 :4 :4 :2 |

@@ -12,7 +12,7 @@ import { COMPO } from './common.js';
 import { Random, NewRandom } from './random.js';
 
 /** @const */
-const StartAtLevel = 2;
+const StartAtLevel = 0;
 
 /**
  * Create a wall with the given rectangle.
@@ -128,7 +128,7 @@ export let Levels = [
     DownloadSpeed: 0,
   },
   {
-    Track: audio.MusicLightOfCreation,
+    Track: audio.MusicAfterDark,
     // Globe -> File
     Help: '\u{1F30D}\u{2794}\u{1F4C4}',
     Create() {

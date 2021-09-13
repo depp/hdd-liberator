@@ -1,5 +1,6 @@
 /**
  * @typedef {{
+ *   Track: number,
  *   Help: string,
  *   Create: function(),
  *   Update: function(),

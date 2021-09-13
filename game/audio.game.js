@@ -51,7 +51,13 @@ let Tracks = [];
 let CurrentTrack = -1;
 
 /**
- * @type {?AudioBufferSourceNode}
+ * Index of the next track to play.
+ * @type {number}
+ */
+let PendingTrack = -1;
+
+/**
+ * @type {?GainNode}
  */
 let CurrentTrackSource;
 
@@ -67,27 +73,38 @@ let Timeout;
  * Play a sound with the given buffer.
  * @param {AudioBuffer} buffer
  * @param {number=} startTime
- * @return {AudioBufferSourceNode}
+ * @return {GainNode}
  */
 function PlayBuffer(buffer, startTime) {
   if (!COMPO && !Ctx) {
     throw new Error('Ctx is null');
   }
+  const gain = Ctx.createGain();
+  gain.connect(Ctx.destination);
   const source = Ctx.createBufferSource();
   source.buffer = buffer;
-  source.connect(Ctx.destination);
+  source.connect(gain);
   source.start(startTime);
-  return source;
+  return gain;
+}
+
+/**
+ * @param {number} index
+ * @return {?RenderedTrack}
+ */
+function GetTrack(index) {
+  return Tracks[index + NumSongs] ?? Tracks[index];
 }
 
 /**
  * Start playing the next loop of the current song.
  */
 function LoopCurrentSong() {
-  var track;
   Timeout = 0;
-  track = Tracks[CurrentTrack + NumSongs] ?? Tracks[CurrentTrack];
-  StartTrack(track, CurrentTrackLoopTime);
+  StartTrack(
+    /** @type {!RenderedTrack} */ (GetTrack(CurrentTrack)),
+    CurrentTrackLoopTime,
+  );
 }
 
 /**
@@ -105,6 +122,25 @@ function StartTrack({ Buffer, LoopTime }, startTime) {
     LoopCurrentSong,
     1000 * Math.max(1, CurrentTrackLoopTime - Ctx.currentTime - 1),
   );
+}
+
+/**
+ * @param {number} index
+ * @param {RenderedTrack} track
+ */
+function SwitchToTrack(index, track) {
+  if (CurrentTrack < 0) {
+    // Nothing playing, play immediately.
+    StartTrack(track);
+  } else {
+    // Something playing.
+    var t = Ctx.currentTime;
+    var src = CurrentTrackSource;
+    src.gain.exponentialRampToValueAtTime(1e-4, t + 1);
+    setTimeout(() => src.disconnect(), 1000);
+    StartTrack(track, t + 1);
+  }
+  CurrentTrack = index;
 }
 
 /**
@@ -142,8 +178,8 @@ export async function Render() {
     var { LoopTime } = PlaySong(song, ctx, ctx.destination, MusicHead);
     var Buffer = await ctx.startRendering();
     Tracks[i] = { LoopTime, Buffer };
-    if (CurrentTrack == i) {
-      StartTrack(Tracks[i]);
+    if (PendingTrack == i) {
+      SwitchToTrack(PendingTrack, Tracks[i]);
     }
   }
 }
@@ -152,13 +188,16 @@ export async function Render() {
  * @param {number} index
  */
 export function PlayTrack(index) {
-  if (index == CurrentTrack) {
+  if (index == PendingTrack) {
     return;
   }
-  CurrentTrack = index;
-  var track = Tracks[index];
+  PendingTrack = index;
+  if (CurrentTrack == index) {
+    return;
+  }
+  var track = GetTrack(index);
   if (track) {
-    StartTrack(track);
+    SwitchToTrack(index, track);
   }
 }
 
@@ -188,6 +227,7 @@ export function Stop() {
     Ctx.close();
     Ctx = null;
     CurrentTrackSource = null;
+    CurrentTrack = -1;
     if (Timeout) {
       clearTimeout(Timeout);
     }

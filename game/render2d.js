@@ -114,7 +114,7 @@ export function Render2D() {
   ctx.translate(c.width / 2, c.height / 2);
   var scale = 0.8 * Math.min(c.width / xsize, c.height / ysize);
   ctx.scale(scale, scale);
-  ctx.translate(-xsize / 2, -ysize / 2);
+  ctx.translate(-xsize / 2, -0.45 * ysize);
 
   /** @const {!Array<string>} */
   const colors = ['#ccc', '#444', '#6c6'];

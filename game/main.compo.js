@@ -2,6 +2,7 @@ import './common.js';
 import { ctx, SetContext, Render2D } from './render2d.js';
 import * as game from './game.js';
 import * as audioData from './audio.data.js';
+import * as audio from './audio.game.js';
 
 /**
  * Callback for requestAnimationFrame.
@@ -52,6 +53,7 @@ function Start() {
     return;
   }
   window.i.style.display = 'none';
+  audio.Start();
   game.Start();
   Frame(0);
 }

@@ -1,4 +1,3 @@
-import * as audio from './audio.game.js';
 import * as input from './input.js';
 import * as player from './player.js';
 import * as time from './time.js';
@@ -20,12 +19,11 @@ export function Init() {
  * Initialize the game.
  */
 export function Start() {
-  var r;
+  var r, i, j;
 
   InitRandom();
   r = NewRandom(1);
   input.Start();
-  audio.Start();
 
   entityGeneric.Actors.push(player.Player);
   grid.Reset(12, 8);
@@ -33,8 +31,8 @@ export function Start() {
   entityDevice.Spawn(0, 6);
   entityDevice.Spawn(10, 6);
   grid.SetStatic();
-  for (let j = 3; --j; ) {
-    for (let i = 5; i--; ) {
+  for (j = 3; --j; ) {
+    for (i = 5; i--; ) {
       entityBox.Spawn(entityBox.NewRandom(j, r));
     }
   }
@@ -45,10 +43,11 @@ export function Start() {
  * @param {number} timestamp Current timestamp, in milliseconds.
  */
 export function Update(timestamp) {
+  var ticks, box;
   input.UpdateState();
-  for (let ticks = time.UpdateForTimestamp(timestamp); ticks--; ) {
+  for (ticks = time.UpdateForTimestamp(timestamp); ticks--; ) {
     // Update interpolation.
-    for (let box of entityBox.Boxes) {
+    for (box of entityBox.Boxes) {
       box.X0 = box.X;
       box.Y0 = box.Y;
     }

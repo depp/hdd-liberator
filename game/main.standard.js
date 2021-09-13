@@ -1,8 +1,12 @@
 import { RELEASE } from './common.js';
-import { PutMain, PutErrorMessage } from './ui.standard.js';
+import { SetElementText, PutErrorMessage, GetMain } from './ui.standard.js';
 import * as audiodata from './audio.data.js';
 import * as render2D from './render2d.js';
 import * as game from './game.js';
+import * as audio from './audio.game.js';
+
+const MutedSpeaker = '\u{1F507}';
+const SpeakerHighVolume = '\u{1F50A}';
 
 /**
  * The div containing the game canvas.
@@ -22,6 +26,9 @@ let Canvas;
  * @type {number?}
  */
 let RAFHandle;
+
+/** @type {boolean} */
+let IsSoundRunning = false;
 
 /**
  * Handle a window resize event.
@@ -55,13 +62,22 @@ function Frame(timestamp) {
 }
 
 /**
- * Handle a click on the "start" overlay.
+ * Handle a click on the "toggle sound" button.
  * @param {Event} evt
  */
-function HandleClickStart(evt) {
-  /** @type {HTMLElement} */ (evt.target).remove();
-  game.Start();
-  Frame(0);
+function ToggleSound(evt) {
+  /** @type {HTMLElement} */
+  const button = evt.target;
+  if (IsSoundRunning) {
+    audio.Stop();
+    IsSoundRunning = false;
+    SetElementText(button, MutedSpeaker);
+  } else if (audio.Start()) {
+    IsSoundRunning = true;
+    SetElementText(button, SpeakerHighVolume);
+  } else {
+    console.error('failed to start sound');
+  }
 }
 
 function DevStart() {
@@ -117,6 +133,7 @@ function Start() {
   }
 
   game.Init();
+  game.Start();
   Canvas = document.createElement('canvas');
   const ctx = Canvas.getContext('2d', {
     alpha: false,
@@ -126,20 +143,26 @@ function Start() {
     return;
   }
 
-  const overlay = document.createElement('button');
-  overlay.appendChild(document.createTextNode('\u25b6\ufe0f'));
+  const main = GetMain();
+  if (!main) {
+    return;
+  }
 
   const par = document.createElement('div');
   par.setAttribute('id', 'game');
   par.appendChild(Canvas);
-  par.appendChild(overlay);
   window.addEventListener('resize', HandleResize);
   CanvasContainer = par;
-  HandleResize();
-  PutMain(par);
+  main.append(par);
 
+  const togglesound = document.createElement('button');
+  SetElementText(togglesound, MutedSpeaker);
+  togglesound.onclick = ToggleSound;
+  main.append(togglesound);
+
+  HandleResize();
   render2D.SetContext(ctx);
-  overlay.addEventListener('click', HandleClickStart);
+  RAFHandle = requestAnimationFrame(Frame);
 }
 
 function StartCheck() {

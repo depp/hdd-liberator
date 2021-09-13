@@ -25,14 +25,30 @@ export function GetMain() {
 }
 
 /**
+ * @param {!HTMLElement} node
+ */
+export function RemoveChildren(node) {
+  while (node.firstChild != null) {
+    node.removeChild(node.firstChild);
+  }
+}
+
+/**
+ * @param {!HTMLElement} node
+ * @param {string} text
+ */
+export function SetElementText(node, text) {
+  RemoveChildren(node);
+  node.appendChild(document.createTextNode(text));
+}
+
+/**
  * @param {HTMLElement} element
  */
 export function PutMain(element) {
   const main = GetMain();
   if (main != null) {
-    while (main.firstChild != null) {
-      main.removeChild(main.firstChild);
-    }
+    RemoveChildren(main);
     main.appendChild(element);
   }
 }

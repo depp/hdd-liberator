@@ -21,6 +21,7 @@ function PlayBuffer(buffer) {
 
 /**
  * Start the audio system. This must be called while handling a UI event.
+ * @return {boolean} True if successful.
  */
 export function Start() {
   const constructor = window.AudioContext ?? window.webkitAudioContext;
@@ -28,9 +29,20 @@ export function Start() {
     if (!COMPO) {
       console.error('No audio context constructor');
     }
-    return;
+    return false;
   }
   Ctx = new constructor();
   const silence = Ctx.createBuffer(1, 1000, Ctx.sampleRate);
   PlayBuffer(silence);
+  return true;
+}
+
+/**
+ * Stop the audio system.
+ */
+export function Stop() {
+  if (Ctx) {
+    Ctx.close();
+    Ctx = null;
+  }
 }

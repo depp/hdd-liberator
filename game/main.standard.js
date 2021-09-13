@@ -5,6 +5,7 @@ import { Start2D, Stop2D, Render2D } from './render2d.js';
 import { Start3D, Stop3D, Render3D } from './render3d.js';
 import * as game from './game.js';
 import * as audio from './audio.game.js';
+import * as ui from './ui.game.js';
 
 const MutedSpeaker = '\u{1F507}';
 const SpeakerHighVolume = '\u{1F50A}';
@@ -81,14 +82,16 @@ function HandleResize() {
   const minsize = 8;
   const ww = window.innerWidth;
   const wh = window.innerHeight;
-  const s = Math.max(
+  const size = Math.max(
     minsize,
     Math.floor(Math.min((ww - xmargin) / 16, (wh - ymargin) / 9)),
   );
-  const cw = s * 16;
-  const ch = s * 9;
-  CanvasContainer.style.width = `${cw}px`;
-  CanvasContainer.style.height = `${ch}px`;
+  const cw = size * 16;
+  const ch = size * 9;
+  const { style } = CanvasContainer;
+  style.width = `${cw}px`;
+  style.height = `${ch}px`;
+  style.font = size * ui.FontScale + 'px monospace';
   CanvasWidth = cw;
   CanvasHeight = ch;
   if (Canvas != null) {
@@ -216,9 +219,6 @@ function Start() {
     DevStart();
   }
 
-  game.Init();
-  game.Start();
-
   const main = GetMain();
   if (!main) {
     return;
@@ -229,6 +229,10 @@ function Start() {
   window.addEventListener('resize', HandleResize);
   CanvasContainer = par;
   main.append(par);
+
+  const header = document.createElement('p');
+  header.id = 'header';
+  par.appendChild(header);
 
   const buttons = document.createElement('p');
   buttons.className = 'buttons';
@@ -244,6 +248,9 @@ function Start() {
   toggle3D.onclick = Toggle3D;
   buttons.append(toggle3D);
 
+  ui.Init(header);
+  game.Init();
+  game.Start();
   StartRenderer();
   HandleResize();
   RAFHandle = requestAnimationFrame(Frame);

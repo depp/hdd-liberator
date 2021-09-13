@@ -39,12 +39,15 @@ b {
   visibility: visible;
 }
 #h {
+  font-family: "Noto Color Emoji";
   position: absolute;
   left: 50%;
   transform: translate(-50%);
-  background: #000;
+  background: #111;
   width: 10em;
-  margin: 1ex;
+  margin: 0;
   text-align: center;
   border: 0.2em solid #fc2;
+  border-top: none;
+  padding: .5ex;
 }

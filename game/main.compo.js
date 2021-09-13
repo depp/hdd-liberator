@@ -3,6 +3,7 @@ import { Start2D, Render2D } from './render2d.js';
 import * as game from './game.js';
 import * as audioData from './audio.data.js';
 import * as audio from './audio.game.js';
+import * as ui from './ui.game.js';
 
 /**
  * Callback for requestAnimationFrame.
@@ -24,7 +25,7 @@ function HandleResize() {
     ) | 0;
   s.width = (c.width = size * 16) + 'px';
   s.height = (c.height = size * 9) + 'px';
-  s.font = size * 0.45 + 'px monospace';
+  s.font = size * ui.FontScale + 'px monospace';
 }
 
 function Init() {
@@ -33,6 +34,7 @@ function Init() {
       (/** string */ x) => x.charCodeAt(0) - 1 - (x > '<') - (x > '\r'),
     ),
   );
+  ui.Init(window.h);
   game.Init();
   window.p.onclick = Start;
   window.onresize = HandleResize;

@@ -1,0 +1,31 @@
+/**
+ * Factor for calculating the game UI font size.
+ * @const
+ */
+export const FontScale = 0.45;
+
+/**
+ * Header at the top of the screen, for level help text.
+ * @type {HTMLElement}
+ */
+export let Header;
+
+/**
+ * @param {HTMLElement} header
+ */
+export function Init(header) {
+  Header = header;
+}
+
+/**
+ * Set the contents of an element to the given text.
+ * @param {HTMLElement} node
+ * @param {string} text
+ */
+export function SetText(node, text) {
+  node.style.visibility = text ? '' : 'hidden';
+  while (node.firstChild) {
+    node.removeChild(node.firstChild);
+  }
+  node.appendChild(document.createTextNode(text));
+}

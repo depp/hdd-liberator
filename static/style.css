@@ -116,3 +116,20 @@ nav h1 {
   margin: 0;
   font-size: 2em;
 }
+
+#header {
+  color: #fc2;
+
+  /* Copied from compo version */
+  font-family: "Noto Color Emoji";
+  position: absolute;
+  left: 50%;
+  transform: translate(-50%);
+  background: #000;
+  width: 10em;
+  margin: 0;
+  text-align: center;
+  border: 0.2em solid #fc2;
+  border-top: none;
+  padding: .5ex;
+}

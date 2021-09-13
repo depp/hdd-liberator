@@ -31,3 +31,9 @@ window.p;
  * @type {HTMLElement}
  */
 window.i;
+
+/**
+ * In-game header.
+ * @type {HTMLElement}
+ */
+window.h;

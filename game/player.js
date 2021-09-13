@@ -55,6 +55,7 @@ let Controller = input.Keyboard;
  *   Y: number,
  *   Angle: number,
  *   Update: function(),
+ *   Radius: number,
  * }}
  */
 export const Player = {
@@ -65,6 +66,7 @@ export const Player = {
   Y: 0.5,
   Angle: 0,
   Update: Walk,
+  Radius,
 };
 
 /**

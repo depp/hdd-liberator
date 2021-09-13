@@ -16,10 +16,20 @@ const A = 48271;
 export var Random;
 
 /**
- * @param {number} state
+ * @param {number=} state
  * @returns {Random}
  */
 export function NewRandom(state) {
+  if (state == null) {
+    if (window.crypto) {
+      let data = new Uint32Array(4);
+      window.crypto.getRandomValues(data);
+      state = data[0];
+    } else {
+      state = +new Date();
+    }
+    state >>>= 1;
+  }
   state = state || 1;
 
   /**
@@ -48,4 +58,18 @@ export function NewRandom(state) {
       return result;
     },
   };
+}
+
+/**
+ * Global random number generator, used when determinism is not necessary.
+ * @type {Random}
+ */
+export var Rand;
+
+/**
+ * Initialize the global random number generator. This is not done at module
+ * level, in case we want to use this module from Node (e.g. Jest).
+ */
+export function InitRandom() {
+  Rand = NewRandom();
 }

@@ -3,6 +3,7 @@ import * as time from './time.js';
 import { Player, Radius } from './player.js';
 import { Boxes, TotalBoxArea } from './entity.box.js';
 import { Devices } from './entity.device.js';
+import { Downloads } from './entity.download.js';
 
 /**
  * Size of one grid square, in pixels.
@@ -44,14 +45,21 @@ export function SetContext(c) {
 }
 
 /**
- * @param {{X: number, Y: number, X0: number, Y0: number}} obj
+ * @param {
+ *   {X: number, Y: number, X0: number, Y0: number}|
+ *   {X:number, Y:number}
+ * } obj
  */
 function Translate({ X, Y, X0, Y0 }) {
   ctx.save();
-  ctx.translate(
-    GridSize * (X0 + (X - X0) * time.Fraction),
-    GridSize * (Y0 + (Y - Y0) * time.Fraction),
-  );
+  if (X0 != null && Y0 != null) {
+    ctx.translate(
+      GridSize * (X0 + (X - X0) * time.Fraction),
+      GridSize * (Y0 + (Y - Y0) * time.Fraction),
+    );
+  } else {
+    ctx.translate(GridSize * X, GridSize * Y);
+  }
 }
 
 /**
@@ -109,8 +117,7 @@ export function Render2D() {
   ctx.restore();
 
   for (let obj of Devices) {
-    ctx.save();
-    ctx.translate(obj.X * GridSize, obj.Y * GridSize);
+    Translate(obj);
     DrawIcon(obj, '\u{fe0f}\u{267b}');
     ctx.restore();
   }
@@ -122,6 +129,28 @@ export function Render2D() {
   for (let obj of Boxes) {
     Translate(obj);
     DrawIcon(obj, '\u{1F4C4}');
+    ctx.restore();
+  }
+
+  // ===========================================================================
+  // Render downloads.
+
+  for (let { Box, Progress } of Downloads) {
+    let cx = (GridSize / 2) * Box.W;
+    let cy = (GridSize / 2) * Box.H;
+    let r = GridSize * 0.3 * Math.min(Box.W, Box.H);
+    Translate(Box);
+    ctx.fillStyle = '#00f';
+    ctx.strokeStyle = '#00f';
+    ctx.lineWidth = 2;
+    ctx.strokeRect(6, 6, GridSize * Box.W - 12, GridSize * Box.H - 12);
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, 2 * Math.PI);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(cx, cy);
+    ctx.arc(cx, cy, r, 0, 2 * Math.PI * Progress);
+    ctx.fill();
     ctx.restore();
   }
 

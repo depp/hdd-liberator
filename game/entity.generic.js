@@ -1,4 +1,18 @@
 /**
+ * @typedef {{
+ *   X: number,
+ *   Y: number,
+ *   Radius: number,
+ * }}
+ */
+var Actor;
+
+/**
+ * @type {!Array<!Actor>}
+ */
+export let Actors = [];
+
+/**
  * Array of update functions. A function which returns false is considered
  * finished, will be dropped from the array and not called again.
  *

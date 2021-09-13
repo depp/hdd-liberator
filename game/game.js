@@ -6,7 +6,8 @@ import * as grid from './grid.js';
 import * as entityGeneric from './entity.generic.js';
 import * as entityBox from './entity.box.js';
 import * as entityDevice from './entity.device.js';
-import { NewRandom } from './random.js';
+import * as entityDownload from './entity.download.js';
+import { NewRandom, InitRandom } from './random.js';
 
 /**
  * First initialization, before the game starts.
@@ -19,21 +20,24 @@ export function Init() {
  * Initialize the game.
  */
 export function Start() {
-  let r = NewRandom(1);
+  var r;
+
+  InitRandom();
+  r = NewRandom(1);
   input.Start();
   audio.Start();
+
+  entityGeneric.Actors.push(player.Player);
   grid.Reset(12, 8);
   entityDevice.Spawn(10, 0);
   entityDevice.Spawn(0, 6);
   entityDevice.Spawn(10, 6);
   grid.SetStatic();
-  grid.Set(0, 0, 1);
   for (let j = 3; --j; ) {
     for (let i = 5; i--; ) {
-      entityBox.Spawn(r, j);
+      entityBox.Spawn(entityBox.NewRandom(j, r));
     }
   }
-  grid.Set(0, 0, 0);
 }
 
 /**
@@ -55,6 +59,7 @@ export function Update(timestamp) {
     // Update state.
     time.Advance();
     entityGeneric.Update();
+    entityDownload.Update();
     player.Update();
     input.EndFrame();
   }

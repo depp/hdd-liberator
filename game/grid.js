@@ -1,4 +1,5 @@
 import { COMPO } from './common.js';
+import * as entityGeneric from './entity.generic.js';
 
 /**
  * @typedef {{
@@ -352,49 +353,69 @@ export function SetRect({ X, Y, W, H }, value, dx = 0, dy = 0) {
   }
 }
 
-export const ScanStatic = 1;
-export const ScanDynamic = 2;
-
 /**
  * Find free spaces in the level of the given minimum size. Returns an array
- * which contains the flags ScanStatic and ScanDynamic for each cell. ScanStatic
- * indicates that a rectangle placed with the origin in that tile will intersect
- * with static objects. ScanDynamic indicates that it will intersect with either
- * static or dynamic objects.
+ * which contains a 0 for each free cell, and a nonzero value for each occupied
+ * cell. The same result array may be reused.
  *
  * @param {number} width
  * @param {number} height
  * @return {!Uint8Array}
  */
 export function ScanFreeSpace(width, height) {
-  var i, j;
+  var i, x0, y0, x1, y1, x, y;
+
   // Mark each tile as individually free or occupied.
   for (i = 0; i < Width * Height; i++) {
-    ScanArray[i] = StaticCells[i]
-      ? ScanStatic | ScanDynamic
-      : DynamicCells[i]
-      ? ScanDynamic
-      : 0;
+    ScanArray[i] = StaticCells[i] | DynamicCells[i];
   }
+
+  // Mark all tiles as occupied according if an is in that cell.
+  for (var { X, Y, Radius } of entityGeneric.Actors) {
+    x0 = Math.floor(X - Radius);
+    y0 = Math.floor(Y - Radius);
+    x1 = Math.ceil(X + Radius);
+    y1 = Math.ceil(Y + Radius);
+    if (x0 < 0) {
+      x0 = 0;
+    }
+    if (y0 < 0) {
+      y0 = 0;
+    }
+    if (x1 > Width) {
+      x1 = Width;
+    }
+    if (y1 > Width) {
+      y1 = Width;
+    }
+    for (y = y0; y < y1; y++) {
+      for (x = x0; x < x1; x++) {
+        ScanArray[y * Width + x] = 1;
+      }
+    }
+  }
+
   // Dilate horizontally.
-  for (i = 1; i < width; i++) {
-    for (j = 0; j < Width * Height - 1; j++) {
-      ScanArray[j] |= ScanArray[j + 1];
+  if (width > 1) {
+    for (i = 0; i < Width * Height - 1; i++) {
+      ScanArray[i] |= ScanArray[i + 1];
     }
-    for (i = 0; i < Height; i++) {
-      ScanArray[i * Width + Width - 1] = ScanStatic | ScanDynamic;
+    for (i = 1; i < width; i++) {
+      for (i = 0; i < Height; i++) {
+        ScanArray[i * Width + Width - 1] = 1;
+      }
     }
   }
+
   // Dilate vertically.
-  for (i = 1; i < height; i++) {
-    for (j = 0; j < Width * Height - 1; j++) {
-      ScanArray[j] |= ScanArray[j + Width];
+  if (height > 1) {
+    for (i = 0; i < Width * Height - 1; i++) {
+      ScanArray[i] |= ScanArray[i + Width];
     }
-    ScanArray.fill(
-      ScanStatic | ScanDynamic,
-      Width * Height - Width,
-      Width * Height,
-    );
+    for (i = 1; i < height; i++) {
+      ScanArray.fill(1, Width * Height - Width, Width * Height);
+    }
   }
-  return ScanArray;
+
+  return /** @type {!Uint8Array} */ (ScanArray);
 }

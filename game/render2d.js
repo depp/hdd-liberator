@@ -72,7 +72,7 @@ function Translate({ X, Y, X0, Y0, W = 0, H = 0 }) {
       GridSize * (Y0 + (Y - Y0) * time.Fraction + H / 2),
     );
   } else {
-    ctx.translate(GridSize * (X + W / 2), GridSize * (Y + W / 2));
+    ctx.translate(GridSize * (X + W / 2), GridSize * (Y + H / 2));
   }
 }
 

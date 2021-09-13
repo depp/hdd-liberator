@@ -119,8 +119,8 @@ export function Spawn(box) {
     if (
       box.X - X < Radius &&
       box.Y - Y < Radius &&
-      box.X + box.W - X > Radius &&
-      box.Y + box.H - Y > Radius
+      X - box.X - box.W < Radius &&
+      Y - box.Y - box.H < Radius
     ) {
       return false;
     }

@@ -179,8 +179,8 @@ export let Levels = [
   // more
   {
     Track: audio.MusicAfterDark,
-    // Food
-    Help: '\u{1F344}\u{1F9C5}\u{1FAD1}',
+    // Bugs
+    Help: '\u{1F41B}\u{1F98B}\u{1F41B}\u{1F98B}',
     Create() {
       grid.Reset(13, 12);
       Wall(0, 4, 1, 8);

@@ -1,6 +1,11 @@
 import { COMPO } from './common.js';
-import { Song, Songs } from './audio.data.js';
+import { Songs } from './audio.data.js';
 import { PlaySong } from './audio.music.js';
+
+export const MusicLightOfCreation = 0;
+export const MusicAfterDark = 1;
+
+const NumSongs = 2;
 
 /**
  * Length of the audio tail for songs, in seconds. The amount of time after the
@@ -79,8 +84,10 @@ function PlayBuffer(buffer, startTime) {
  * Start playing the next loop of the current song.
  */
 function LoopCurrentSong() {
+  var track;
   Timeout = 0;
-  StartTrack(Tracks[CurrentTrack], CurrentTrackLoopTime);
+  track = Tracks[CurrentTrack + NumSongs] ?? Tracks[CurrentTrack];
+  StartTrack(track, CurrentTrackLoopTime);
 }
 
 /**
@@ -180,5 +187,9 @@ export function Stop() {
   if (Ctx) {
     Ctx.close();
     Ctx = null;
+    CurrentTrackSource = null;
+    if (Timeout) {
+      clearTimeout(Timeout);
+    }
   }
 }

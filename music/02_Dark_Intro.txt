@@ -1,0 +1,15 @@
+@info
+name: After Dark (Intro)
+composer: Dietrich Epp
+tempo: 102
+time: 4/4
+division: 16
+gain: -18
+
+@track
+name: Bass
+instrument: Dance Bass
+constant_duration: 1
+
+c3.2 c4.2 c3.2 c4.2 c3.2 c4.1 g3.1 c3.2 c4.2 |
+c3.2 c4.2 c3.2 c4.2 c3.2 c4.1 g#3.1 c3.2 c4.2 |

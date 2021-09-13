@@ -1,0 +1,14 @@
+@info
+name: The Light of Creation (Intro)
+composer: Dietrich Epp
+tempo: 72
+time: 4/4
+division: 16
+gain: -16
+
+@track
+name: Chords
+instrument: Pluck
+pan: -0.25
+
+e3.2 g4.2 d4.2 b4.2 e5.2 g4.2 d4.2 b3.2 |

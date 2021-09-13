@@ -1,3 +1,8 @@
 {
-  "songs": ["01_Creation.txt", "02_Dark.txt"]
+  "songs": [
+    "01_Creation_Intro.txt",
+    "02_Dark_Intro.txt",
+    "01_Creation.txt",
+    "02_Dark.txt"
+  ]
 }

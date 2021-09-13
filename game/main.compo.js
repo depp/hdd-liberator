@@ -24,7 +24,7 @@ function HandleResize() {
     ) | 0;
   s.width = (c.width = size * 16) + 'px';
   s.height = (c.height = size * 9) + 'px';
-  s.fontSize = size * 0.45 + 'px';
+  s.font = size * 0.45 + 'px monospace';
 }
 
 function Init() {

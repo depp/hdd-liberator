@@ -196,7 +196,12 @@ export function SetStatic() {
   DynamicCells.fill(0);
   StaticFreeArea = 0;
   for (i = 0; i < StaticCells.length; i++) {
-    StaticFreeArea += !StaticCells[0];
+    StaticFreeArea += !StaticCells[i];
+  }
+  if (!COMPO) {
+    if (StaticFreeArea == 0) {
+      throw new Error('no free space');
+    }
   }
 }
 

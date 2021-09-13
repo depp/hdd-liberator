@@ -9,6 +9,7 @@ import * as player from './player.js';
 import * as ui from './ui.game.js';
 import * as audio from './audio.game.js';
 import { COMPO } from './common.js';
+import { Random, NewRandom } from './random.js';
 
 /**
  * Create a wall with the given rectangle.
@@ -43,21 +44,70 @@ function Box(x, y, size) {
 }
 
 /**
+ * Spawn a box at a random location.
+ * @param {!Random} rand
+ * @param {number} size
+ * @param {number} count
+ */
+function RBoxes(rand, size, count) {
+  while (count--) {
+    var ok = entityBox.Spawn(entityBox.NewRandom(size, rand));
+    if (!COMPO && !ok) {
+      throw new Error(`box spawn failed: RBox(rand, ${size})`);
+    }
+  }
+}
+
+/**
  * Amount, per tick, that the spawn accumulator increases.
  * @const
  */
-const DownloadSpawnRate = 0.5 / TickRate;
+const DownloadSpawnRate = 0.25 / TickRate;
 
 /**
  * Amount, per tick, that download progress accumulates.
  * @const
  */
-const DownloadSpeed = 1.5 / TickRate;
+const DownloadSpeed = 0.5 / TickRate;
+
+/**
+ * Next level to play.
+ * @type {number}
+ */
+let PendingLevel = 0;
+
+/**
+ * True if the level is currently running.
+ * @type {boolean}
+ */
+let IsPlaying = false;
 
 /**
  * @type {!Array<!Level>}
  */
 export let Levels = [
+  {
+    //
+    Help: '\u{1F30D}\u{2794}\u{1F4C4}',
+    Create() {
+      audio.PlayTrack(audio.MusicLightOfCreation);
+      grid.Reset(14, 10, grid.TileWall);
+      Clear(0, 0, 3, 8);
+      Clear(3, 4, 2, 3);
+      Clear(5, 1, 4, 8);
+      Clear(9, 3, 2, 3);
+      Clear(11, 2, 3, 8);
+      entityDevice.Spawn(0, 0, 3);
+      entityDevice.Spawn(11, 8, 3);
+      grid.SetStatic();
+      player.Reset(6, 2, 1);
+      var r = NewRandom(2);
+      RBoxes(r, 2, 4);
+      RBoxes(r, 1, 4);
+    },
+    DownloadSpawnRate: DownloadSpawnRate / 2,
+    DownloadSpeed: DownloadSpeed / 2,
+  },
   {
     // File -> Recycling
     Help: '\u{1F4C4}\u{2794}\u{267B}',
@@ -85,7 +135,8 @@ export let Levels = [
  * Start the given level.
  * @param {!Level} level
  */
-export function StartLevel(level) {
+function StartLevel(level) {
+  PendingLevel = -1;
   SetLevel(level);
   ui.SetText(ui.Header, level.Help);
   entityGeneric.Clear();
@@ -93,4 +144,25 @@ export function StartLevel(level) {
   entityDevice.Clear();
   entityDownload.Clear();
   level.Create();
+  IsPlaying = true;
+}
+
+export function Start() {
+  StartLevel(Levels[0]);
+}
+
+export function Update() {
+  var level;
+  if (PendingLevel >= 0) {
+    level = Levels[PendingLevel];
+    if (!COMPO && !level) {
+      throw new Error(`invalid pending level: ${PendingLevel}`);
+    }
+    StartLevel(level);
+  }
+  if (IsPlaying) {
+    entityGeneric.Update();
+    entityDownload.Update();
+    player.Update();
+  }
 }

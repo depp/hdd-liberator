@@ -1,10 +1,8 @@
 import * as input from './input.js';
 import * as player from './player.js';
 import * as time from './time.js';
-import * as entityGeneric from './entity.generic.js';
 import * as entityBox from './entity.box.js';
-import * as entityDownload from './entity.download.js';
-import { Levels, StartLevel } from './level.data.js';
+import * as level from './level.data.js';
 import { InitRandom } from './random.js';
 
 /**
@@ -20,7 +18,7 @@ export function Init() {
 export function Start() {
   InitRandom();
   input.Start();
-  StartLevel(Levels[0]);
+  level.Start();
 }
 
 /**
@@ -42,9 +40,7 @@ export function Update(timestamp) {
 
     // Update state.
     time.Advance();
-    entityGeneric.Update();
-    entityDownload.Update();
-    player.Update();
+    level.Update();
     input.EndFrame();
   }
 }

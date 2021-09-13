@@ -36,10 +36,12 @@ export function Clear() {
  * grid.SetStatic, so the device can be made static.
  * @param {number} x
  * @param {number} y
+ * @param {number=} w
+ * @param {number=} h
  */
-export function Spawn(x, y) {
+export function Spawn(x, y, w = 2, h = 2) {
   /** @type {!Device} */
-  const device = { X: x, Y: y, W: 2, H: 2 };
+  const device = { X: x, Y: y, W: w, H: h };
   grid.SetRect(device, grid.TileDevice);
   Devices.push(device);
 }

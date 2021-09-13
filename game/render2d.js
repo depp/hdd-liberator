@@ -91,21 +91,31 @@ function DrawIcon({ W, H }, str) {
 }
 
 export function Render2D() {
-  let x, y;
+  var x, y, pos;
 
-  ctx.save();
+  const Width = 640;
+  const Height = 360;
+
+  const Amber = '#fc2';
+  const Red = '#f44';
+  const Black = '#111';
+
   ctx.textAlign = 'center';
 
   /** @type {HTMLCanvasElement} */
   const c = ctx.canvas;
-  ctx.fillStyle = '#666';
+
+  ctx.fillStyle = Black;
   ctx.fillRect(0, 0, c.width, c.height);
 
   const xsize = GridSize * grid.Width;
   const ysize = GridSize * grid.Height;
-  ctx.translate((c.width - xsize) >> 1, (c.height - ysize) >> 1);
+  ctx.save(); // <----- game world
+  ctx.translate(c.width / 2, c.height / 2);
+  var scale = 0.8 * Math.min(c.width / xsize, c.height / ysize);
+  ctx.scale(scale, scale);
+  ctx.translate(-xsize / 2, -ysize / 2);
 
-  ctx.save();
   /** @const {!Array<string>} */
   const colors = ['#ccc', '#c00', '#6c6', '#999'];
   for (x = 0; x < grid.Width; x++) {
@@ -115,7 +125,6 @@ export function Render2D() {
       ctx.fillRect(x * GridSize, y * GridSize, GridSize, GridSize);
     }
   }
-  let pos;
   ctx.lineWidth = 2;
   ctx.beginPath();
   for (pos = 0; pos <= grid.Width; pos++) {
@@ -127,7 +136,6 @@ export function Render2D() {
     ctx.lineTo(grid.Width * GridSize, pos * GridSize);
   }
   ctx.stroke();
-  ctx.restore();
 
   for (let obj of Devices) {
     Translate(obj);
@@ -189,24 +197,31 @@ export function Render2D() {
   // ===========================================================================
   // Draw UI.
 
+  ctx.restore(); // <---- done with world
+
+  // Scale to a virtual 640x360 canvas size.
+  ctx.save(); // <--- start UI
+  ctx.scale(c.width / 640, c.width / 640);
+
   {
-    const barheight = ysize - 20;
+    const barheight = Height - 60;
+    const ratio = TotalBoxArea / grid.StaticFreeArea;
     const bary = Math.min(
       barheight - 2,
-      Math.round(((barheight - 2) * TotalBoxArea) / grid.StaticFreeArea),
+      Math.round((barheight - 2) * (1 - ratio)),
     );
     ctx.save();
-    ctx.translate(-32, 0);
+    ctx.translate(32, 20);
     ctx.font = '16px monospace';
-    ctx.fillStyle = '#000';
-    ctx.fillText('%full', 0, ysize);
-    ctx.fillRect(-8, 0, 16, ysize - 20);
-    ctx.fillStyle = '#c33';
+    ctx.fillStyle = Red;
+    ctx.fillText('%full', 0, barheight + 20);
+    ctx.fillRect(-8, 0, 16, barheight);
+    ctx.fillStyle = Black;
     if (bary > 0) {
-      ctx.fillRect(-7, barheight - 1 - bary, 14, bary);
+      ctx.fillRect(-7, 1, 14, bary);
     }
     ctx.restore();
   }
 
-  ctx.restore();
+  ctx.restore(); // <----- done with UI
 }

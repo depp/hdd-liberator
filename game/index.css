@@ -35,3 +35,6 @@ body {
 b {
   font-size: 3ex;
 }
+.s #r, .s #s, .s #i {
+  visibility: hidden;
+}

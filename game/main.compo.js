@@ -52,7 +52,7 @@ function Start() {
     document.body.innerHTML = 'Error :(';
     return;
   }
-  window.i.style.display = 'none';
+  window.m.className = 's';
   audio.Start();
   game.Start();
   Frame(0);

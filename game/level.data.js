@@ -12,7 +12,7 @@ import { COMPO } from './common.js';
 import { Random, NewRandom } from './random.js';
 
 /** @const */
-const StartAtLevel = 3;
+const StartAtLevel = 0;
 
 /**
  * Create a wall with the given rectangle.

@@ -259,7 +259,7 @@ func serveRelease(w http.ResponseWriter, r *http.Request) {
 		}
 		return
 	}
-	hd, err := d.data.BuildHTML(&releaseMapURL)
+	hd, err := d.data.BuildHTML(ctx, &releaseMapURL)
 	if err != nil {
 		h.serveErrorf(w, r, "Could not build HTML: %v", err)
 		return

@@ -1,0 +1,12 @@
+body {
+  margin: 0;
+}
+#g {
+  display: none;
+  width: 100%;
+  height: 100%;
+  position: absolute;
+}
+#b {
+  font-size: 9em;
+}

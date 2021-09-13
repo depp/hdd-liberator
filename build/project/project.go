@@ -20,6 +20,11 @@ import (
 	pb "moria.us/js13k/proto/compiler"
 )
 
+const (
+	templateName = "index.compo.html"
+	styleName    = "index.css"
+)
+
 // A Compiler compiles JavaScript source code.
 type Compiler interface {
 	Compile(ctx context.Context, req *pb.BuildRequest) (*pb.BuildResponse, error)
@@ -91,9 +96,13 @@ var (
 	sourceName = regexp.MustCompile(`^[a-zA-Z0-9]+([-._][a-zA-Z0-9]+)*\.js$`)
 )
 
+func isJSSourceName(name string) bool {
+	return sourceName.MatchString(name) && !strings.HasSuffix(name, ".test.js")
+}
+
 // IsSourceName returns true if the filename is the name of a source file.
 func IsSourceName(name string) bool {
-	return sourceName.MatchString(name) && !strings.HasSuffix(name, ".test.js")
+	return isJSSourceName(name) || name == templateName || name == styleName
 }
 
 func (p *Project) buildData(ctx context.Context) (string, error) {
@@ -177,10 +186,11 @@ func (p *Project) CompileCompo(ctx context.Context, c Compiler) (*CompoData, err
 		return nil, err
 	}
 	cd := CompoData{
-		Config:       p.Config,
+		Project:      *p,
 		Data:         dd,
 		Diagnostics:  rsp.GetDiagnostic(),
-		TemplatePath: filepath.Join(p.BaseDir, p.Config.SourceDir, "index.compo.html"),
+		TemplatePath: filepath.Join(p.BaseDir, p.Config.SourceDir, templateName),
+		StylePath:    filepath.Join(p.BaseDir, p.Config.SourceDir, styleName),
 	}
 	scr := ScriptData{
 		Code:      rsp.GetCode(),

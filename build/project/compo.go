@@ -2,11 +2,15 @@ package project
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
 	"net/url"
+	"os"
+	"os/exec"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"unicode/utf8"
@@ -24,12 +28,13 @@ const TargetSize = 13 * 1024
 
 // A CompoData contains the data and compiled JavaScript for a compo build.
 type CompoData struct {
-	Config         Config
+	Project        Project
 	Data           string
 	Diagnostics    []*pb.Diagnostic
 	CompiledScript ScriptData
 	MinifiedScript ScriptData
 	TemplatePath   string
+	StylePath      string
 }
 
 func isAlnum(c byte) bool {
@@ -47,7 +52,24 @@ func readVariable(t string) (n, rem string) {
 	return t[:i], t[i:]
 }
 
-func (d *CompoData) expandText(t string, sourceMapURL *url.URL) (string, error) {
+func (d *CompoData) readCSS(ctx context.Context) (string, error) {
+	fp, err := os.Open(d.StylePath)
+	if err != nil {
+		return "", err
+	}
+	defer fp.Close()
+	cmd := exec.CommandContext(ctx, filepath.Join(d.Project.BaseDir, "node_modules/.bin/cleancss"))
+	cmd.Stdin = fp
+	var out bytes.Buffer
+	cmd.Stdout = &out
+	cmd.Stderr = os.Stderr
+	if err := cmd.Run(); err != nil {
+		return "", err
+	}
+	return out.String(), nil
+}
+
+func (d *CompoData) expandText(t string, sourceMapURL *url.URL, style string) (string, error) {
 	var b strings.Builder
 	for len(t) > 0 {
 		switch c := t[0]; c {
@@ -67,7 +89,7 @@ func (d *CompoData) expandText(t string, sourceMapURL *url.URL) (string, error) 
 					case "":
 						return "", errors.New("missing variable name after $")
 					case "title":
-						b.WriteString(d.Config.Title)
+						b.WriteString(d.Project.Config.Title)
 					case "code":
 						b.Write(d.MinifiedScript.Code)
 						if sourceMapURL != nil {
@@ -76,6 +98,8 @@ func (d *CompoData) expandText(t string, sourceMapURL *url.URL) (string, error) 
 						}
 					case "data":
 						b.WriteString(d.Data)
+					case "style":
+						b.WriteString(style)
 					default:
 						return "", fmt.Errorf("unknown variable: %s", name)
 					}
@@ -104,13 +128,17 @@ func (d *CompoData) expandText(t string, sourceMapURL *url.URL) (string, error) 
 //
 // If sourceMapURL is non-nil, a link to the source map for the JavaScript code
 // will be inserted. The URL should be nil for the submitted build.
-func (d *CompoData) BuildHTML(sourceMapURL *url.URL) ([]byte, error) {
+func (d *CompoData) BuildHTML(ctx context.Context, sourceMapURL *url.URL) ([]byte, error) {
 	hd, err := ioutil.ReadFile(d.TemplatePath)
 	if err != nil {
 		return nil, err
 	}
 	if !utf8.Valid(hd) {
 		return nil, errors.New("HTML template is not UTF-8")
+	}
+	style, err := d.readCSS(ctx)
+	if err != nil {
+		return nil, err
 	}
 	var w html2.Writer
 	t := html.NewTokenizer(bytes.NewReader(hd))
@@ -122,7 +150,7 @@ func (d *CompoData) BuildHTML(sourceMapURL *url.URL) ([]byte, error) {
 			}
 			return w.Finish()
 		case html.TextToken:
-			s, err := d.expandText(string(t.Text()), sourceMapURL)
+			s, err := d.expandText(string(t.Text()), sourceMapURL, style)
 			if err != nil {
 				return nil, err
 			}

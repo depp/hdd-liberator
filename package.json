@@ -5,6 +5,7 @@
     "google-closure-compiler-java": "^20210601.0.0"
   },
   "devDependencies": {
+    "clean-css-cli": "^5.3.3",
     "jest": "^27.1.0",
     "terser": "^5.7.2"
   },

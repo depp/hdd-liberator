@@ -46,7 +46,7 @@ function Start() {
     document.body.innerHTML = 'Error :(';
     return;
   }
-  window.g.style.display = '';
+  window.g.style.display = 'block';
   HandleResize();
   game.Start();
   Frame(0);

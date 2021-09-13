@@ -161,12 +161,12 @@ func (w *zipwriter) todata() []byte {
 
 // BuildZip creates a zip file containing the final product.
 func (d *CompoData) BuildZip(ctx context.Context) ([]byte, error) {
-	h, err := d.BuildHTML(nil)
+	h, err := d.BuildHTML(ctx, nil)
 	if err != nil {
 		return nil, err
 	}
 	var w zipwriter
-	if err := w.addfile(ctx, "index.html", d.Config.Timestamp, h); err != nil {
+	if err := w.addfile(ctx, "index.html", d.Project.Config.Timestamp, h); err != nil {
 		return nil, err
 	}
 	return w.todata(), nil

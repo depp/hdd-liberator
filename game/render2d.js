@@ -149,6 +149,17 @@ export function Render2D() {
   ctx.fillStyle = '#cc3';
   for (let obj of Boxes) {
     Translate(obj);
+    ctx.beginPath();
+    ctx.rect(
+      2 - (GridSize / 2) * obj.W,
+      2 - (GridSize / 2) * obj.H,
+      GridSize * obj.W - 4,
+      GridSize * obj.H - 4,
+    );
+    ctx.fillStyle = '#660';
+    ctx.strokeStyle = Amber;
+    ctx.fill();
+    ctx.stroke();
     DrawIcon(obj, '\u{1F4C4}');
     ctx.restore();
   }

@@ -74,7 +74,7 @@ const DownloadSpeed = 0.5 / TickRate;
  * Next level to play.
  * @type {number}
  */
-let PendingLevel = 0;
+let PendingLevel = 1;
 
 /**
  * True if the level is currently running.
@@ -86,10 +86,16 @@ let IsPlaying = false;
 let Timer = 0;
 
 /**
- * When to end.
+ * When to win.
  * @type {number}
  */
 export let BoxDestroyLimit;
+
+/**
+ * When to lose.
+ * @type {number}
+ */
+export let BoxSpawnLimit;
 
 /**
  * @type {!Array<!Level>}
@@ -113,6 +119,7 @@ export let Levels = [
       Box(5, 4, 1);
       Box(6, 6, 2);
       BoxDestroyLimit = entityBox.TotalBoxArea;
+      BoxSpawnLimit = entityBox.TotalBoxArea + 5;
     },
     DownloadSpawnRate: 0,
     DownloadSpeed: 0,
@@ -136,6 +143,7 @@ export let Levels = [
       RBoxes(r, 2, 4);
       RBoxes(r, 1, 4);
       BoxDestroyLimit = entityBox.TotalBoxArea + 10;
+      BoxSpawnLimit = entityBox.TotalBoxArea + 10;
     },
     DownloadSpawnRate: DownloadSpawnRate / 2,
     DownloadSpeed: DownloadSpeed / 2,
@@ -159,7 +167,7 @@ function StartLevel(level) {
 }
 
 export function Start() {
-  StartLevel(Levels[0]);
+  StartLevel(Levels[1]);
 }
 
 export function Update() {
@@ -167,8 +175,14 @@ export function Update() {
   if (IsPlaying) {
     if (entityBox.TotalBoxesDestroyed >= BoxDestroyLimit) {
       IsPlaying = false;
-      ui.SetText(ui.Center, 'Complete');
+      ui.SetText(ui.Center, '\u{2B50} Complete \u{2B50}');
       PendingLevel++;
+      Timer = 3 * TickRate;
+      return;
+    }
+    if (entityBox.TotalBoxArea >= BoxSpawnLimit) {
+      IsPlaying = false;
+      ui.SetText(ui.Center, '\u{1F525} Try Again \u{1F525}');
       Timer = 3 * TickRate;
       return;
     }
@@ -181,7 +195,7 @@ export function Update() {
       level = Levels[PendingLevel];
       if (!level) {
         Timer = Infinity;
-        ui.SetText(ui.Center, 'Game Ends Here');
+        ui.SetText(ui.Center, '\u{1F308} You Win \u{1F308}');
         return;
       }
       if (!COMPO && !level) {

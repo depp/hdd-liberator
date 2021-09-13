@@ -4,7 +4,7 @@ import { Player, Radius } from './player.js';
 import { Boxes, TotalBoxArea, TotalBoxesDestroyed } from './entity.box.js';
 import { Devices } from './entity.device.js';
 import { Downloads } from './entity.download.js';
-import { BoxDestroyLimit } from './level.data.js';
+import { BoxDestroyLimit, BoxSpawnLimit } from './level.data.js';
 
 /**
  * Size of one grid square, in pixels.
@@ -248,7 +248,7 @@ export function Render2D() {
     ctx.restore();
   }
 
-  DrawBar(32, Red, '%full', TotalBoxArea / grid.StaticFreeArea);
+  DrawBar(32, Red, '%full', TotalBoxArea / BoxSpawnLimit);
   DrawBar(Width - 32, '#68f', '%done', TotalBoxesDestroyed / BoxDestroyLimit);
 
   ctx.restore(); // <----- done with UI

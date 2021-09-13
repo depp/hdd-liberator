@@ -14,9 +14,15 @@ function Frame(timestamp) {
 }
 
 function HandleResize() {
-  const c = window.g;
-  c.width = c.clientWidth;
-  c.height = c.clientHeight;
+  var m = window.m;
+  var c = window.c;
+  var size =
+    Math.max(
+      40,
+      Math.min((window.innerWidth - 32) / 16, (window.innerHeight - 32) / 9),
+    ) | 0;
+  m.style.width = (c.width = size * 16) + 'px';
+  m.style.height = (c.height = size * 9) + 'px';
 }
 
 function Init() {
@@ -26,18 +32,16 @@ function Init() {
     ),
   );
   game.Init();
-  window.b.onclick = Start;
+  window.p.onclick = Start;
   window.onresize = HandleResize;
+  HandleResize();
 }
 
-/**
- * Start the game. Called once, when the play button is clicked.
- */
 function Start() {
-  window.b.remove();
+  window.p.remove();
   SetContext(
     /** @type {CanvasRenderingContext2D} */ (
-      window.g.getContext('2d', {
+      window.c.getContext('2d', {
         alpha: false,
       })
     ),
@@ -46,8 +50,6 @@ function Start() {
     document.body.innerHTML = 'Error :(';
     return;
   }
-  window.g.style.display = 'block';
-  HandleResize();
   game.Start();
   Frame(0);
 }

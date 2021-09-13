@@ -4,18 +4,24 @@
 
 /**
  * The game canvas.
- * @type {HTMLCanvasElement!}
+ * @type {HTMLCanvasElement}
  */
-window.g;
+window.c;
 
 /**
- * Button to play the game.
- * @type {HTMLButtonElement!}
+ * Main element, containing the canvas.
+ * @type {HTMLElement}
  */
-window.b;
+window.m;
 
 /**
  * Script element containing game data.
  * @type {HTMLScriptElement}
  */
 window.d;
+
+/**
+ * Start button element.
+ * @type {HTMLButtonElement}
+ */
+window.p;

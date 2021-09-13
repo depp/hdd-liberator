@@ -11,6 +11,9 @@ import * as audio from './audio.game.js';
 import { COMPO } from './common.js';
 import { Random, NewRandom } from './random.js';
 
+/** @const */
+const StartAtLevel = 2;
+
 /**
  * Create a wall with the given rectangle.
  * @param {number} X
@@ -74,7 +77,7 @@ const DownloadSpeed = 0.5 / TickRate;
  * Next level to play.
  * @type {number}
  */
-let PendingLevel = 1;
+let PendingLevel;
 
 /**
  * True if the level is currently running.
@@ -102,10 +105,10 @@ export let BoxSpawnLimit;
  */
 export let Levels = [
   {
+    Track: audio.MusicLightOfCreation,
     // File -> Recycling
     Help: '\u{1F4C4}\u{2794}\u{267B}',
     Create() {
-      audio.PlayTrack(audio.MusicAfterDark);
       // Teach the player to push. Force the player to pull at least one box.
       grid.Reset(12, 8, grid.TileWall);
       Clear(4, 0, 6, 6);
@@ -125,10 +128,10 @@ export let Levels = [
     DownloadSpeed: 0,
   },
   {
+    Track: audio.MusicLightOfCreation,
     // Globe -> File
     Help: '\u{1F30D}\u{2794}\u{1F4C4}',
     Create() {
-      audio.PlayTrack(audio.MusicLightOfCreation);
       grid.Reset(14, 10, grid.TileWall);
       Clear(0, 0, 3, 8);
       Clear(3, 4, 2, 3);
@@ -142,11 +145,36 @@ export let Levels = [
       var r = NewRandom(2);
       RBoxes(r, 2, 4);
       RBoxes(r, 1, 4);
-      BoxDestroyLimit = entityBox.TotalBoxArea + 10;
+      BoxDestroyLimit = entityBox.TotalBoxArea + 8;
       BoxSpawnLimit = entityBox.TotalBoxArea + 10;
     },
     DownloadSpawnRate: DownloadSpawnRate / 2,
     DownloadSpeed: DownloadSpeed / 2,
+  },
+  {
+    Track: audio.MusicLightOfCreation,
+    // Food
+    Help: '\u{1F344}\u{1F9C5}\u{1FAD1}',
+    Create() {
+      grid.Reset(16, 12, grid.TileWall);
+      Clear(0, 5, 11, 7);
+      Clear(1, 1, 14, 10);
+      Clear(5, 0, 11, 7);
+      Wall(0, 10, 2, 2);
+      Wall(14, 0, 2, 2);
+      Wall(3, 3, 4, 4);
+      Wall(9, 5, 4, 4);
+      entityDevice.Spawn(7, 5);
+      grid.SetStatic();
+      player.Reset(2, 2, 1);
+      var r = NewRandom(3);
+      RBoxes(r, 2, 4);
+      RBoxes(r, 1, 6);
+      BoxDestroyLimit = 20;
+      BoxSpawnLimit = 35;
+    },
+    DownloadSpawnRate: DownloadSpawnRate / 1.5,
+    DownloadSpeed: DownloadSpeed / 1.5,
   },
 ];
 
@@ -155,6 +183,7 @@ export let Levels = [
  * @param {!Level} level
  */
 function StartLevel(level) {
+  audio.PlayTrack(level.Track);
   SetLevel(level);
   ui.SetText(ui.Header, level.Help);
   ui.SetText(ui.Center, '');
@@ -167,7 +196,8 @@ function StartLevel(level) {
 }
 
 export function Start() {
-  StartLevel(Levels[1]);
+  PendingLevel = StartAtLevel;
+  StartLevel(Levels[StartAtLevel]);
 }
 
 export function Update() {

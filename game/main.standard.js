@@ -210,7 +210,7 @@ function Toggle3D(event) {
  */
 function Start() {
   const params = ParseHash();
-  Is2D = params.Is2D;
+  Is2D = params.Is2D || true;
 
   if (!RELEASE) {
     DevStart();

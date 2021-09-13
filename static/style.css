@@ -111,3 +111,8 @@ nav h1 {
 .song button:active svg * {
   fill: #fff;
 }
+.buttons {
+  text-align: center;
+  margin: 0;
+  font-size: 2em;
+}

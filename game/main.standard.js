@@ -69,6 +69,9 @@ function ParseHash() {
   return { Is2D };
 }
 
+/** @type {number} */
+let CanvasWidth, CanvasHeight;
+
 /**
  * Handle a window resize event.
  */
@@ -86,6 +89,8 @@ function HandleResize() {
   const ch = s * 9;
   CanvasContainer.style.width = `${cw}px`;
   CanvasContainer.style.height = `${ch}px`;
+  CanvasWidth = cw;
+  CanvasHeight = ch;
   if (Canvas != null) {
     Canvas.width = cw;
     Canvas.height = ch;
@@ -186,8 +191,18 @@ function StartRenderer() {
     PutErrorMessage('Could not start renderer.');
     return;
   }
+  canvas.width = CanvasWidth;
+  canvas.height = CanvasHeight;
   Canvas = canvas;
   CanvasContainer.appendChild(canvas);
+}
+
+function Toggle3D(event) {
+  let { target } = event;
+  Is2D = !Is2D;
+  SetElementText(target, Is2D ? '2D' : '3D');
+  window.location.hash = Is2D ? '#2d' : '';
+  StartRenderer();
 }
 
 /**
@@ -215,10 +230,19 @@ function Start() {
   CanvasContainer = par;
   main.append(par);
 
+  const buttons = document.createElement('p');
+  buttons.className = 'buttons';
+  main.append(buttons);
+
   const togglesound = document.createElement('button');
   SetElementText(togglesound, MutedSpeaker);
   togglesound.onclick = ToggleSound;
-  main.append(togglesound);
+  buttons.append(togglesound);
+
+  const toggle3D = document.createElement('button');
+  SetElementText(toggle3D, '2D');
+  toggle3D.onclick = Toggle3D;
+  buttons.append(toggle3D);
 
   StartRenderer();
   HandleResize();

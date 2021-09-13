@@ -117,15 +117,16 @@ export function Render2D() {
   ctx.translate(-xsize / 2, -ysize / 2);
 
   /** @const {!Array<string>} */
-  const colors = ['#ccc', '#c00', '#6c6', '#999'];
+  const colors = ['#ccc', '#444', '#6c6'];
   for (x = 0; x < grid.Width; x++) {
     for (y = 0; y < grid.Height; y++) {
-      const value = grid.Get(x, y);
-      ctx.fillStyle = colors[value] ?? '#0ff';
+      const value = grid.StaticCells[y * grid.Width + x];
+      ctx.fillStyle = colors[value] ?? '#ccc';
       ctx.fillRect(x * GridSize, y * GridSize, GridSize, GridSize);
     }
   }
   ctx.lineWidth = 2;
+  ctx.strokeStyle = '#222';
   ctx.beginPath();
   for (pos = 0; pos <= grid.Width; pos++) {
     ctx.moveTo(pos * GridSize, 0);

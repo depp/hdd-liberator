@@ -111,16 +111,16 @@ export const TileBoundary = -1;
 export const TileWall = 1;
 
 /**
- * Tile value for box tiles.
- * @const
- */
-export const TileBox = 2;
-
-/**
  * Tile value for device tiles.
  * @const
  */
-export const TileDevice = 3;
+export const TileDevice = 2;
+
+/**
+ * Tile value for box tiles.
+ * @const
+ */
+export const TileBox = 3;
 
 /**
  * Tile value for tiles which are used for moving objects.

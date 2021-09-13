@@ -11,10 +11,18 @@ export const FontScale = 0.45;
 export let Header;
 
 /**
- * @param {HTMLElement} header
+ * Centered announcement.
+ * @type {HTMLElement}
  */
-export function Init(header) {
+export let Center;
+
+/**
+ * @param {HTMLElement} header
+ * @param {HTMLElement} center
+ */
+export function Init(header, center) {
   Header = header;
+  Center = center;
 }
 
 /**

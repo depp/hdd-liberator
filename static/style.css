@@ -133,3 +133,18 @@ nav h1 {
   border-top: none;
   padding: .5ex;
 }
+
+#center {
+  color: #fc2;
+
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  background: #000;
+  width: 10em;
+  margin: 0;
+  text-align: center;
+  border: 0.2em solid #fc2;
+  padding: .5ex;
+}

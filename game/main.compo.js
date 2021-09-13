@@ -34,7 +34,7 @@ function Init() {
       (/** string */ x) => x.charCodeAt(0) - 1 - (x > '<') - (x > '\r'),
     ),
   );
-  ui.Init(window.h);
+  ui.Init(window.h, window.j);
   game.Init();
   window.p.onclick = Start;
   window.onresize = HandleResize;

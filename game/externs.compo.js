@@ -37,3 +37,9 @@ window.i;
  * @type {HTMLElement}
  */
 window.h;
+
+/**
+ * Centered text.
+ * @type {HTMLElement}
+ */
+window.j;

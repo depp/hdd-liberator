@@ -40,6 +40,7 @@ export let TotalBoxesDestroyed = 0;
 export function Clear() {
   Boxes = [];
   TotalBoxArea = 0;
+  TotalBoxesDestroyed = 0;
 }
 
 /**

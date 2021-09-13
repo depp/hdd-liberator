@@ -25,29 +25,40 @@ body {
   margin: 8px;
   font-size: 70%;
 }
-#i p+p {
+#i p + p {
   right: 0;
 }
 #p,
 b {
   font-size: 3ex;
 }
-.s #i, #h {
+.s #i,
+#h,
+#j {
   visibility: hidden;
 }
-.s #h {
+.s #h,
+.s #j {
   visibility: visible;
 }
-#h {
-  font-family: "Noto Color Emoji";
+#h,
+#j {
   position: absolute;
-  left: 50%;
-  transform: translate(-50%);
   background: #111;
   width: 10em;
   margin: 0;
   text-align: center;
   border: 0.2em solid #fc2;
+  padding: 0.5ex;
+}
+#h {
+  font-family: 'Noto Color Emoji';
   border-top: none;
-  padding: .5ex;
+  left: 50%;
+  transform: translate(-50%);
+}
+#j {
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
 }

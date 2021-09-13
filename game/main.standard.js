@@ -241,6 +241,10 @@ function Start() {
   header.id = 'header';
   par.appendChild(header);
 
+  const center = document.createElement('p');
+  center.id = 'center';
+  par.appendChild(center);
+
   const buttons = document.createElement('p');
   buttons.className = 'buttons';
   main.append(buttons);
@@ -255,7 +259,8 @@ function Start() {
   toggle3D.onclick = Toggle3D;
   buttons.append(toggle3D);
 
-  ui.Init(header);
+  ui.Init(header, center);
+  ui.SetText(ui.Center, 'Level Done!');
   game.Init();
   game.Start();
   StartRenderer();

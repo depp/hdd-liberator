@@ -118,6 +118,9 @@ function Frame(timestamp) {
   RAFHandle = requestAnimationFrame(Frame);
 }
 
+/** @type {boolean} */
+let IsRenderingMusic = false;
+
 /**
  * Handle a click on the "toggle sound" button.
  * @param {Event} evt
@@ -130,6 +133,10 @@ function ToggleSound(evt) {
     IsSoundRunning = false;
     SetElementText(button, MutedSpeaker);
   } else if (audio.Start()) {
+    if (!IsRenderingMusic) {
+      IsRenderingMusic = true;
+      audio.Render();
+    }
     IsSoundRunning = true;
     SetElementText(button, SpeakerHighVolume);
   } else {

@@ -7,6 +7,7 @@ import * as entityBox from './entity.box.js';
 import * as entityDownload from './entity.download.js';
 import * as player from './player.js';
 import * as ui from './ui.game.js';
+import * as audio from './audio.game.js';
 import { COMPO } from './common.js';
 
 /**
@@ -61,6 +62,7 @@ export let Levels = [
     // File -> Recycling
     Help: '\u{1F4C4}\u{2794}\u{267B}',
     Create() {
+      audio.PlayTrack(0);
       // Teach the player to push. Force the player to pull at least one box.
       grid.Reset(12, 8, grid.TileWall);
       Clear(4, 0, 6, 6);

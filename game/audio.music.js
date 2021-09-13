@@ -4,7 +4,7 @@ import { PlaySynth } from './audio.synth.js';
 /**
  * Render a song to an audio buffer.
  * @param {!Song} song The song to render.
- * @param {!AudioContext} ctx The web audio context.
+ * @param {!BaseAudioContext} ctx The web audio context.
  * @param {!AudioNode} destination The destination node to send audio to.
  * @param {number} startTime Audio context timestamp at which to start the song.
  * @returns {{

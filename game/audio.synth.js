@@ -201,7 +201,7 @@ export function PlaySynth(program, ctx, out, t0, tgate, note) {
         }
       }
       out = /** @type {!AudioNode} */ (repeatOut);
-      stack = [...repeatStack];
+      stack = [.../** @type {!Array<AudioNode>} */ (repeatStack)];
       if (repeatCount--) {
         pos = /** @type {number} */ (repeatPos);
       }

@@ -48,6 +48,7 @@ function Start() {
   }
   window.m.className = 's';
   audio.Start();
+  audio.Render();
   game.Start();
   Frame(0);
 }

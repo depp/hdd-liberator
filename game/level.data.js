@@ -76,8 +76,8 @@ export let Levels = [
       Box(5, 4, 1);
       Box(6, 6, 2);
     },
-    DownloadSpawnRate: 0.5 / TickRate,
-    DownloadSpeed: 0.5 / TickRate,
+    DownloadSpawnRate: 0,
+    DownloadSpeed: 0,
   },
 ];
 

@@ -59,19 +59,20 @@ export function Stop2D() {
 
 /**
  * @param {
+ *   {X: number, Y: number, X0: number, Y0: number, W: number, H: number}|
  *   {X: number, Y: number, X0: number, Y0: number}|
  *   {X:number, Y:number}
  * } obj
  */
-function Translate({ X, Y, X0, Y0 }) {
+function Translate({ X, Y, X0, Y0, W = 0, H = 0 }) {
   ctx.save();
   if (X0 != null && Y0 != null) {
     ctx.translate(
-      GridSize * (X0 + (X - X0) * time.Fraction),
-      GridSize * (Y0 + (Y - Y0) * time.Fraction),
+      GridSize * (X0 + (X - X0) * time.Fraction + W / 2),
+      GridSize * (Y0 + (Y - Y0) * time.Fraction + H / 2),
     );
   } else {
-    ctx.translate(GridSize * X, GridSize * Y);
+    ctx.translate(GridSize * (X + W / 2), GridSize * (Y + W / 2));
   }
 }
 
@@ -81,13 +82,9 @@ function Translate({ X, Y, X0, Y0 }) {
  * @param {string} str
  */
 function DrawIcon({ W, H }, str) {
-  let size = Math.min(W, H) * ((GridSize * 0.9) | 0);
+  let size = Math.min(W, H) * ((GridSize * 0.8) | 0);
   ctx.font = `${size}px ${EmojiFont}`;
-  ctx.fillText(
-    str,
-    (GridSize / 2) * W,
-    (GridSize / 2) * H + ((size * EmojiOffset) | 0),
-  );
+  ctx.fillText(str, 0, (size * EmojiOffset) | 0);
 }
 
 export function Render2D() {
@@ -99,6 +96,8 @@ export function Render2D() {
   const Amber = '#fc2';
   const Red = '#f44';
   const Black = '#111';
+  const Blue = '#25f';
+  const TranslucentWhite = 'rgba(255,255,255,.5)';
 
   ctx.textAlign = 'center';
 
@@ -158,20 +157,27 @@ export function Render2D() {
   // Render downloads.
 
   for (let { Box, Progress } of Downloads) {
-    let cx = (GridSize / 2) * Box.W;
-    let cy = (GridSize / 2) * Box.H;
     let r = GridSize * 0.3 * Math.min(Box.W, Box.H);
     Translate(Box);
-    ctx.fillStyle = '#00f';
-    ctx.strokeStyle = '#00f';
-    ctx.lineWidth = 2;
-    ctx.strokeRect(6, 6, GridSize * Box.W - 12, GridSize * Box.H - 12);
     ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, 2 * Math.PI);
+    ctx.rect(
+      6 - (GridSize / 2) * Box.W,
+      6 - (GridSize / 2) * Box.H,
+      GridSize * Box.W - 12,
+      GridSize * Box.H - 12,
+    );
+    ctx.fillStyle = TranslucentWhite;
+    ctx.fill();
+    ctx.fillStyle = Blue;
+    ctx.strokeStyle = Blue;
+    ctx.lineWidth = 2;
     ctx.stroke();
     ctx.beginPath();
-    ctx.moveTo(cx, cy);
-    ctx.arc(cx, cy, r, 0, 2 * Math.PI * Progress);
+    ctx.arc(0, 0, r, 0, 2 * Math.PI);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(0, 0);
+    ctx.arc(0, 0, r, 0, 2 * Math.PI * Progress);
     ctx.fill();
     ctx.restore();
   }

@@ -5,6 +5,7 @@ tempo: 102
 time: 4/4
 division: 16
 gain: -18
+tail: 16
 
 @track
 name: Bass

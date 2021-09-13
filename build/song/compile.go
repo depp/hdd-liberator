@@ -183,6 +183,7 @@ func compile(snd *sounds, songs []*Song) (*Compiled, error) {
 				slen = tlen
 			}
 		}
+		slen -= sn.Info.Tail
 		if slen > 0xffff {
 			return nil, fmt.Errorf("song too long: %d ticks", slen)
 		}

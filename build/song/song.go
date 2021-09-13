@@ -28,6 +28,7 @@ type Info struct {
 	Time     TimeSignature
 	Division int
 	GainDB   float64
+	Tail     int
 }
 
 // A TrackInfo contains the metadata for an instrument track within a song.
@@ -295,6 +296,13 @@ func (d *Info) setProp(key, value string) error {
 			return err
 		}
 		d.GainDB = n
+		return nil
+	case "tail":
+		n, err := strconv.ParseInt(value, 10, strconv.IntSize)
+		if err != nil {
+			return err
+		}
+		d.Tail = int(n)
 		return nil
 	default:
 		return fmt.Errorf("unknown property key: %q", key)

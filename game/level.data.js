@@ -62,7 +62,7 @@ export let Levels = [
     // File -> Recycling
     Help: '\u{1F4C4}\u{2794}\u{267B}',
     Create() {
-      audio.PlayTrack(audio.MusicLightOfCreation);
+      audio.PlayTrack(audio.MusicAfterDark);
       // Teach the player to push. Force the player to pull at least one box.
       grid.Reset(12, 8, grid.TileWall);
       Clear(4, 0, 6, 6);

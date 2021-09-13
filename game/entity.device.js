@@ -5,9 +5,9 @@ import * as entityGeneric from './entity.generic.js';
 import * as time from './time.js';
 
 /**
- * Amount of time it takes to process a file.
+ * Rate at which a file is recycled.
  */
-const ProcessTime = time.TickRate * 0.6;
+const RecycleRate = 2 / time.TickRate;
 
 /**
  * @typedef {{
@@ -72,9 +72,9 @@ export function Get(x, y) {
  */
 export function CheckBox(box) {
   /** @type {Device|null} */
-  let device;
+  var device;
   /** @type {number} */
-  let time = 0;
+  var progress = 1;
   if (!grid.IsRectInsideDevice(box)) {
     return false;
   }
@@ -83,12 +83,13 @@ export function CheckBox(box) {
     return false;
   }
   entityGeneric.Functions.push(() => {
-    if (time < ProcessTime) {
-      time++;
-      return true;
+    progress -= RecycleRate;
+    if (progress < 0) {
+      entityBox.Destroy(box);
+      return false;
     }
-    entityBox.Destroy(box);
-    return false;
+    box.Scale = progress;
+    return true;
   });
   return true;
 }

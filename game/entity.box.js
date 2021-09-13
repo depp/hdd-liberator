@@ -12,6 +12,7 @@ import { Random } from './random.js';
  *   W: number,
  *   H: number,
  *   Idle: boolean,
+ *   Scale: number,
  * }}
  */
 export var Box;
@@ -44,7 +45,7 @@ export function Clear() {
  * @return {!Box}
  */
 export function New(x, y, size) {
-  return { X: x, Y: y, X0: x, Y0: y, W: size, H: size, Idle: true };
+  return { X: x, Y: y, X0: x, Y0: y, W: size, H: size, Idle: true, Scale: 1 };
 }
 
 /**

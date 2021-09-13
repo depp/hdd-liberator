@@ -149,6 +149,7 @@ export function Render2D() {
   ctx.fillStyle = '#cc3';
   for (let obj of Boxes) {
     Translate(obj);
+    ctx.scale(obj.Scale, obj.Scale);
     ctx.beginPath();
     ctx.rect(
       2 - (GridSize / 2) * obj.W,

@@ -102,7 +102,7 @@ func isJSSourceName(name string) bool {
 
 // IsSourceName returns true if the filename is the name of a source file.
 func IsSourceName(name string) bool {
-	return isJSSourceName(name) || name == templateName || name == styleName
+	return isJSSourceName(name) // || name == templateName || name == styleName
 }
 
 func (p *Project) buildData(ctx context.Context) (string, error) {

@@ -25,3 +25,9 @@ window.d;
  * @type {HTMLButtonElement}
  */
 window.p;
+
+/**
+ * Introduction text.
+ * @type {HTMLElement}
+ */
+window.i;

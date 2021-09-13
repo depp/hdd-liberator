@@ -14,15 +14,16 @@ function Frame(timestamp) {
 }
 
 function HandleResize() {
-  var m = window.m;
+  var s = window.m.style;
   var c = window.c;
   var size =
     Math.max(
       40,
       Math.min((window.innerWidth - 32) / 16, (window.innerHeight - 32) / 9),
     ) | 0;
-  m.style.width = (c.width = size * 16) + 'px';
-  m.style.height = (c.height = size * 9) + 'px';
+  s.width = (c.width = size * 16) + 'px';
+  s.height = (c.height = size * 9) + 'px';
+  s.fontSize = size / 2 + 'px';
 }
 
 function Init() {
@@ -50,6 +51,7 @@ function Start() {
     document.body.innerHTML = 'Error :(';
     return;
   }
+  window.i.style.display = 'none';
   game.Start();
   Frame(0);
 }

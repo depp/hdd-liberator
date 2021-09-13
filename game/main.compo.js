@@ -1,5 +1,5 @@
 import './common.js';
-import { ctx, SetContext, Render2D } from './render2d.js';
+import { Start2D, Render2D } from './render2d.js';
 import * as game from './game.js';
 import * as audioData from './audio.data.js';
 import * as audio from './audio.game.js';
@@ -40,15 +40,7 @@ function Init() {
 }
 
 function Start() {
-  window.p.remove();
-  SetContext(
-    /** @type {CanvasRenderingContext2D} */ (
-      window.c.getContext('2d', {
-        alpha: false,
-      })
-    ),
-  );
-  if (!ctx) {
+  if (!Start2D(window.c)) {
     document.body.innerHTML = 'Error :(';
     return;
   }

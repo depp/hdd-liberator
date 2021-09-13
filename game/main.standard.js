@@ -1,7 +1,8 @@
 import { RELEASE } from './common.js';
 import { SetElementText, PutErrorMessage, GetMain } from './ui.standard.js';
 import * as audiodata from './audio.data.js';
-import * as render2D from './render2d.js';
+import { Start2D, Stop2D, Render2D } from './render2d.js';
+import { Start3D, Stop3D, Render3D } from './render3d.js';
 import * as game from './game.js';
 import * as audio from './audio.game.js';
 
@@ -30,6 +31,44 @@ let RAFHandle;
 /** @type {boolean} */
 let IsSoundRunning = false;
 
+/** @type {boolean} */
+let Is2D;
+
+/**
+ * @return {{
+ *   Is2D: boolean;
+ * }}
+ */
+function ParseHash() {
+  const { hash } = window.location;
+  let Is2D = false;
+  if (hash.length > 1) {
+    const parts = hash.substring(1).split('&');
+    for (const part of parts) {
+      let key, value;
+      let i = part.indexOf('=');
+      if (i >= 0) {
+        key = part.substring(0, i);
+        value = part.substring();
+      } else {
+        key = part;
+        value = '';
+      }
+      key = decodeURI(key);
+      value = decodeURI(value);
+      switch (key) {
+        case '2d':
+          Is2D = true;
+          break;
+        default:
+          console.error(`unknown hash key: ${encodeURI(key)}`);
+          break;
+      }
+    }
+  }
+  return { Is2D };
+}
+
 /**
  * Handle a window resize event.
  */
@@ -47,8 +86,10 @@ function HandleResize() {
   const ch = s * 9;
   CanvasContainer.style.width = `${cw}px`;
   CanvasContainer.style.height = `${ch}px`;
-  Canvas.width = cw;
-  Canvas.height = ch;
+  if (Canvas != null) {
+    Canvas.width = cw;
+    Canvas.height = ch;
+  }
 }
 
 /**
@@ -56,8 +97,16 @@ function HandleResize() {
  * @param {number} timestamp Timestamp, in milliseconds.
  */
 function Frame(timestamp) {
+  if (!Canvas) {
+    console.log('no canvas, aborting');
+    return;
+  }
   game.Update(timestamp);
-  render2D.Render2D();
+  if (Is2D) {
+    Render2D();
+  } else {
+    Render3D();
+  }
   RAFHandle = requestAnimationFrame(Frame);
 }
 
@@ -124,24 +173,36 @@ function DevStart() {
   JS13K.AddDevListener(HandleBuildEvent);
 }
 
+function StartRenderer() {
+  if (Canvas != null) {
+    Canvas.remove();
+    Canvas = null;
+    Stop2D();
+    Stop3D();
+  }
+  const canvas = document.createElement('canvas');
+  const ok = Is2D ? Start2D(canvas) : Start3D(canvas);
+  if (!ok) {
+    PutErrorMessage('Could not start renderer.');
+    return;
+  }
+  Canvas = canvas;
+  CanvasContainer.appendChild(canvas);
+}
+
 /**
  * Start the game. Called once, when the script is run.
  */
 function Start() {
+  const params = ParseHash();
+  Is2D = params.Is2D;
+
   if (!RELEASE) {
     DevStart();
   }
 
   game.Init();
   game.Start();
-  Canvas = document.createElement('canvas');
-  const ctx = Canvas.getContext('2d', {
-    alpha: false,
-  });
-  if (ctx == null) {
-    PutErrorMessage('Could not create 2D context.');
-    return;
-  }
 
   const main = GetMain();
   if (!main) {
@@ -150,7 +211,6 @@ function Start() {
 
   const par = document.createElement('div');
   par.setAttribute('id', 'game');
-  par.appendChild(Canvas);
   window.addEventListener('resize', HandleResize);
   CanvasContainer = par;
   main.append(par);
@@ -160,8 +220,8 @@ function Start() {
   togglesound.onclick = ToggleSound;
   main.append(togglesound);
 
+  StartRenderer();
   HandleResize();
-  render2D.SetContext(ctx);
   RAFHandle = requestAnimationFrame(Frame);
 }
 

@@ -12,9 +12,9 @@ import { Downloads } from './entity.download.js';
 const GridSize = 32;
 
 /**
- * @type {CanvasRenderingContext2D?}
+ * @type {?CanvasRenderingContext2D}
  */
-export let ctx;
+let ctx;
 
 /**
  * Vertical offset for centering emoji, relative to font size.
@@ -35,13 +35,26 @@ let EmojiOffset;
 const EmojiFont = '"Noto Color Emoji"';
 
 /**
- * @param {CanvasRenderingContext2D?} c
+ * @param {HTMLCanvasElement} canvas
+ * @return {boolean}
  */
-export function SetContext(c) {
-  ctx = c;
-  c.font = '100px ' + EmojiFont;
-  const m = c.measureText('\u{1F600}');
+export function Start2D(canvas) {
+  ctx = /** @type {!CanvasRenderingContext2D} */ (
+    canvas.getContext('2d', { alpha: false })
+  );
+  if (!ctx) {
+    return false;
+  }
+  ctx.save();
+  ctx.font = '100px ' + EmojiFont;
+  const m = ctx.measureText('\u{1F600}');
   EmojiOffset = (m.actualBoundingBoxAscent - m.actualBoundingBoxDescent) / 200;
+  ctx.restore();
+  return true;
+}
+
+export function Stop2D() {
+  ctx = null;
 }
 
 /**

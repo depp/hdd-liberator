@@ -10,7 +10,7 @@ var Actor;
 /**
  * @type {!Array<!Actor>}
  */
-export let Actors = [];
+export let Actors;
 
 /**
  * Array of update functions. A function which returns false is considered
@@ -18,7 +18,15 @@ export let Actors = [];
  *
  * @type {!Array<function(): boolean>}
  */
-export let Functions = [];
+export let Functions;
+
+/**
+ * Remove all generic entities from the level.
+ */
+export function Clear() {
+  Actors = [];
+  Functions = [];
+}
 
 /**
  * Call all update functions, removing the functions which return false.

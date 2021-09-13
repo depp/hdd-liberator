@@ -19,13 +19,33 @@ export var Box;
 /**
  * @type {!Array<!Box>}
  */
-export let Boxes = [];
+export let Boxes;
 
 /**
  * Total area of all boxes on screen.
  * @type {number}
  */
 export let TotalBoxArea = 0;
+
+/**
+ * Remove all boxes from the level.
+ */
+export function Clear() {
+  Boxes = [];
+  TotalBoxArea = 0;
+}
+
+/**
+ * Create a new box.
+ *
+ * @param {number} x
+ * @param {number} y
+ * @param {number} size
+ * @return {!Box}
+ */
+export function New(x, y, size) {
+  return { X: x, Y: y, X0: x, Y0: y, W: size, H: size, Idle: true };
+}
 
 /**
  * Create a new box in a random legal location.
@@ -77,7 +97,7 @@ export function NewRandom(size, rand, obj) {
       for (x = 0; x < grid.Width; x++) {
         if (distances[i++] >= threshold) {
           if (!pos--) {
-            return { X: x, Y: y, X0: x, Y0: y, W: size, H: size, Idle: true };
+            return New(x, y, size);
           }
         }
       }

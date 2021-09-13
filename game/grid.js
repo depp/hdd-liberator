@@ -105,22 +105,28 @@ export function FindRect(rects, x, y) {
 export const TileBoundary = -1;
 
 /**
+ * Tile value for wall tiles.
+ * @const
+ */
+export const TileWall = 1;
+
+/**
  * Tile value for box tiles.
  * @const
  */
-export const TileBox = 1;
+export const TileBox = 2;
 
 /**
  * Tile value for device tiles.
  * @const
  */
-export const TileDevice = 2;
+export const TileDevice = 3;
 
 /**
  * Tile value for tiles which are used for moving objects.
  * @const
  */
-export const TileTemporary = 3;
+export const TileTemporary = 4;
 
 /** @type {number} */
 export let Width;
@@ -158,8 +164,9 @@ let ScanArray;
  * Set the size of the grid, and clear it so all cells contain 0.
  * @param {number} width
  * @param {number} height
+ * @param {number=} value
  */
-export function Reset(width, height) {
+export function Reset(width, height, value = 0) {
   if (!COMPO) {
     if (
       typeof width != 'number' ||
@@ -177,6 +184,7 @@ export function Reset(width, height) {
   DynamicCells = new Uint8Array(width * height);
   StaticCells = new Uint8Array(width * height);
   ScanArray = new Uint8Array(width * height);
+  DynamicCells.fill(value);
 }
 
 /**

@@ -22,7 +22,14 @@ export var Device;
 /**
  * @type {!Array<!Device>}
  */
-export let Devices = [];
+export let Devices;
+
+/**
+ * Remove all devices from the level.
+ */
+export function Clear() {
+  Devices = [];
+}
 
 /**
  * Spawn a device at the given location. This should be called before

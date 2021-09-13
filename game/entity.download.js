@@ -1,18 +1,6 @@
 import * as entityBox from './entity.box.js';
-import { TickRate } from './time.js';
+import { CurLevel } from './level.js';
 import { Rand } from './random.js';
-
-/**
- * Amount, per tick, that the spawn accumulator increases.
- * @const
- */
-const SpawnSpeed = 0.5 / TickRate;
-
-/**
- * Amount, per tick, that download progress accumulates.
- * @const
- */
-const DownloadSpeed = 1.5 / TickRate;
 
 /**
  * @typedef {{
@@ -32,7 +20,11 @@ let SpawnAccumulator = 0;
 /**
  * @type {!Array<!Download>}
  */
-export let Downloads = [];
+export let Downloads;
+
+export function Clear() {
+  Downloads = [];
+}
 
 export function Update() {
   var i, j, obj, Box;
@@ -41,7 +33,7 @@ export function Update() {
   i = j = 0;
   while (i < Downloads.length) {
     obj = Downloads[i++];
-    obj.Progress += DownloadSpeed;
+    obj.Progress += CurLevel.DownloadSpeed;
     if (obj.Progress < 1) {
       Downloads[j++] = obj;
     } else {
@@ -51,7 +43,7 @@ export function Update() {
   Downloads.length = j;
 
   // Check if a new download should start.
-  SpawnAccumulator += SpawnSpeed;
+  SpawnAccumulator += CurLevel.DownloadSpawnRate;
   if (SpawnAccumulator > 1) {
     SpawnAccumulator = 0;
     Box = entityBox.NewRandom(2, Rand);

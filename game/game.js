@@ -1,12 +1,11 @@
 import * as input from './input.js';
 import * as player from './player.js';
 import * as time from './time.js';
-import * as grid from './grid.js';
 import * as entityGeneric from './entity.generic.js';
 import * as entityBox from './entity.box.js';
-import * as entityDevice from './entity.device.js';
 import * as entityDownload from './entity.download.js';
-import { NewRandom, InitRandom } from './random.js';
+import { Levels, StartLevel } from './level.data.js';
+import { InitRandom } from './random.js';
 
 /**
  * First initialization, before the game starts.
@@ -19,23 +18,9 @@ export function Init() {
  * Initialize the game.
  */
 export function Start() {
-  var r, i, j;
-
   InitRandom();
-  r = NewRandom(1);
   input.Start();
-
-  entityGeneric.Actors.push(player.Player);
-  grid.Reset(12, 8);
-  entityDevice.Spawn(10, 0);
-  entityDevice.Spawn(0, 6);
-  entityDevice.Spawn(10, 6);
-  grid.SetStatic();
-  for (j = 3; --j; ) {
-    for (i = 5; i--; ) {
-      entityBox.Spawn(entityBox.NewRandom(j, r));
-    }
-  }
+  StartLevel(Levels[0]);
 }
 
 /**

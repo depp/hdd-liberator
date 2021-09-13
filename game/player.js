@@ -4,6 +4,7 @@ import * as time from './time.js';
 import * as mover from './mover.js';
 import * as entityBox from './entity.box.js';
 import * as entityDevice from './entity.device.js';
+import * as entityGeneric from './entity.generic.js';
 import { AngleDelta, Clamp } from './util.js';
 
 /**
@@ -58,16 +59,27 @@ let Controller = input.Keyboard;
  *   Radius: number,
  * }}
  */
-export const Player = {
-  X0: 0.5,
-  Y0: 0.5,
-  Angle0: 0,
-  X: 0.5,
-  Y: 0.5,
-  Angle: 0,
-  Update: Walk,
-  Radius,
-};
+export let Player;
+
+/**
+ * Reset the player, spawning the player at the given coordinates.
+ * @param {number} x
+ * @param {number} y
+ * @param {number} angle Facing angle, in increments of 45 degrees.
+ */
+export function Reset(x, y, angle) {
+  Player = {
+    X0: x,
+    Y0: y,
+    Angle0: 0,
+    X: x,
+    Y: y,
+    Angle: (Math.PI / 4) * angle,
+    Update: Walk,
+    Radius,
+  };
+  entityGeneric.Actors.push(Player);
+}
 
 /**
  * Turn the player towards a specific angle.

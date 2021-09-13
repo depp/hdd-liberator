@@ -1,9 +1,10 @@
 import * as grid from './grid.js';
 import * as time from './time.js';
 import { Player, Radius } from './player.js';
-import { Boxes, TotalBoxArea } from './entity.box.js';
+import { Boxes, TotalBoxArea, TotalBoxesDestroyed } from './entity.box.js';
 import { Devices } from './entity.device.js';
 import { Downloads } from './entity.download.js';
+import { BoxDestroyLimit } from './level.data.js';
 
 /**
  * Size of one grid square, in pixels.
@@ -222,18 +223,23 @@ export function Render2D() {
   ctx.save(); // <--- start UI
   ctx.scale(c.width / 640, c.width / 640);
 
-  {
+  /**
+   * @param {number} pos
+   * @param {string} color
+   * @param {string} text
+   * @param {number} ratio
+   */
+  function DrawBar(pos, color, text, ratio) {
     const barheight = Height - 60;
-    const ratio = TotalBoxArea / grid.StaticFreeArea;
     const bary = Math.min(
       barheight - 2,
       Math.round((barheight - 2) * (1 - ratio)),
     );
     ctx.save();
-    ctx.translate(32, 20);
+    ctx.translate(pos, 20);
     ctx.font = '16px monospace';
-    ctx.fillStyle = Red;
-    ctx.fillText('%full', 0, barheight + 20);
+    ctx.fillStyle = color;
+    ctx.fillText(text, 0, barheight + 20);
     ctx.fillRect(-8, 0, 16, barheight);
     ctx.fillStyle = Black;
     if (bary > 0) {
@@ -241,6 +247,9 @@ export function Render2D() {
     }
     ctx.restore();
   }
+
+  DrawBar(32, Red, '%full', TotalBoxArea / grid.StaticFreeArea);
+  DrawBar(Width - 32, '#68f', '%done', TotalBoxesDestroyed / BoxDestroyLimit);
 
   ctx.restore(); // <----- done with UI
 }

@@ -83,11 +83,17 @@ let PendingLevel = 0;
 let IsPlaying = false;
 
 /**
+ * When to end.
+ * @type {number}
+ */
+export let BoxDestroyLimit;
+
+/**
  * @type {!Array<!Level>}
  */
 export let Levels = [
   {
-    //
+    // Globe -> File
     Help: '\u{1F30D}\u{2794}\u{1F4C4}',
     Create() {
       audio.PlayTrack(audio.MusicLightOfCreation);
@@ -104,6 +110,7 @@ export let Levels = [
       var r = NewRandom(2);
       RBoxes(r, 2, 4);
       RBoxes(r, 1, 4);
+      BoxDestroyLimit = entityBox.TotalBoxArea;
     },
     DownloadSpawnRate: DownloadSpawnRate / 2,
     DownloadSpeed: DownloadSpeed / 2,
@@ -125,6 +132,7 @@ export let Levels = [
       Box(7, 0, 1);
       Box(5, 4, 1);
       Box(6, 6, 2);
+      BoxDestroyLimit = entityBox.TotalBoxArea + 10;
     },
     DownloadSpawnRate: 0,
     DownloadSpeed: 0,

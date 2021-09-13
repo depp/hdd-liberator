@@ -29,6 +29,12 @@ export let Boxes;
 export let TotalBoxArea = 0;
 
 /**
+ * Total area of boxes destroyed.
+ * @type {number}
+ */
+export let TotalBoxesDestroyed = 0;
+
+/**
  * Remove all boxes from the level.
  */
 export function Clear() {
@@ -170,6 +176,7 @@ export function Destroy(box) {
     Boxes.splice(index, 1);
     grid.SetRect(box, 0);
     TotalBoxArea -= box.W * box.H;
+    TotalBoxesDestroyed += box.W * box.H;
   } else if (!COMPO) {
     throw new Error('box does not exist');
   }

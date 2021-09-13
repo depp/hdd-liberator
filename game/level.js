@@ -2,6 +2,7 @@
  * @typedef {{
  *   Help: string,
  *   Create: function(),
+ *   Update: function(),
  *   DownloadSpawnRate: number,
  *   DownloadSpeed: number,
  * }}

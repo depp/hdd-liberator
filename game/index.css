@@ -32,6 +32,19 @@ body {
 b {
   font-size: 3ex;
 }
-.s #i {
+.s #i, #h {
   visibility: hidden;
+}
+.s #h {
+  visibility: visible;
+}
+#h {
+  position: absolute;
+  left: 50%;
+  transform: translate(-50%);
+  background: #000;
+  width: 10em;
+  margin: 1ex;
+  text-align: center;
+  border: 0.2em solid #fc2;
 }

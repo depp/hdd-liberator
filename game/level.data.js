@@ -12,7 +12,7 @@ import { COMPO } from './common.js';
 import { Random, NewRandom } from './random.js';
 
 /** @const */
-const StartAtLevel = 0;
+const StartAtLevel = 3;
 
 /**
  * Create a wall with the given rectangle.
@@ -128,7 +128,7 @@ export let Levels = [
     DownloadSpeed: 0,
   },
   {
-    Track: audio.MusicAfterDark,
+    Track: audio.MusicLightOfCreation,
     // Globe -> File
     Help: '\u{1F30D}\u{2794}\u{1F4C4}',
     Create() {
@@ -175,6 +175,32 @@ export let Levels = [
     },
     DownloadSpawnRate: DownloadSpawnRate / 1.5,
     DownloadSpeed: DownloadSpeed / 1.5,
+  },
+  // more
+  {
+    Track: audio.MusicAfterDark,
+    // Food
+    Help: '\u{1F344}\u{1F9C5}\u{1FAD1}',
+    Create() {
+      grid.Reset(13, 12);
+      Wall(0, 4, 1, 8);
+      Wall(12, 0, 1, 8);
+      Wall(3, 4, 2, 2);
+      Wall(8, 6, 2, 2);
+      Wall(3, 8, 2, 4);
+      Wall(8, 0, 2, 4);
+      entityDevice.Spawn(1, 10);
+      entityDevice.Spawn(10, 0);
+      grid.SetStatic();
+      player.Reset(6, 6.5, -2);
+      var r = NewRandom(7);
+      RBoxes(r, 2, 4);
+      RBoxes(r, 1, 6);
+      BoxDestroyLimit = 20;
+      BoxSpawnLimit = 35;
+    },
+    DownloadSpawnRate: DownloadSpawnRate,
+    DownloadSpeed: DownloadSpeed,
   },
 ];
 

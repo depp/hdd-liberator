@@ -17,24 +17,21 @@ body {
   width: 100%;
   height: 100%;
   position: absolute;
+  text-align: center;
 }
-#r,
-#s {
+#i p {
   position: absolute;
   bottom: 0;
   margin: 8px;
   font-size: 70%;
 }
-#s {
+#i p+p {
   right: 0;
-}
-#i {
-  text-align: center;
 }
 #p,
 b {
   font-size: 3ex;
 }
-.s #r, .s #s, .s #i {
+.s #i {
   visibility: hidden;
 }

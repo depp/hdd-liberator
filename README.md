@@ -2,7 +2,7 @@
 
 HDD Liberator is a game for JS13K 2021. The game takes only 7580 bytes, compressed!
 
-You can see the compressed zip file on the GitHub releases page: [Version 1.0.0](https://github.com/depp/hdd-liberator/releases/tag/v1.0.0).
+Play the game online: https://www.moria.us/demos/hdd-liberator/
 
 ![Screenshot of game, showing the first level](docs/shot1.png)
 
@@ -12,7 +12,9 @@ You can see the compressed zip file on the GitHub releases page: [Version 1.0.0]
 >
 > It’s never enough.
 
-See [JS13KGames](https://www.js13kgames.com/entries/2021).
+JS13K 2021 entry: https://js13kgames.com/entries/hdd-liberator
+
+GitHub release: [Version 1.0.0](https://github.com/depp/hdd-liberator/releases/tag/v1.0.0).
 
 ## Building
 
